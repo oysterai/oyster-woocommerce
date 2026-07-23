@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace Oyster\Woo\Admin;
 
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Dashboard_Link;
 use Oyster\Woo\Sync\Catalog_Sync;
 
 defined( 'ABSPATH' ) || exit;
@@ -65,6 +66,10 @@ final class Catalog_Screen {
 			);
 			return;
 		}
+
+		echo '<p>';
+		Dashboard_Link::render_button();
+		echo '</p>';
 
 		printf(
 			'<p style="max-width:640px;">%s</p>',
