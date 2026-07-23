@@ -70,6 +70,19 @@ final class Connect_Screen {
 			$this->redirect_back( 'error', __( 'That account is not an Oyster vendor account.', 'oyster-woocommerce' ) );
 		}
 
+		// Connect first: this records the store on the vendor, ensures the
+		// vendor has widget keys, allow-lists this store's origin, and returns
+		// the public_key — so even a brand-new vendor is widget-ready before we
+		// read the config below. Best-effort: a failure here still leaves the
+		// local binding intact and self-heals on the next connect.
+		$public_key_from_connect = '';
+		try {
+			$connect                 = $this->client->connect_store( $token, home_url() );
+			$public_key_from_connect = is_string( $connect['public_key'] ?? null ) ? $connect['public_key'] : '';
+		} catch ( Api_Exception $e ) {
+			$this->log( 'connect_store failed: ' . $e->user_message() );
+		}
+
 		try {
 			$profile = $this->client->get_vendor_profile( $token );
 			$config  = $this->client->get_widget_config( $token );
@@ -82,29 +95,24 @@ final class Connect_Screen {
 			$this->redirect_back( 'error', __( 'Could not load your Oyster vendor profile. Please try again.', 'oyster-woocommerce' ) );
 		}
 
-		$widget = is_array( $config['data'] ?? null ) ? $config['data'] : array();
+		$widget     = is_array( $config['data'] ?? null ) ? $config['data'] : array();
+		$public_key = (string) ( $widget['public_key'] ?? '' );
+		if ( '' === $public_key ) {
+			$public_key = $public_key_from_connect;
+		}
 
 		$this->connection->save(
 			array(
 				'bearer'        => $token,
 				'vendor_id'     => (int) $vendor['id'],
 				'business_name' => (string) ( $vendor['business_name'] ?? '' ),
-				'public_key'    => (string) ( $widget['public_key'] ?? '' ),
+				'public_key'    => $public_key,
 				'primary_color' => (string) ( $widget['button_color'] ?? '' ),
 				'logo_url'      => (string) ( $widget['logo_url'] ?? '' ),
 				'widget_types'  => (array) ( $widget['widget_types'] ?? array() ),
 				'store_url'     => home_url(),
 			)
 		);
-
-		// Register this store's origin with the vendor so the storefront widget
-		// isn't 403'd on origin. Best-effort: the binding above already stands,
-		// and this self-heals on the next connect if it fails now.
-		try {
-			$this->client->connect_store( $token, home_url() );
-		} catch ( Api_Exception $e ) {
-			$this->log( 'connect_store failed: ' . $e->user_message() );
-		}
 
 		$this->redirect_back( 'connected' );
 	}
