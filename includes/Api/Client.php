@@ -145,6 +145,46 @@ final class Client {
 		);
 	}
 
+	/**
+	 * Resolve Oyster product ids (from the widget's checkout payload) to their
+	 * WooCommerce product/variation ids, for the storefront cart-add flow.
+	 *
+	 * @param int[] $product_ids
+	 * @return array<string, mixed> Envelope: { data: { "<oyster_id>": { woocommerce_product_id, woocommerce_variation_id } } }.
+	 * @throws Api_Exception
+	 */
+	public function resolve_variants( string $bearer, array $product_ids ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/products/resolve-variants',
+			array(
+				'bearer' => $bearer,
+				'body'   => array( 'product_ids' => array_values( $product_ids ) ),
+			)
+		);
+	}
+
+	/**
+	 * Record a paid WooCommerce order as a tracking-only Oyster order for scan
+	 * attribution. Tolerant by design — the backend returns 200 with
+	 * `recorded: false` (not an error) when it can't attribute the order, e.g.
+	 * an unrecognised batch id; the caller doesn't need to treat that as failure.
+	 *
+	 * @param array<string, mixed> $order
+	 * @return array<string, mixed> Envelope: { data: {id, order_number}|null, recorded: bool }.
+	 * @throws Api_Exception
+	 */
+	public function record_order( string $bearer, array $order ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/orders',
+			array(
+				'bearer' => $bearer,
+				'body'   => $order,
+			)
+		);
+	}
+
 	/*
 	 * -----------------------------------------------------------------------
 	 * Transport

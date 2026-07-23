@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,8 +25,9 @@ Features:
 * Inline scan via the "Oyster Skin Scan" block or the `[oyster_scan]` shortcode.
 * Automatic catalog sync — published simple and variable products sync to Oyster
   whenever you save them, plus a one-click full import/re-sync under **Oyster → Catalog**.
-
-Coming next: native checkout attribution.
+* Native checkout attribution — the widget's recommended products add straight to your
+  WooCommerce cart, and every resulting paid order is attributed back to the scan that
+  drove it, visible in your Oyster vendor dashboard.
 
 == External services ==
 
@@ -46,6 +47,13 @@ https://oysterskin.com/terms for terms of service.
 5. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.3.0 =
+* Checkout attribution: the widget's "Add to cart" adds recommended products straight to
+  your WooCommerce cart (resolved server-side, so no vendor credentials ever reach the
+  browser) and carries the originating scan through checkout. Paid orders are reported to
+  your Oyster vendor dashboard for attribution — silently, with no effect on order
+  processing, emails, or fulfilment.
 
 = 0.2.0 =
 * Catalog sync: WooCommerce product create/update/delete hooks push to Oyster automatically
