@@ -29,8 +29,8 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
-if [ -n "$(git status --porcelain)" ]; then
-  echo "warning: working tree has uncommitted changes — this zip is built from the last commit (HEAD), not your working tree." >&2
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo "warning: tracked files have uncommitted changes — this zip is built from the last commit (HEAD), not your working tree. Untracked files are irrelevant here (git archive never includes them)." >&2
 fi
 
 DIST_DIR="$ROOT_DIR/dist"
