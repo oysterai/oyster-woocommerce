@@ -1,0 +1,18 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Dependencies (added later if the plugin gains a build step)
+node_modules/
+vendor/
+
+# Build artifacts / release zips
+/dist/
+/build/
+*.zip
+
+# Local env
+.env

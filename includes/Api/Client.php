@@ -1,0 +1,183 @@
+<?php
+/**
+ * Thin client around skin-ai-api.
+ *
+ * @package Oyster\Woo
+ */
+
+declare( strict_types=1 );
+
+namespace Oyster\Woo\Api;
+
+use Oyster\Woo\Support\Connection;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * The PHP counterpart of oyster-shopify's worker/oyster-api.ts: one place that
+ * injects auth + the X-CHANNEL identifier and turns non-2xx responses into a
+ * typed Api_Exception. All domain reads/writes go through here.
+ */
+final class Client {
+
+	private const DEFAULT_BASE_URL = 'https://api.oysterskin.com';
+
+	private const TIMEOUT = 15;
+
+	public function __construct( private Connection $connection ) {}
+
+	/*
+	 * -----------------------------------------------------------------------
+	 * Endpoint helpers
+	 * -----------------------------------------------------------------------
+	 */
+
+	/**
+	 * Authenticate a vendor. Returns the raw login envelope
+	 * ({ success, token, user: { id, user_type } }).
+	 *
+	 * @return array<string, mixed>
+	 * @throws Api_Exception On invalid credentials (401/422) or transport error.
+	 */
+	public function login( string $email, string $password ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/auth/login',
+			array( 'body' => array( 'email' => $email, 'password' => $password ) )
+		);
+	}
+
+	/**
+	 * Register a new vendor. skin-ai-api emails a verification code and does
+	 * NOT return a bearer until the vendor verifies, so the caller must send
+	 * the merchant back through login afterwards.
+	 *
+	 * @param array<string, mixed> $fields
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function register_vendor( array $fields ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/auth/register/vendor',
+			array( 'body' => $fields )
+		);
+	}
+
+	/**
+	 * @return array<string, mixed> Vendor profile envelope ({ vendor: { id, business_name, ... } }).
+	 * @throws Api_Exception
+	 */
+	public function get_vendor_profile( string $bearer ): array {
+		return $this->request( 'GET', '/api/v1/vendors/profile', array( 'bearer' => $bearer ) );
+	}
+
+	/**
+	 * @return array<string, mixed> Widget config envelope ({ data: { public_key, button_color, logo_url, widget_types, ... } }).
+	 * @throws Api_Exception
+	 */
+	public function get_widget_config( string $bearer ): array {
+		return $this->request( 'GET', '/api/v1/vendors/widget/config', array( 'bearer' => $bearer ) );
+	}
+
+	/**
+	 * Register this store's domain against the vendor so the storefront widget
+	 * session token isn't rejected on origin, and so scan-usage is attributed
+	 * to the WooCommerce channel.
+	 *
+	 * Backend counterpart: POST /api/v1/integrations/woocommerce/connect
+	 * (parallel to the Shopify ConnectShop action — see the skin-ai-api PR).
+	 *
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function connect_store( string $bearer, string $store_url ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/connect',
+			array(
+				'bearer' => $bearer,
+				'body'   => array( 'store_url' => $store_url ),
+			)
+		);
+	}
+
+	/*
+	 * -----------------------------------------------------------------------
+	 * Transport
+	 * -----------------------------------------------------------------------
+	 */
+
+	/**
+	 * @param 'GET'|'POST'|'PUT'|'PATCH'|'DELETE' $method
+	 * @param array{body?:array<string,mixed>|null,bearer?:string,headers?:array<string,string>} $options
+	 * @return array<string, mixed> Decoded JSON body (empty array for no content).
+	 * @throws Api_Exception
+	 */
+	public function request( string $method, string $path, array $options = array() ): array {
+		$url = $this->base_url() . '/' . ltrim( $path, '/' );
+
+		$headers = array(
+			'Accept' => 'application/json',
+			// skin-ai-api's ParsesVendorHeader trait gates vendor auth on this
+			// channel. We're the WooCommerce-mounted equivalent of vendors-ui,
+			// so the same vendor-dash channel applies (matches the worker).
+			'X-CHANNEL'  => 'vendor-dash',
+			'User-Agent' => 'oyster-woocommerce/' . OYSTER_WOO_VERSION . '; ' . home_url(),
+		);
+
+		if ( ! empty( $options['bearer'] ) ) {
+			$headers['Authorization'] = 'Bearer ' . $options['bearer'];
+		}
+
+		if ( ! empty( $options['headers'] ) && is_array( $options['headers'] ) ) {
+			$headers = array_merge( $headers, $options['headers'] );
+		}
+
+		$args = array(
+			'method'  => $method,
+			'headers' => $headers,
+			'timeout' => self::TIMEOUT,
+		);
+
+		if ( array_key_exists( 'body', $options ) && null !== $options['body'] ) {
+			$headers['Content-Type'] = 'application/json';
+			$args['headers']         = $headers;
+			$args['body']            = wp_json_encode( $options['body'] );
+		}
+
+		$response = wp_remote_request( $url, $args );
+
+		if ( is_wp_error( $response ) ) {
+			throw new Api_Exception( 0, null, $response->get_error_message() );
+		}
+
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$raw    = wp_remote_retrieve_body( $response );
+		$parsed = '' !== $raw ? json_decode( $raw, true ) : null;
+		$body   = is_array( $parsed ) ? $parsed : array();
+
+		if ( $status < 200 || $status >= 300 ) {
+			throw new Api_Exception( $status, null === $parsed ? $raw : $parsed );
+		}
+
+		return $body;
+	}
+
+	/**
+	 * Resolve the skin-ai-api base URL. A wp-config constant wins (for staging
+	 * against a tunnel), then a filter, then the production default.
+	 */
+	private function base_url(): string {
+		$base = defined( 'OYSTER_WOO_API_BASE_URL' ) ? (string) OYSTER_WOO_API_BASE_URL : self::DEFAULT_BASE_URL;
+
+		/**
+		 * Filter the skin-ai-api base URL used for all upstream calls.
+		 *
+		 * @param string $base Base URL without a trailing slash.
+		 */
+		$base = (string) apply_filters( 'oyster_woocommerce_api_base_url', $base );
+
+		return untrailingslashit( $base );
+	}
+}
