@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,13 +18,15 @@ Oyster for WooCommerce connects your store to your Oyster vendor account and put
 
 All AI analysis, recommendation, and reporting happens in Oyster's platform; this plugin is a thin, secure bridge between your WooCommerce store and Oyster. Analytics, orders, and billing live in your Oyster vendor dashboard, which the plugin deep-links to.
 
-Features (v0.1):
+Features:
 
 * Connect your store to an Oyster vendor account (log in or sign up).
 * Floating skin-scan launcher on your storefront, with configurable branding.
 * Inline scan via the "Oyster Skin Scan" block or the `[oyster_scan]` shortcode.
+* Automatic catalog sync — published simple and variable products sync to Oyster
+  whenever you save them, plus a one-click full import/re-sync under **Oyster → Catalog**.
 
-Coming next: automatic catalog sync, and native checkout attribution.
+Coming next: native checkout attribution.
 
 == External services ==
 
@@ -41,8 +43,15 @@ https://oysterskin.com/terms for terms of service.
 2. Upload the plugin to `/wp-content/plugins/oyster-woocommerce` and activate it.
 3. Go to **Oyster → Connection** in wp-admin and log in with (or create) your Oyster vendor account.
 4. Configure the launcher under **Oyster → Widget**.
+5. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.2.0 =
+* Catalog sync: WooCommerce product create/update/delete hooks push to Oyster automatically
+  (via Action Scheduler, so a product save never waits on the network); a new
+  **Oyster → Catalog** screen reports sync status and triggers the initial full import
+  or a forced re-sync.
 
 = 0.1.0 =
 * Initial scaffold: connection flow, storefront widget (float launcher + inline block/shortcode).

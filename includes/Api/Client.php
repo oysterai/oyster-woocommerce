@@ -102,6 +102,49 @@ final class Client {
 		);
 	}
 
+	/**
+	 * Upsert a batch of catalog rows (one per purchasable WooCommerce unit —
+	 * see Sync\Product_Mapper). A 207 response (partial per-row failures) still
+	 * decodes normally here; the caller inspects `data.failed`/`failed_items`.
+	 *
+	 * @param array<int, array<string, mixed>> $products Max 250 rows per call.
+	 * @return array<string, mixed> Envelope: { data: { created, updated, claimed, failed, failed_items, ... } }.
+	 * @throws Api_Exception
+	 */
+	public function bulk_upsert_products( string $bearer, array $products ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/products/bulk-upsert',
+			array(
+				'bearer'  => $bearer,
+				'body'    => array( 'products' => $products ),
+				// Larger batches (up to 250 rows) touch the DB once per row on
+				// the backend; the default timeout is sized for small,
+				// single-object calls like connect/profile.
+				'timeout' => 30,
+			)
+		);
+	}
+
+	/**
+	 * Archive every Oyster row (including variations) tied to the given
+	 * WooCommerce product ids. Product-level only — see DeleteWooCommerceProducts.
+	 *
+	 * @param string[] $product_ids
+	 * @return array<string, mixed> Envelope: { data: { archived } }.
+	 * @throws Api_Exception
+	 */
+	public function delete_products( string $bearer, array $product_ids ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/products/delete',
+			array(
+				'bearer' => $bearer,
+				'body'   => array( 'woocommerce_product_ids' => $product_ids ),
+			)
+		);
+	}
+
 	/*
 	 * -----------------------------------------------------------------------
 	 * Transport
@@ -110,7 +153,7 @@ final class Client {
 
 	/**
 	 * @param 'GET'|'POST'|'PUT'|'PATCH'|'DELETE' $method
-	 * @param array{body?:array<string,mixed>|null,bearer?:string,headers?:array<string,string>} $options
+	 * @param array{body?:array<string,mixed>|null,bearer?:string,headers?:array<string,string>,timeout?:int} $options
 	 * @return array<string, mixed> Decoded JSON body (empty array for no content).
 	 * @throws Api_Exception
 	 */
@@ -137,7 +180,7 @@ final class Client {
 		$args = array(
 			'method'  => $method,
 			'headers' => $headers,
-			'timeout' => self::TIMEOUT,
+			'timeout' => isset( $options['timeout'] ) ? (int) $options['timeout'] : self::TIMEOUT,
 		);
 
 		if ( array_key_exists( 'body', $options ) && null !== $options['body'] ) {
