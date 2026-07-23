@@ -14,6 +14,8 @@ use Oyster\Woo\Admin\Connect_Screen;
 use Oyster\Woo\Admin\Menu;
 use Oyster\Woo\Admin\Widget_Settings_Screen;
 use Oyster\Woo\Api\Client;
+use Oyster\Woo\Checkout\Cart_Controller;
+use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Frontend\Widget_Loader;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Sync\Catalog_Sync;
@@ -61,11 +63,12 @@ final class Plugin {
 
 	/**
 	 * Register hooks. Admin-only modules stay behind is_admin() so the
-	 * storefront request never pays to load settings screens. Catalog_Sync and
-	 * Product_Hooks are the exception — they register unconditionally, because
-	 * their work (WooCommerce product hooks, Action Scheduler callbacks) fires
-	 * from REST API requests, WP-CLI, and the Action Scheduler queue runner,
-	 * none of which are `is_admin()`.
+	 * storefront request never pays to load settings screens. Catalog_Sync,
+	 * Product_Hooks, Cart_Controller, and Order_Attribution are the exception
+	 * — they register unconditionally, because their work (WooCommerce hooks,
+	 * REST routes, Action Scheduler callbacks, checkout/payment events) fires
+	 * from storefront requests, REST API requests, WP-CLI, and the Action
+	 * Scheduler queue runner, none of which are `is_admin()`.
 	 */
 	public function boot(): void {
 		if ( $this->booted ) {
@@ -81,6 +84,11 @@ final class Plugin {
 		$catalog_sync = new Catalog_Sync( $this->connection, $this->client );
 		$catalog_sync->register();
 		( new Product_Hooks( $catalog_sync ) )->register();
+
+		// Storefront: the widget's checkout handoff (cart add) + attribution
+		// from cart through to a reported paid order.
+		( new Cart_Controller( $this->connection, $this->client ) )->register();
+		( new Order_Attribution( $this->connection, $this->client ) )->register();
 
 		if ( is_admin() ) {
 			$connect = new Connect_Screen( $this->connection, $this->client );
