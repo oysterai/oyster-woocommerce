@@ -9,8 +9,6 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Api;
 
-use Oyster\Woo\Support\Connection;
-
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -23,8 +21,6 @@ final class Client {
 	private const DEFAULT_BASE_URL = 'https://api.oysterskin.com';
 
 	private const TIMEOUT = 15;
-
-	public function __construct( private Connection $connection ) {}
 
 	/*
 	 * -----------------------------------------------------------------------
@@ -248,19 +244,69 @@ final class Client {
 	}
 
 	/**
-	 * Resolve the skin-ai-api base URL. A wp-config constant wins (for staging
-	 * against a tunnel), then a filter, then the production default.
+	 * Resolve the skin-ai-api base URL every request is sent to — including
+	 * the Authorization header carrying the vendor's bearer. Deliberately NOT
+	 * filterable: a WordPress filter has no permission model, so exposing one
+	 * here would let *any* active plugin or theme silently redirect every
+	 * Oyster API call (bearer included) to a server of its choosing. If you're
+	 * tempted to add `apply_filters()` back for a "nice to have" override,
+	 * don't — that's the exact hole this design avoids.
+	 *
+	 * The only override is the `OYSTER_WOO_API_BASE_URL` constant, which must
+	 * be defined in wp-config.php — loaded before any plugin executes, so a
+	 * normally-installed plugin cannot set or race it. Even so, the resolved
+	 * value is validated before use: only `https://`, or `http://` on a
+	 * loopback host (a local dev tunnel), is accepted. Anything else is
+	 * rejected and logged, and the production default is used instead — a
+	 * malformed or unexpected constant value never silently redirects the
+	 * bearer.
+	 *
+	 * Zero configuration is required for a merchant: with no constant
+	 * defined, this always resolves to the production default.
 	 */
 	private function base_url(): string {
-		$base = defined( 'OYSTER_WOO_API_BASE_URL' ) ? (string) OYSTER_WOO_API_BASE_URL : self::DEFAULT_BASE_URL;
+		if ( ! defined( 'OYSTER_WOO_API_BASE_URL' ) ) {
+			return self::DEFAULT_BASE_URL;
+		}
 
-		/**
-		 * Filter the skin-ai-api base URL used for all upstream calls.
-		 *
-		 * @param string $base Base URL without a trailing slash.
-		 */
-		$base = (string) apply_filters( 'oyster_woocommerce_api_base_url', $base );
+		$candidate = untrailingslashit( (string) OYSTER_WOO_API_BASE_URL );
 
-		return untrailingslashit( $base );
+		if ( $this->is_allowed_base_url( $candidate ) ) {
+			return $candidate;
+		}
+
+		$this->log(
+			sprintf(
+				'OYSTER_WOO_API_BASE_URL "%s" was rejected (must be https://, or http:// on localhost) — using the default instead.',
+				$candidate
+			)
+		);
+
+		return self::DEFAULT_BASE_URL;
+	}
+
+	/**
+	 * https:// is always allowed; http:// only on a loopback host, since that
+	 * only ever matches a local dev server, never a plausible production
+	 * redirect target.
+	 */
+	private function is_allowed_base_url( string $url ): bool {
+		$parts = wp_parse_url( $url );
+		if ( empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
+			return false;
+		}
+
+		if ( 'https' === $parts['scheme'] ) {
+			return true;
+		}
+
+		return 'http' === $parts['scheme']
+			&& in_array( $parts['host'], array( 'localhost', '127.0.0.1', '::1' ), true );
+	}
+
+	private function log( string $message ): void {
+		if ( function_exists( 'wc_get_logger' ) ) {
+			wc_get_logger()->warning( $message, array( 'source' => 'oyster-woocommerce' ) );
+		}
 	}
 }
