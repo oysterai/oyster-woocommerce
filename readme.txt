@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,8 +26,11 @@ Features:
 * Automatic catalog sync — published simple and variable products sync to Oyster
   whenever you save them, plus a one-click full import/re-sync under **Oyster → Catalog**.
 * Richer product data for better recommendations — an **Oyster ingredients** field on
-  every product (one ingredient per line) and a **Skin Type** product attribute, both
-  synced to Oyster. Populate them by hand or via the WooCommerce product CSV importer.
+  every product (one ingredient per line), a **Skin Type** product attribute, and an
+  **Oyster size / volume** field, all synced to Oyster. Populate them by hand or via the
+  WooCommerce product CSV importer.
+* Full attribute sync — a product's brand (native WooCommerce brands), primary category,
+  and weight sync to Oyster automatically alongside price, stock and images.
 * Native checkout attribution — the widget's recommended products add straight to your
   WooCommerce cart, and every resulting paid order is attributed back to the scan that
   drove it, visible in your Oyster vendor dashboard.
@@ -60,6 +63,16 @@ https://oysterskin.com/terms for terms of service.
 5. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.6.0 =
+* Catalog sync now carries a product's **brand** (from WooCommerce's native brands
+  taxonomy, with the existing `oyster_woocommerce_product_brand` filter still able to
+  override for third-party brand plugins), its **primary category**, and its **weight**
+  and weight unit — so Oyster's recommendations and storefront can use them.
+* Adds an **Oyster size / volume** product field (a number plus a unit, e.g. 300 ml) in
+  the Product data > Inventory panel, since WooCommerce has no native volume field. It
+  syncs to Oyster and can be populated in bulk via `Meta: _oyster_size_volume` and
+  `Meta: _oyster_size_volume_unit` importer columns.
 
 = 0.5.0 =
 * Product data for recommendations: adds an **Oyster ingredients** field (one ingredient

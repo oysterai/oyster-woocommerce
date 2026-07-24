@@ -15,6 +15,7 @@ use Oyster\Woo\Admin\Menu;
 use Oyster\Woo\Admin\Widget_Settings_Screen;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Catalog\Ingredients_Field;
+use Oyster\Woo\Catalog\Size_Volume_Field;
 use Oyster\Woo\Catalog\Skin_Type_Attribute;
 use Oyster\Woo\Checkout\Cart_Controller;
 use Oyster\Woo\Checkout\Order_Attribution;
@@ -108,6 +109,7 @@ final class Plugin {
 			// ingredient list and a "Skin Type" attribute the catalog sync
 			// forwards. Admin-only — the storefront just reads the stored data.
 			( new Ingredients_Field() )->register();
+			( new Size_Volume_Field() )->register();
 			( new Skin_Type_Attribute() )->register();
 
 			// Personal-data export/erase requests are processed via

@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace Oyster\Woo\Sync;
 
 use Oyster\Woo\Catalog\Ingredients_Field;
+use Oyster\Woo\Catalog\Size_Volume_Field;
 use Oyster\Woo\Catalog\Skin_Type_Attribute;
 use WC_Product;
 use WC_Product_Variation;
@@ -75,30 +76,36 @@ final class Product_Mapper {
 		$image_url   = self::image_url( $unit, $is_variation ? $product_id : null );
 		$tags        = self::tags( $is_variation ? $product_id : $unit->get_id() );
 
-		// Ingredients and skin types live on the parent product (the ingredient
-		// field and the "Skin Type" attribute are set at product level), so both
+		// Ingredients, skin types, size/volume and category live on the parent
+		// product (their fields and taxonomies are set at product level), so both
 		// simple products and variations read them from $product_id.
 		$ingredients = Ingredients_Field::get( $product_id );
 		$skin_types  = Skin_Type_Attribute::get_for_product( $product_id );
+		$size        = Size_Volume_Field::get( $product_id );
+		$category    = self::category( $product_id );
+		$brand       = self::brand( $unit, $product_id );
+
+		// Weight is native to WooCommerce; a variation inherits its parent's
+		// weight when it has none of its own (WC_Product::get_weight handles that).
+		$weight      = $unit->get_weight();
+		$has_weight  = '' !== $weight && null !== $weight && is_numeric( $weight );
+		$weight_unit = function_exists( 'get_option' ) ? (string) get_option( 'woocommerce_weight_unit' ) : '';
 
 		$row = array(
 			'woocommerce_product_id'   => (string) $product_id,
 			'woocommerce_variation_id' => null !== $variation_id ? (string) $variation_id : null,
 			'name'                     => $name,
 			'description'              => '' !== $description ? $description : null,
-			/**
-			 * Filter the brand name attributed to a synced product. Core
-			 * WooCommerce has no brand taxonomy — stores using a brand plugin
-			 * (e.g. Perfect WooCommerce Brands) can hook this to surface it.
-			 *
-			 * @param string|null $brand
-			 * @param WC_Product  $unit The product or variation being synced.
-			 */
-			'brand'                    => apply_filters( 'oyster_woocommerce_product_brand', null, $unit ),
+			'brand'                    => $brand,
+			'category'                 => $category,
 			'sku'                      => $unit->get_sku() ?: null,
 			'price'                    => (float) $price,
 			'currency'                 => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : null,
 			'stock_level'              => self::stock_level( $unit ),
+			'weight'                   => $has_weight ? (float) $weight : null,
+			'weight_unit'              => $has_weight && '' !== $weight_unit ? $weight_unit : null,
+			'size_volume'              => $size['value'],
+			'size_volume_unit'         => $size['unit'],
 			'image_url'                => $image_url,
 			'tags'                     => $tags,
 			'ingredients'              => ! empty( $ingredients ) ? $ingredients : null,
@@ -137,6 +144,62 @@ final class Product_Mapper {
 
 		$url = wp_get_attachment_image_url( (int) $image_id, 'full' );
 		return is_string( $url ) && '' !== $url ? $url : null;
+	}
+
+	/**
+	 * Brand name for a product. Defaults to WooCommerce's native brand taxonomy
+	 * (`product_brand`, core since WooCommerce 9.6); the first assigned brand
+	 * wins when several are set. The long-standing filter still applies on top,
+	 * so stores on older WooCommerce or a third-party brand plugin can override.
+	 */
+	private static function brand( WC_Product $unit, int $product_id ): ?string {
+		$brand = null;
+
+		if ( taxonomy_exists( 'product_brand' ) ) {
+			$terms = wp_get_post_terms( $product_id, 'product_brand', array( 'fields' => 'names' ) );
+			if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+				$brand = (string) $terms[0];
+			}
+		}
+
+		/**
+		 * Filter the brand name attributed to a synced product. Defaults to the
+		 * native `product_brand` taxonomy; stores using a different brand plugin
+		 * (e.g. Perfect WooCommerce Brands) can hook this to override it.
+		 *
+		 * @param string|null $brand
+		 * @param WC_Product  $unit The product or variation being synced.
+		 */
+		$brand = apply_filters( 'oyster_woocommerce_product_brand', $brand, $unit );
+
+		return is_string( $brand ) && '' !== trim( $brand ) ? trim( $brand ) : null;
+	}
+
+	/**
+	 * Primary category name for a product. WooCommerce products can carry
+	 * several `product_cat` terms; Oyster stores a single category, so we send
+	 * the most specific assigned term (the deepest in the tree), skipping the
+	 * default "Uncategorized". The backend resolves the name to its taxonomy.
+	 */
+	private static function category( int $product_id ): ?string {
+		$terms = wp_get_post_terms( $product_id, 'product_cat' );
+		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+			return null;
+		}
+
+		$default_id = function_exists( 'get_option' ) ? (int) get_option( 'default_product_cat' ) : 0;
+		$best       = null;
+		foreach ( $terms as $term ) {
+			if ( 'uncategorized' === $term->slug || ( $default_id && (int) $term->term_id === $default_id ) ) {
+				continue;
+			}
+			// Deeper term (larger parent chain) is more specific — prefer it.
+			if ( null === $best || count( get_ancestors( $term->term_id, 'product_cat' ) ) > count( get_ancestors( $best->term_id, 'product_cat' ) ) ) {
+				$best = $term;
+			}
+		}
+
+		return $best ? (string) $best->name : null;
 	}
 
 	private static function tags( int $product_id ): ?string {
