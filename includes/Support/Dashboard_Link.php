@@ -20,17 +20,17 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Dashboard_Link {
 
-	private const DEFAULT_URL = 'https://vendors.oysterskin.com';
+	private const DEFAULT_URL = 'https://dash.oysterskin.com';
 
+	/**
+	 * Not filterable — a plugin hooking this could repoint every "Open
+	 * dashboard" link at a lookalike phishing page an already-authenticated
+	 * admin might not think twice about clicking. The only override is the
+	 * `OYSTER_WOO_DASHBOARD_URL` wp-config constant, validated by Url_Guard;
+	 * see its class doc for why nothing here is a filter.
+	 */
 	public static function url(): string {
-		/**
-		 * Filter the Oyster vendor dashboard URL every "Open dashboard" link
-		 * deep-links to (analytics, orders, and billing live there in the
-		 * hybrid admin model).
-		 *
-		 * @param string $url Dashboard base URL.
-		 */
-		return (string) apply_filters( 'oyster_woocommerce_dashboard_url', self::DEFAULT_URL );
+		return Url_Guard::resolve( 'OYSTER_WOO_DASHBOARD_URL', self::DEFAULT_URL );
 	}
 
 	/**

@@ -9,7 +9,7 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Api;
 
-use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Url_Guard;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -23,8 +23,6 @@ final class Client {
 	private const DEFAULT_BASE_URL = 'https://api.oysterskin.com';
 
 	private const TIMEOUT = 15;
-
-	public function __construct( private Connection $connection ) {}
 
 	/*
 	 * -----------------------------------------------------------------------
@@ -248,19 +246,16 @@ final class Client {
 	}
 
 	/**
-	 * Resolve the skin-ai-api base URL. A wp-config constant wins (for staging
-	 * against a tunnel), then a filter, then the production default.
+	 * Resolve the skin-ai-api base URL every request is sent to — including
+	 * the Authorization header carrying the vendor's bearer. Deliberately NOT
+	 * filterable; see Url_Guard's class doc for why. The only override is the
+	 * `OYSTER_WOO_API_BASE_URL` wp-config constant, validated by Url_Guard
+	 * before use.
+	 *
+	 * Zero configuration is required for a merchant: with no constant
+	 * defined, this always resolves to the production default.
 	 */
 	private function base_url(): string {
-		$base = defined( 'OYSTER_WOO_API_BASE_URL' ) ? (string) OYSTER_WOO_API_BASE_URL : self::DEFAULT_BASE_URL;
-
-		/**
-		 * Filter the skin-ai-api base URL used for all upstream calls.
-		 *
-		 * @param string $base Base URL without a trailing slash.
-		 */
-		$base = (string) apply_filters( 'oyster_woocommerce_api_base_url', $base );
-
-		return untrailingslashit( $base );
+		return Url_Guard::resolve( 'OYSTER_WOO_API_BASE_URL', self::DEFAULT_BASE_URL );
 	}
 }

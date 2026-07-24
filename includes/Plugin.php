@@ -43,7 +43,7 @@ final class Plugin {
 
 	private function __construct() {
 		$this->connection = new Connection();
-		$this->client     = new Client( $this->connection );
+		$this->client     = new Client();
 	}
 
 	public static function instance(): Plugin {

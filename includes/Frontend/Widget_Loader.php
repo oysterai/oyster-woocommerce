@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace Oyster\Woo\Frontend;
 
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Url_Guard;
 use Oyster\Woo\Support\Widget_Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -190,14 +191,15 @@ final class Widget_Loader {
 		return sprintf( '<div data-oyster-widget="inline" data-mode="inline"%s></div>', $height_attr );
 	}
 
+	/**
+	 * This URL is loaded as a `<script src>` on every storefront page the
+	 * widget appears on — an even higher-stakes value than the API base URL
+	 * to leave filterable, since a redirected bundle is arbitrary JS running
+	 * in every shopper's browser, not just a misdirected API call. Same
+	 * wp-config-constant-only pattern as `Api\Client::base_url()`; see
+	 * Url_Guard's class doc for why there's no filter here.
+	 */
 	private function bundle_url(): string {
-		$url = defined( 'OYSTER_WOO_WIDGET_BUNDLE_URL' ) ? (string) OYSTER_WOO_WIDGET_BUNDLE_URL : self::DEFAULT_BUNDLE;
-
-		/**
-		 * Filter the vendor-widget-web bundle URL loaded on the storefront.
-		 *
-		 * @param string $url UMD bundle URL.
-		 */
-		return (string) apply_filters( 'oyster_woocommerce_widget_bundle_url', $url );
+		return Url_Guard::resolve( 'OYSTER_WOO_WIDGET_BUNDLE_URL', self::DEFAULT_BUNDLE );
 	}
 }
