@@ -12,6 +12,7 @@ namespace Oyster\Woo\Admin;
 use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Url_Guard;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -388,16 +389,15 @@ final class Connect_Screen {
 		return $e->user_message();
 	}
 
+	/**
+	 * The "Open dashboard" button's deep-link target. Not filterable — a
+	 * plugin hooking this could repoint the button at a lookalike phishing
+	 * page an already-authenticated admin might not think twice about
+	 * clicking. Same wp-config-constant-only pattern as
+	 * `Api\Client::base_url()`; see Url_Guard's class doc for why.
+	 */
 	private function dashboard_url(): string {
-		$default = 'https://vendors.oysterskin.com';
-
-		/**
-		 * Filter the Oyster vendor dashboard URL the "Open dashboard" button
-		 * deep-links to (analytics, orders, billing live there in the hybrid model).
-		 *
-		 * @param string $url Dashboard base URL.
-		 */
-		return (string) apply_filters( 'oyster_woocommerce_dashboard_url', $default );
+		return Url_Guard::resolve( 'OYSTER_WOO_DASHBOARD_URL', 'https://vendors.oysterskin.com' );
 	}
 
 	private function log( string $message ): void {

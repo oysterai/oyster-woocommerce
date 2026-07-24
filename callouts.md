@@ -81,10 +81,12 @@ scaffold exists yet.
 ### 5. Dashboard deep-link URL
 
 The "Open Oyster dashboard" button on the Connection screen
-([includes/Admin/Connect_Screen.php:392](includes/Admin/Connect_Screen.php#L392))
-defaults to `https://vendors.oysterskin.com`, overridable via the
-`oyster_woocommerce_dashboard_url` filter. This was asked in the original P1
-summary and never explicitly confirmed.
+([includes/Admin/Connect_Screen.php](includes/Admin/Connect_Screen.php))
+defaults to `https://vendors.oysterskin.com`, overridable only via the
+`OYSTER_WOO_DASHBOARD_URL` wp-config constant (validated by
+[Support\Url_Guard](includes/Support/Url_Guard.php) — no filter, same
+reasoning as the API base URL lockdown below). This was asked in the
+original P1 summary and never explicitly confirmed.
 
 - **Raised:** initial P1 summary, this session (2026-07-23)
 - **Needs:** confirmation that `https://vendors.oysterskin.com` is the correct production vendor-dashboard URL (same question applies to whatever the Shopify app's equivalent deep-link points at, if that's already been settled elsewhere).
