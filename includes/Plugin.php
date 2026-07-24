@@ -14,6 +14,8 @@ use Oyster\Woo\Admin\Connect_Screen;
 use Oyster\Woo\Admin\Menu;
 use Oyster\Woo\Admin\Widget_Settings_Screen;
 use Oyster\Woo\Api\Client;
+use Oyster\Woo\Catalog\Ingredients_Field;
+use Oyster\Woo\Catalog\Skin_Type_Attribute;
 use Oyster\Woo\Checkout\Cart_Controller;
 use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Compliance\Gdpr;
@@ -102,6 +104,12 @@ final class Plugin {
 
 			( new Menu( $connect, $widget, $catalog ) )->register();
 
+			// Product-editor additions Oyster's recommendations rely on: an
+			// ingredient list and a "Skin Type" attribute the catalog sync
+			// forwards. Admin-only — the storefront just reads the stored data.
+			( new Ingredients_Field() )->register();
+			( new Skin_Type_Attribute() )->register();
+
 			// Personal-data export/erase requests are processed via
 			// admin-ajax.php (Tools > Export/Erase Personal Data), which is
 			// `is_admin()` — safe to register alongside the settings screens.
@@ -132,6 +140,12 @@ final class Plugin {
 		if ( false === get_option( Connection::OPTION_KEY, false ) ) {
 			add_option( Connection::OPTION_KEY, array() );
 		}
+
+		// Best-effort: seed the Skin Type attribute now if WooCommerce is
+		// already loaded. If it isn't (activation order), the admin_init
+		// self-heal in Skin_Type_Attribute::register() creates it on the next
+		// admin load. Idempotent either way.
+		Skin_Type_Attribute::maybe_ensure();
 	}
 
 	/**
