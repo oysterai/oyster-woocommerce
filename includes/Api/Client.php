@@ -255,11 +255,12 @@ final class Client {
 	 * The only override is the `OYSTER_WOO_API_BASE_URL` constant, which must
 	 * be defined in wp-config.php — loaded before any plugin executes, so a
 	 * normally-installed plugin cannot set or race it. Even so, the resolved
-	 * value is validated before use: only `https://`, or `http://` on a
-	 * loopback host (a local dev tunnel), is accepted. Anything else is
-	 * rejected and logged, and the production default is used instead — a
-	 * malformed or unexpected constant value never silently redirects the
-	 * bearer.
+	 * value is validated before use: `https://` is only accepted on Oyster's
+	 * own infrastructure (see ALLOWED_HTTPS_ROOT_DOMAINS), and `http://` only
+	 * on a loopback host (a local dev tunnel). Anything else is rejected and
+	 * logged, and the production default is used instead — a malformed or
+	 * unexpected constant value never silently redirects the bearer to an
+	 * arbitrary host, even one that happens to be https.
 	 *
 	 * Zero configuration is required for a merchant: with no constant
 	 * defined, this always resolves to the production default.
@@ -277,7 +278,7 @@ final class Client {
 
 		$this->log(
 			sprintf(
-				'OYSTER_WOO_API_BASE_URL "%s" was rejected (must be https://, or http:// on localhost) — using the default instead.',
+				'OYSTER_WOO_API_BASE_URL "%s" was rejected (must be https:// on Oyster infrastructure, or http:// on localhost) — using the default instead.',
 				$candidate
 			)
 		);
@@ -286,9 +287,24 @@ final class Client {
 	}
 
 	/**
-	 * https:// is always allowed; http:// only on a loopback host, since that
-	 * only ever matches a local dev server, never a plausible production
-	 * redirect target.
+	 * Root domains Oyster's own infrastructure runs on. `https://` is only
+	 * accepted on one of these or a subdomain of one — api.oysterskin.com,
+	 * staging-api.oysterskin.ai, a per-branch tunnel on oyster.skin, etc. —
+	 * never an arbitrary host, even over https. Keeps this a plugin-config
+	 * change (edit this list, ship a release) rather than a runtime hook,
+	 * consistent with why there's no filter on base_url() at all.
+	 */
+	private const ALLOWED_HTTPS_ROOT_DOMAINS = array(
+		'oysterskin.com',
+		'oysterskin.ai',
+		'oyster.skin',
+	);
+
+	/**
+	 * `https://` is allowed only on Oyster's own domains (exact match or any
+	 * subdomain); `http://` only on a loopback host, since that only ever
+	 * matches a local dev server, never a plausible production redirect
+	 * target.
 	 */
 	private function is_allowed_base_url( string $url ): bool {
 		$parts = wp_parse_url( $url );
@@ -296,12 +312,30 @@ final class Client {
 			return false;
 		}
 
+		$host = strtolower( $parts['host'] );
+
 		if ( 'https' === $parts['scheme'] ) {
-			return true;
+			return $this->is_oyster_host( $host );
 		}
 
 		return 'http' === $parts['scheme']
-			&& in_array( $parts['host'], array( 'localhost', '127.0.0.1', '::1' ), true );
+			&& in_array( $host, array( 'localhost', '127.0.0.1', '::1' ), true );
+	}
+
+	/**
+	 * Exact match, or a genuine subdomain — a suffix check with the dot
+	 * boundary enforced, NOT a substring check, so a host like
+	 * "notoysterskin.com" or "oysterskin.com.evil.example" correctly does
+	 * NOT match "oysterskin.com".
+	 */
+	private function is_oyster_host( string $host ): bool {
+		foreach ( self::ALLOWED_HTTPS_ROOT_DOMAINS as $root ) {
+			if ( $host === $root || str_ends_with( $host, '.' . $root ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private function log( string $message ): void {
