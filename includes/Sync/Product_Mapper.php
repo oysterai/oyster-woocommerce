@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Sync;
 
+use Oyster\Woo\Catalog\Ingredients_Field;
+use Oyster\Woo\Catalog\Skin_Type_Attribute;
 use WC_Product;
 use WC_Product_Variation;
 
@@ -73,6 +75,12 @@ final class Product_Mapper {
 		$image_url   = self::image_url( $unit, $is_variation ? $product_id : null );
 		$tags        = self::tags( $is_variation ? $product_id : $unit->get_id() );
 
+		// Ingredients and skin types live on the parent product (the ingredient
+		// field and the "Skin Type" attribute are set at product level), so both
+		// simple products and variations read them from $product_id.
+		$ingredients = Ingredients_Field::get( $product_id );
+		$skin_types  = Skin_Type_Attribute::get_for_product( $product_id );
+
 		$row = array(
 			'woocommerce_product_id'   => (string) $product_id,
 			'woocommerce_variation_id' => null !== $variation_id ? (string) $variation_id : null,
@@ -93,6 +101,8 @@ final class Product_Mapper {
 			'stock_level'              => self::stock_level( $unit ),
 			'image_url'                => $image_url,
 			'tags'                     => $tags,
+			'ingredients'              => ! empty( $ingredients ) ? $ingredients : null,
+			'skin_types'               => ! empty( $skin_types ) ? $skin_types : null,
 		);
 
 		// Preserve explicit nulls (nullable fields) but drop the key entirely

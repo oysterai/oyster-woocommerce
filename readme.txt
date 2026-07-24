@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,6 +25,9 @@ Features:
 * Inline scan via the "Oyster Skin Scan" block or the `[oyster_scan]` shortcode.
 * Automatic catalog sync — published simple and variable products sync to Oyster
   whenever you save them, plus a one-click full import/re-sync under **Oyster → Catalog**.
+* Richer product data for better recommendations — an **Oyster ingredients** field on
+  every product (one ingredient per line) and a **Skin Type** product attribute, both
+  synced to Oyster. Populate them by hand or via the WooCommerce product CSV importer.
 * Native checkout attribution — the widget's recommended products add straight to your
   WooCommerce cart, and every resulting paid order is attributed back to the scan that
   drove it, visible in your Oyster vendor dashboard.
@@ -57,6 +60,14 @@ https://oysterskin.com/terms for terms of service.
 5. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.5.0 =
+* Product data for recommendations: adds an **Oyster ingredients** field (one ingredient
+  per line) to the product editor and registers a **Skin Type** global product attribute
+  (Normal, Dry, Oily, Combination, Sensitive, Acne-prone, Mature). Both are sent with the
+  catalog sync so Oyster can match products to a shopper's skin more accurately, and both
+  can be populated in bulk via the WooCommerce product CSV importer
+  (`Meta: _oyster_ingredients` and a global `Skin Type` attribute column).
 
 = 0.4.0 =
 * "Open Oyster dashboard" link now on every connected admin screen (Connection, Widget,
