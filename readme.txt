@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.6.0
+Stable tag: 0.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,6 +63,14 @@ https://oysterskin.com/terms for terms of service.
 5. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.7.0 =
+* Per-product sync tracking: after each successful catalog push, the plugin records
+  the product's Oyster id and sync timestamp in post meta (`_oyster_product_id`,
+  `_oyster_synced_at`). A new **Oyster** column in **WooCommerce > Products** shows
+  a green check with a "Synced X ago" tooltip for synced products and a dash for
+  those not yet pushed, so merchants can see at a glance what's live in Oyster.
+  The state is cleared automatically when a product is removed from Oyster.
 
 = 0.6.0 =
 * Catalog sync now carries a product's **brand** (from WooCommerce's native brands

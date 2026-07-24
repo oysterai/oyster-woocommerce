@@ -12,6 +12,7 @@ namespace Oyster\Woo;
 use Oyster\Woo\Admin\Catalog_Screen;
 use Oyster\Woo\Admin\Connect_Screen;
 use Oyster\Woo\Admin\Menu;
+use Oyster\Woo\Admin\Sync_Status_Column;
 use Oyster\Woo\Admin\Widget_Settings_Screen;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Catalog\Ingredients_Field;
@@ -104,6 +105,7 @@ final class Plugin {
 			$catalog->register();
 
 			( new Menu( $connect, $widget, $catalog ) )->register();
+			( new Sync_Status_Column() )->register();
 
 			// Product-editor additions Oyster's recommendations rely on: an
 			// ingredient list and a "Skin Type" attribute the catalog sync
