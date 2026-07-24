@@ -90,6 +90,10 @@ final class Widget_Loader {
 			'logoUrl'      => $this->connection->logo_url(),
 			'loaderUrl'    => $this->bundle_url(),
 			'app'          => 'woocommerce',
+			// Fallback destination if the checkout handoff (cart/add) fails —
+			// see oyster-loader.js's wooCheckoutHandoff catch handler. Better
+			// than stranding the shopper on the widget with no way forward.
+			'cartUrl'      => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : '',
 		);
 	}
 

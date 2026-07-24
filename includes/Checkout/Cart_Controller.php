@@ -45,6 +45,25 @@ final class Cart_Controller {
 
 	public function register(): void {
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
+		add_action( 'template_redirect', array( $this, 'maybe_show_error_notice' ) );
+	}
+
+	/**
+	 * The loader redirects here with `?oyster_checkout_error=1` when the
+	 * cart/add handoff fails (network error, non-2xx, or a malformed
+	 * response) — see oyster-loader.js's redirectToFallback(). Surfaces a
+	 * real WooCommerce notice on arrival instead of leaving the shopper on a
+	 * page that gives no indication anything went wrong.
+	 */
+	public function maybe_show_error_notice(): void {
+		if ( ! isset( $_GET['oyster_checkout_error'] ) || ! function_exists( 'wc_add_notice' ) ) {
+			return;
+		}
+
+		wc_add_notice(
+			__( "We couldn't automatically add your recommended items to your cart. Please add them manually below.", 'oyster-woocommerce' ),
+			'error'
+		);
 	}
 
 	public function register_routes(): void {
@@ -68,6 +87,16 @@ final class Cart_Controller {
 	public function handle_add( WP_REST_Request $request ): WP_REST_Response {
 		if ( ! $this->connection->is_connected() ) {
 			return new WP_REST_Response( array( 'error' => 'not_connected' ), 409 );
+		}
+
+		// REST requests bypass the normal front-end template load, so
+		// WC()->cart/session (usually lazily bootstrapped on `wp_loaded`)
+		// never gets initialized on their own here. wc_load_cart() forces
+		// that init and attaches the requesting visitor's own session cart —
+		// without it, WC()->cart is null and every add is built against no
+		// cart at all, not just built in "the wrong" one.
+		if ( function_exists( 'wc_load_cart' ) ) {
+			wc_load_cart();
 		}
 
 		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {

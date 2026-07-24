@@ -20,6 +20,19 @@
     return window.OysterWooConfig || {}
   }
 
+  /**
+   * Last resort when the checkout handoff can't complete (network error,
+   * non-2xx from /cart/add, or a malformed response) — sends the shopper to
+   * a real page instead of leaving them stuck watching the widget with no
+   * feedback and no way forward. `?oyster_checkout_error=1` lets
+   * Cart_Controller surface an actual WooCommerce notice on arrival.
+   */
+  function redirectToFallback() {
+    var base = config().cartUrl || '/'
+    var sep = base.indexOf('?') === -1 ? '?' : '&'
+    window.location.href = base + sep + 'oyster_checkout_error=1'
+  }
+
   function loadScript(src) {
     return new Promise(function (resolve, reject) {
       var s = document.createElement('script')
@@ -86,6 +99,7 @@
 
     if (!lineItems.length) {
       console.warn('[oyster] no valid product ids in checkout_items')
+      redirectToFallback()
       return
     }
 
@@ -113,10 +127,16 @@
         }
         if (result && result.redirect) {
           window.location.href = result.redirect
+        } else {
+          // 2xx with no redirect shouldn't happen, but don't strand the
+          // shopper on a silently-broken widget if it does.
+          console.warn('[oyster] cart/add succeeded but returned no redirect')
+          redirectToFallback()
         }
       })
       .catch(function (err) {
         console.error('[oyster] checkout handoff failed', err)
+        redirectToFallback()
       })
   }
 
