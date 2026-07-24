@@ -98,6 +98,11 @@ cd /Users/emeka/oyster_workspace/oyster-woocommerce && bin/dev.sh --production
 4. Note: Action Scheduler timing under Playground's WP-Cron is not
    representative of production — if P2 sync scheduling itself is what
    you're testing (not just the payload), do that pass in LocalWP.
+5. Sync scope: on the same screen, set "Sync scope" to "Only sync selected
+   categories/tags", pick a category none of the 3 seeded products belong
+   to, and re-sync — expect all 3 to be skipped (not upserted). Switch back
+   to "Sync all published products" and re-sync to restore the baseline for
+   the rest of this guide.
 
 ## 4. Checkout attribution
 

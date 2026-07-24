@@ -62,6 +62,26 @@ product is later deleted.
 - **Why deferred:** edge case (removing one variation from a surviving variable product, as opposed to deleting the whole product) — lean-MVP scope didn't include a variation-level delete endpoint on the backend.
 - **Resolves when:** either accepted as permanent behavior, or a `DELETE .../products/delete-variation` (or similar) endpoint is added on the backend and wired into `Product_Hooks`. Revisit if stale single-variation rows turn out to be a real merchant complaint.
 
+### 7. Catalog filter changes don't retroactively remove now-ineligible synced products
+
+`Support\Catalog_Filter` lets a vendor scope catalog sync to specific
+categories/tags (allow-list or deny-list, OR-combined across both
+taxonomies) — see [includes/Support/Catalog_Filter.php](includes/Support/Catalog_Filter.php).
+The eligibility check runs whenever a product is *synced* (full import, or
+an individual product save via `Product_Hooks`/`Catalog_Sync::sync_product`)
+but changing the filter **settings** themselves doesn't rescan and
+archive/delete products that were already synced under a looser scope and
+are now out of it. A product that becomes ineligible (either because the
+vendor tightened the filter, or because the merchant recategorized it)
+simply stops receiving *updates* — its already-synced Oyster row lingers,
+still recommendable, until the product itself is trashed/deleted in
+WooCommerce (which already triggers the existing delete path via
+`Product_Hooks::on_post_removed`).
+
+- **Raised:** this session (2026-07-24), while building the category/tag sync-scope filter.
+- **Why deferred:** cleaning this up properly needs a way to enumerate everything already synced for a vendor and diff it against the new filter — a meaningfully bigger feature than the filter itself (likely needs a new "list synced product ids" backend endpoint), out of scope for the initial build.
+- **Resolves when:** either accepted as a documented limitation (merchant deletes/re-saves affected products by hand after narrowing scope), or a "prune now-ineligible products" action is added to the Catalog admin screen.
+
 ### 4. No PHPUnit/WP test harness in the plugin
 
 skin-ai-api's side of this integration is fully Pest-tested (90 tests across

@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Admin;
 
+use Oyster\Woo\Support\Catalog_Filter;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Dashboard_Link;
 use Oyster\Woo\Sync\Catalog_Sync;
@@ -26,6 +27,10 @@ final class Catalog_Screen {
 
 	private const NOTICE_TRANSIENT = 'oyster_woo_catalog_notice_';
 
+	private const FILTER_GROUP = 'oyster_woo_catalog_filter';
+
+	private const FILTER_SECTION = 'oyster_woo_catalog_filter_section';
+
 	public function __construct(
 		private Connection $connection,
 		private Catalog_Sync $sync
@@ -34,6 +39,94 @@ final class Catalog_Screen {
 	public function register(): void {
 		add_action( 'admin_post_oyster_woo_sync_catalog', array( $this, 'handle_sync_now' ) );
 		add_action( 'admin_notices', array( $this, 'render_notice' ) );
+		add_action( 'admin_init', array( $this, 'register_filter_settings' ) );
+	}
+
+	/*
+	 * -----------------------------------------------------------------------
+	 * Sync scope (Settings API — saved via options.php, mirrors Widget_Settings_Screen)
+	 * -----------------------------------------------------------------------
+	 */
+
+	public function register_filter_settings(): void {
+		register_setting(
+			self::FILTER_GROUP,
+			Catalog_Filter::OPTION_KEY,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( Catalog_Filter::class, 'sanitize' ),
+				'default'           => Catalog_Filter::defaults(),
+			)
+		);
+
+		add_settings_section(
+			self::FILTER_SECTION,
+			__( 'What syncs to Oyster', 'oyster-woocommerce' ),
+			function (): void {
+				echo '<p class="description">' . esc_html__( 'By default every published product syncs. If your store sells more than what Oyster should recommend, scope sync to specific categories or tags — a product matches if it has ANY of the selected terms, from either taxonomy.', 'oyster-woocommerce' ) . '</p>';
+			},
+			self::FILTER_GROUP
+		);
+
+		add_settings_field( 'oyster_woo_catalog_filter_mode', __( 'Sync scope', 'oyster-woocommerce' ), array( $this, 'field_mode' ), self::FILTER_GROUP, self::FILTER_SECTION );
+		add_settings_field( 'oyster_woo_catalog_filter_categories', __( 'Categories', 'oyster-woocommerce' ), array( $this, 'field_categories' ), self::FILTER_GROUP, self::FILTER_SECTION );
+		add_settings_field( 'oyster_woo_catalog_filter_tags', __( 'Tags', 'oyster-woocommerce' ), array( $this, 'field_tags' ), self::FILTER_GROUP, self::FILTER_SECTION );
+	}
+
+	public function field_mode(): void {
+		$mode    = Catalog_Filter::get()['mode'];
+		$options = array(
+			Catalog_Filter::MODE_ALL   => __( 'Sync all published products', 'oyster-woocommerce' ),
+			Catalog_Filter::MODE_ALLOW => __( 'Only sync selected categories/tags below', 'oyster-woocommerce' ),
+			Catalog_Filter::MODE_DENY  => __( 'Sync all products except selected categories/tags below', 'oyster-woocommerce' ),
+		);
+
+		foreach ( $options as $value => $label ) {
+			printf(
+				'<label style="display:block;margin-bottom:4px;"><input type="radio" name="%s[mode]" value="%s" %s> %s</label>',
+				esc_attr( Catalog_Filter::OPTION_KEY ),
+				esc_attr( $value ),
+				checked( $mode, $value, false ),
+				esc_html( $label )
+			);
+		}
+	}
+
+	public function field_categories(): void {
+		$this->term_checkboxes( 'category_ids', 'product_cat' );
+	}
+
+	public function field_tags(): void {
+		$this->term_checkboxes( 'tag_ids', 'product_tag' );
+	}
+
+	private function term_checkboxes( string $key, string $taxonomy ): void {
+		$terms = get_terms(
+			array(
+				'taxonomy'   => $taxonomy,
+				'hide_empty' => false,
+			)
+		);
+
+		if ( is_wp_error( $terms ) || ! $terms ) {
+			echo '<p class="description">' . esc_html__( 'None found.', 'oyster-woocommerce' ) . '</p>';
+			return;
+		}
+
+		$selected = array_map( 'absint', (array) Catalog_Filter::get()[ $key ] );
+
+		echo '<div style="max-height:200px;overflow-y:auto;border:1px solid #dcdcde;border-radius:4px;padding:8px;max-width:400px;">';
+		foreach ( $terms as $term ) {
+			printf(
+				'<label style="display:block;margin-bottom:2px;"><input type="checkbox" name="%s[%s][]" value="%d" %s> %s</label>',
+				esc_attr( Catalog_Filter::OPTION_KEY ),
+				esc_attr( $key ),
+				(int) $term->term_id,
+				checked( in_array( (int) $term->term_id, $selected, true ), true, false ),
+				esc_html( $term->name )
+			);
+		}
+		echo '</div>';
 	}
 
 	public function handle_sync_now(): void {
@@ -75,6 +168,14 @@ final class Catalog_Screen {
 			'<p style="max-width:640px;">%s</p>',
 			esc_html__( 'Published simple and variable products sync to Oyster automatically whenever you save them. Use "Sync now" for the first import, or to force a full re-sync.', 'oyster-woocommerce' )
 		);
+
+		settings_errors( Catalog_Filter::OPTION_KEY );
+
+		echo '<form method="post" action="options.php">';
+		settings_fields( self::FILTER_GROUP );
+		do_settings_sections( self::FILTER_GROUP );
+		submit_button( __( 'Save sync scope', 'oyster-woocommerce' ) );
+		echo '</form>';
 
 		$this->render_status();
 
