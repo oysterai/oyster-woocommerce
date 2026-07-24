@@ -70,6 +70,16 @@ final class Cart_Controller {
 			return new WP_REST_Response( array( 'error' => 'not_connected' ), 409 );
 		}
 
+		// REST requests bypass the normal front-end template load, so
+		// WC()->cart/session (usually lazily bootstrapped on `wp_loaded`)
+		// never gets initialized on their own here. wc_load_cart() forces
+		// that init and attaches the requesting visitor's own session cart —
+		// without it, WC()->cart is null and every add is built against no
+		// cart at all, not just built in "the wrong" one.
+		if ( function_exists( 'wc_load_cart' ) ) {
+			wc_load_cart();
+		}
+
 		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
 			return new WP_REST_Response( array( 'error' => 'cart_unavailable' ), 503 );
 		}
