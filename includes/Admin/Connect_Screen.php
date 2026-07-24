@@ -397,7 +397,7 @@ final class Connect_Screen {
 	 * `Api\Client::base_url()`; see Url_Guard's class doc for why.
 	 */
 	private function dashboard_url(): string {
-		return Url_Guard::resolve( 'OYSTER_WOO_DASHBOARD_URL', 'https://vendors.oysterskin.com' );
+		return Url_Guard::resolve( 'OYSTER_WOO_DASHBOARD_URL', 'https://dash.oysterskin.com' );
 	}
 
 	private function log( string $message ): void {
