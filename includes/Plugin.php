@@ -16,6 +16,7 @@ use Oyster\Woo\Admin\Widget_Settings_Screen;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Checkout\Cart_Controller;
 use Oyster\Woo\Checkout\Order_Attribution;
+use Oyster\Woo\Compliance\Gdpr;
 use Oyster\Woo\Frontend\Widget_Loader;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Sync\Catalog_Sync;
@@ -100,6 +101,11 @@ final class Plugin {
 			$catalog->register();
 
 			( new Menu( $connect, $widget, $catalog ) )->register();
+
+			// Personal-data export/erase requests are processed via
+			// admin-ajax.php (Tools > Export/Erase Personal Data), which is
+			// `is_admin()` — safe to register alongside the settings screens.
+			( new Gdpr() )->register();
 		}
 	}
 

@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,16 @@ Features:
   WooCommerce cart, and every resulting paid order is attributed back to the scan that
   drove it, visible in your Oyster vendor dashboard.
 
+== Privacy ==
+
+This plugin adds a small amount of information to a WooCommerce order when it's attributed
+to an Oyster skin scan: a batch id, a routine id, and a widget attribution id (all opaque
+identifiers, not personal data on their own). These are included in WordPress's built-in
+**Tools → Export Personal Data** and **Tools → Erase Personal Data** requests alongside the
+rest of that order's data. Your Oyster vendor connection settings (business name, widget
+keys, storefront URL) are store configuration, not customer data, and aren't part of these
+requests.
+
 == External services ==
 
 This plugin connects to Oyster's API (https://api.oysterskin.com) to authenticate your
@@ -47,6 +57,14 @@ https://oysterskin.com/terms for terms of service.
 5. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.4.0 =
+* "Open Oyster dashboard" link now on every connected admin screen (Connection, Widget,
+  Catalog), not just Connection — one click to analytics, orders, and billing from
+  wherever you are.
+* GDPR: order attribution fields (scan batch id, routine id, widget attribution id) are
+  now included in WordPress's built-in personal-data export and erasure tools.
+* Added `bin/build-release-zip.sh` for maintainers to package a distributable plugin zip.
 
 = 0.3.0 =
 * Checkout attribution: the widget's "Add to cart" adds recommended products straight to
