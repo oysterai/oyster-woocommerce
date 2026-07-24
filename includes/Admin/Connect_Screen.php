@@ -12,6 +12,7 @@ namespace Oyster\Woo\Admin;
 use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Dashboard_Link;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -205,11 +206,7 @@ final class Connect_Screen {
 
 		echo '<p style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;">';
 
-		printf(
-			'<a class="button button-primary" href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
-			esc_url( $this->dashboard_url() ),
-			esc_html__( 'Open Oyster dashboard', 'oyster-woocommerce' )
-		);
+		Dashboard_Link::render_button( '', 'button button-primary' );
 
 		printf(
 			'<a class="button" href="%s">%s</a>',
@@ -386,18 +383,6 @@ final class Connect_Screen {
 		}
 
 		return $e->user_message();
-	}
-
-	private function dashboard_url(): string {
-		$default = 'https://vendors.oysterskin.com';
-
-		/**
-		 * Filter the Oyster vendor dashboard URL the "Open dashboard" button
-		 * deep-links to (analytics, orders, billing live there in the hybrid model).
-		 *
-		 * @param string $url Dashboard base URL.
-		 */
-		return (string) apply_filters( 'oyster_woocommerce_dashboard_url', $default );
 	}
 
 	private function log( string $message ): void {

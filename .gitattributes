@@ -1,0 +1,8 @@
+# Files tracked in the repo but excluded from `git archive` — used by
+# bin/build-release-zip.sh to build a release zip containing only what
+# WordPress needs to run the plugin. Keep in sync with anything added at the
+# repo root that isn't part of the runtime plugin.
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/callouts.md export-ignore
+/bin export-ignore

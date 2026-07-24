@@ -35,11 +35,17 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Order_Attribution {
 
-	private const META_BATCH_ID = '_oyster_batch_id';
+	/**
+	 * Public: these three identify the scan a purchase is attributed to and
+	 * are the only personal-data-adjacent fields this plugin adds to an
+	 * order, so Compliance\Gdpr references them directly rather than
+	 * duplicating the string literals.
+	 */
+	public const META_BATCH_ID = '_oyster_batch_id';
 
-	private const META_ROUTINE_ID = '_oyster_routine_id';
+	public const META_ROUTINE_ID = '_oyster_routine_id';
 
-	private const META_ATTRIBUTION_ID = '_oyster_widget_attribution_id';
+	public const META_ATTRIBUTION_ID = '_oyster_widget_attribution_id';
 
 	private const META_RECORDED = '_oyster_order_recorded';
 
