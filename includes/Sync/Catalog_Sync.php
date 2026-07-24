@@ -11,6 +11,7 @@ namespace Oyster\Woo\Sync;
 
 use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Api\Client;
+use Oyster\Woo\Support\Catalog_Filter;
 use Oyster\Woo\Support\Connection;
 use WC_Product;
 
@@ -28,6 +29,10 @@ defined( 'ABSPATH' ) || exit;
  *
  * Action Scheduler ships bundled with WooCommerce, so `as_*()` is available
  * once WooCommerce is active; the function_exists guards are defensive only.
+ *
+ * Both paths gate on Catalog_Filter::is_eligible() before mapping a product
+ * to rows — a vendor may scope sync to specific categories/tags, so "changed"
+ * or "every published product" doesn't necessarily mean "in scope."
  */
 final class Catalog_Sync {
 
@@ -118,7 +123,7 @@ final class Catalog_Sync {
 		}
 
 		$product = wc_get_product( $product_id );
-		if ( ! $product instanceof WC_Product ) {
+		if ( ! $product instanceof WC_Product || ! Catalog_Filter::is_eligible( $product ) ) {
 			return;
 		}
 
@@ -167,7 +172,7 @@ final class Catalog_Sync {
 
 		$rows = array();
 		foreach ( $products as $product ) {
-			if ( $product instanceof WC_Product ) {
+			if ( $product instanceof WC_Product && Catalog_Filter::is_eligible( $product ) ) {
 				$rows = array_merge( $rows, Product_Mapper::to_rows( $product ) );
 			}
 		}
