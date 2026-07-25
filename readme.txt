@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.1.0
+Stable tag: 0.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,13 +18,32 @@ Oyster for WooCommerce connects your store to your Oyster vendor account and put
 
 All AI analysis, recommendation, and reporting happens in Oyster's platform; this plugin is a thin, secure bridge between your WooCommerce store and Oyster. Analytics, orders, and billing live in your Oyster vendor dashboard, which the plugin deep-links to.
 
-Features (v0.1):
+Features:
 
 * Connect your store to an Oyster vendor account (log in or sign up).
 * Floating skin-scan launcher on your storefront, with configurable branding.
 * Inline scan via the "Oyster Skin Scan" block or the `[oyster_scan]` shortcode.
+* Automatic catalog sync — published simple and variable products sync to Oyster
+  whenever you save them, plus a one-click full import/re-sync under **Oyster → Catalog**.
+* Richer product data for better recommendations — an **Oyster ingredients** field on
+  every product (one ingredient per line), a **Skin Type** product attribute, and an
+  **Oyster size / volume** field, all synced to Oyster. Populate them by hand or via the
+  WooCommerce product CSV importer.
+* Full attribute sync — a product's brand (native WooCommerce brands), primary category,
+  and weight sync to Oyster automatically alongside price, stock and images.
+* Native checkout attribution — the widget's recommended products add straight to your
+  WooCommerce cart, and every resulting paid order is attributed back to the scan that
+  drove it, visible in your Oyster vendor dashboard.
 
-Coming next: automatic catalog sync, and native checkout attribution.
+== Privacy ==
+
+This plugin adds a small amount of information to a WooCommerce order when it's attributed
+to an Oyster skin scan: a batch id, a routine id, and a widget attribution id (all opaque
+identifiers, not personal data on their own). These are included in WordPress's built-in
+**Tools → Export Personal Data** and **Tools → Erase Personal Data** requests alongside the
+rest of that order's data. Your Oyster vendor connection settings (business name, widget
+keys, storefront URL) are store configuration, not customer data, and aren't part of these
+requests.
 
 == External services ==
 
@@ -41,8 +60,56 @@ https://oysterskin.com/terms for terms of service.
 2. Upload the plugin to `/wp-content/plugins/oyster-woocommerce` and activate it.
 3. Go to **Oyster → Connection** in wp-admin and log in with (or create) your Oyster vendor account.
 4. Configure the launcher under **Oyster → Widget**.
+5. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.7.0 =
+* Per-product sync tracking: after each successful catalog push, the plugin records
+  the product's Oyster id and sync timestamp in post meta (`_oyster_product_id`,
+  `_oyster_synced_at`). A new **Oyster** column in **WooCommerce > Products** shows
+  a green check with a "Synced X ago" tooltip for synced products and a dash for
+  those not yet pushed, so merchants can see at a glance what's live in Oyster.
+  The state is cleared automatically when a product is removed from Oyster.
+
+= 0.6.0 =
+* Catalog sync now carries a product's **brand** (from WooCommerce's native brands
+  taxonomy, with the existing `oyster_woocommerce_product_brand` filter still able to
+  override for third-party brand plugins), its **primary category**, and its **weight**
+  and weight unit — so Oyster's recommendations and storefront can use them.
+* Adds an **Oyster size / volume** product field (a number plus a unit, e.g. 300 ml) in
+  the Product data > Inventory panel, since WooCommerce has no native volume field. It
+  syncs to Oyster and can be populated in bulk via `Meta: _oyster_size_volume` and
+  `Meta: _oyster_size_volume_unit` importer columns.
+
+= 0.5.0 =
+* Product data for recommendations: adds an **Oyster ingredients** field (one ingredient
+  per line) to the product editor and registers a **Skin Type** global product attribute
+  (Normal, Dry, Oily, Combination, Sensitive, Acne-prone, Mature). Both are sent with the
+  catalog sync so Oyster can match products to a shopper's skin more accurately, and both
+  can be populated in bulk via the WooCommerce product CSV importer
+  (`Meta: _oyster_ingredients` and a global `Skin Type` attribute column).
+
+= 0.4.0 =
+* "Open Oyster dashboard" link now on every connected admin screen (Connection, Widget,
+  Catalog), not just Connection — one click to analytics, orders, and billing from
+  wherever you are.
+* GDPR: order attribution fields (scan batch id, routine id, widget attribution id) are
+  now included in WordPress's built-in personal-data export and erasure tools.
+* Added `bin/build-release-zip.sh` for maintainers to package a distributable plugin zip.
+
+= 0.3.0 =
+* Checkout attribution: the widget's "Add to cart" adds recommended products straight to
+  your WooCommerce cart (resolved server-side, so no vendor credentials ever reach the
+  browser) and carries the originating scan through checkout. Paid orders are reported to
+  your Oyster vendor dashboard for attribution — silently, with no effect on order
+  processing, emails, or fulfilment.
+
+= 0.2.0 =
+* Catalog sync: WooCommerce product create/update/delete hooks push to Oyster automatically
+  (via Action Scheduler, so a product save never waits on the network); a new
+  **Oyster → Catalog** screen reports sync status and triggers the initial full import
+  or a forced re-sync.
 
 = 0.1.0 =
 * Initial scaffold: connection flow, storefront widget (float launcher + inline block/shortcode).

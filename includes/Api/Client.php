@@ -9,7 +9,7 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Api;
 
-use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Url_Guard;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -23,8 +23,6 @@ final class Client {
 	private const DEFAULT_BASE_URL = 'https://api.oysterskin.com';
 
 	private const TIMEOUT = 15;
-
-	public function __construct( private Connection $connection ) {}
 
 	/*
 	 * -----------------------------------------------------------------------
@@ -102,6 +100,89 @@ final class Client {
 		);
 	}
 
+	/**
+	 * Upsert a batch of catalog rows (one per purchasable WooCommerce unit —
+	 * see Sync\Product_Mapper). A 207 response (partial per-row failures) still
+	 * decodes normally here; the caller inspects `data.failed`/`failed_items`.
+	 *
+	 * @param array<int, array<string, mixed>> $products Max 250 rows per call.
+	 * @return array<string, mixed> Envelope: { data: { created, updated, claimed, failed, failed_items, ... } }.
+	 * @throws Api_Exception
+	 */
+	public function bulk_upsert_products( string $bearer, array $products ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/products/bulk-upsert',
+			array(
+				'bearer'  => $bearer,
+				'body'    => array( 'products' => $products ),
+				// Larger batches (up to 250 rows) touch the DB once per row on
+				// the backend; the default timeout is sized for small,
+				// single-object calls like connect/profile.
+				'timeout' => 30,
+			)
+		);
+	}
+
+	/**
+	 * Archive every Oyster row (including variations) tied to the given
+	 * WooCommerce product ids. Product-level only — see DeleteWooCommerceProducts.
+	 *
+	 * @param string[] $product_ids
+	 * @return array<string, mixed> Envelope: { data: { archived } }.
+	 * @throws Api_Exception
+	 */
+	public function delete_products( string $bearer, array $product_ids ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/products/delete',
+			array(
+				'bearer' => $bearer,
+				'body'   => array( 'woocommerce_product_ids' => $product_ids ),
+			)
+		);
+	}
+
+	/**
+	 * Resolve Oyster product ids (from the widget's checkout payload) to their
+	 * WooCommerce product/variation ids, for the storefront cart-add flow.
+	 *
+	 * @param int[] $product_ids
+	 * @return array<string, mixed> Envelope: { data: { "<oyster_id>": { woocommerce_product_id, woocommerce_variation_id } } }.
+	 * @throws Api_Exception
+	 */
+	public function resolve_variants( string $bearer, array $product_ids ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/products/resolve-variants',
+			array(
+				'bearer' => $bearer,
+				'body'   => array( 'product_ids' => array_values( $product_ids ) ),
+			)
+		);
+	}
+
+	/**
+	 * Record a paid WooCommerce order as a tracking-only Oyster order for scan
+	 * attribution. Tolerant by design — the backend returns 200 with
+	 * `recorded: false` (not an error) when it can't attribute the order, e.g.
+	 * an unrecognised batch id; the caller doesn't need to treat that as failure.
+	 *
+	 * @param array<string, mixed> $order
+	 * @return array<string, mixed> Envelope: { data: {id, order_number}|null, recorded: bool }.
+	 * @throws Api_Exception
+	 */
+	public function record_order( string $bearer, array $order ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/orders',
+			array(
+				'bearer' => $bearer,
+				'body'   => $order,
+			)
+		);
+	}
+
 	/*
 	 * -----------------------------------------------------------------------
 	 * Transport
@@ -110,7 +191,7 @@ final class Client {
 
 	/**
 	 * @param 'GET'|'POST'|'PUT'|'PATCH'|'DELETE' $method
-	 * @param array{body?:array<string,mixed>|null,bearer?:string,headers?:array<string,string>} $options
+	 * @param array{body?:array<string,mixed>|null,bearer?:string,headers?:array<string,string>,timeout?:int} $options
 	 * @return array<string, mixed> Decoded JSON body (empty array for no content).
 	 * @throws Api_Exception
 	 */
@@ -137,7 +218,7 @@ final class Client {
 		$args = array(
 			'method'  => $method,
 			'headers' => $headers,
-			'timeout' => self::TIMEOUT,
+			'timeout' => isset( $options['timeout'] ) ? (int) $options['timeout'] : self::TIMEOUT,
 		);
 
 		if ( array_key_exists( 'body', $options ) && null !== $options['body'] ) {
@@ -165,19 +246,16 @@ final class Client {
 	}
 
 	/**
-	 * Resolve the skin-ai-api base URL. A wp-config constant wins (for staging
-	 * against a tunnel), then a filter, then the production default.
+	 * Resolve the skin-ai-api base URL every request is sent to — including
+	 * the Authorization header carrying the vendor's bearer. Deliberately NOT
+	 * filterable; see Url_Guard's class doc for why. The only override is the
+	 * `OYSTER_WOO_API_BASE_URL` wp-config constant, validated by Url_Guard
+	 * before use.
+	 *
+	 * Zero configuration is required for a merchant: with no constant
+	 * defined, this always resolves to the production default.
 	 */
 	private function base_url(): string {
-		$base = defined( 'OYSTER_WOO_API_BASE_URL' ) ? (string) OYSTER_WOO_API_BASE_URL : self::DEFAULT_BASE_URL;
-
-		/**
-		 * Filter the skin-ai-api base URL used for all upstream calls.
-		 *
-		 * @param string $base Base URL without a trailing slash.
-		 */
-		$base = (string) apply_filters( 'oyster_woocommerce_api_base_url', $base );
-
-		return untrailingslashit( $base );
+		return Url_Guard::resolve( 'OYSTER_WOO_API_BASE_URL', self::DEFAULT_BASE_URL );
 	}
 }

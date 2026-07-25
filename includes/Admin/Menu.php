@@ -21,6 +21,8 @@ final class Menu {
 
 	public const WIDGET_SLUG = 'oyster-woocommerce-widget';
 
+	public const CATALOG_SLUG = 'oyster-woocommerce-catalog';
+
 	/**
 	 * Capability required to manage the integration. `manage_woocommerce` maps
 	 * to Shop Managers + Admins, matching who configures other Woo extensions.
@@ -29,7 +31,8 @@ final class Menu {
 
 	public function __construct(
 		private Connect_Screen $connect,
-		private Widget_Settings_Screen $widget
+		private Widget_Settings_Screen $widget,
+		private Catalog_Screen $catalog
 	) {}
 
 	public function register(): void {
@@ -64,6 +67,15 @@ final class Menu {
 			self::CAPABILITY,
 			self::WIDGET_SLUG,
 			array( $this->widget, 'render' )
+		);
+
+		add_submenu_page(
+			self::PARENT_SLUG,
+			__( 'Oyster — Catalog', 'oyster-woocommerce' ),
+			__( 'Catalog', 'oyster-woocommerce' ),
+			self::CAPABILITY,
+			self::CATALOG_SLUG,
+			array( $this->catalog, 'render' )
 		);
 	}
 

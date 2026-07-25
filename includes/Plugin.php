@@ -9,12 +9,22 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo;
 
+use Oyster\Woo\Admin\Catalog_Screen;
 use Oyster\Woo\Admin\Connect_Screen;
 use Oyster\Woo\Admin\Menu;
+use Oyster\Woo\Admin\Sync_Status_Column;
 use Oyster\Woo\Admin\Widget_Settings_Screen;
 use Oyster\Woo\Api\Client;
+use Oyster\Woo\Catalog\Ingredients_Field;
+use Oyster\Woo\Catalog\Size_Volume_Field;
+use Oyster\Woo\Catalog\Skin_Type_Attribute;
+use Oyster\Woo\Checkout\Cart_Controller;
+use Oyster\Woo\Checkout\Order_Attribution;
+use Oyster\Woo\Compliance\Gdpr;
 use Oyster\Woo\Frontend\Widget_Loader;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Sync\Catalog_Sync;
+use Oyster\Woo\Sync\Product_Hooks;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -37,7 +47,7 @@ final class Plugin {
 
 	private function __construct() {
 		$this->connection = new Connection();
-		$this->client     = new Client( $this->connection );
+		$this->client     = new Client();
 	}
 
 	public static function instance(): Plugin {
@@ -58,7 +68,12 @@ final class Plugin {
 
 	/**
 	 * Register hooks. Admin-only modules stay behind is_admin() so the
-	 * storefront request never pays to load settings screens.
+	 * storefront request never pays to load settings screens. Catalog_Sync,
+	 * Product_Hooks, Cart_Controller, and Order_Attribution are the exception
+	 * — they register unconditionally, because their work (WooCommerce hooks,
+	 * REST routes, Action Scheduler callbacks, checkout/payment events) fires
+	 * from storefront requests, REST API requests, WP-CLI, and the Action
+	 * Scheduler queue runner, none of which are `is_admin()`.
 	 */
 	public function boot(): void {
 		if ( $this->booted ) {
@@ -71,14 +86,38 @@ final class Plugin {
 		// Storefront: inject the widget loader on every front-end request.
 		( new Widget_Loader( $this->connection ) )->register();
 
+		$catalog_sync = new Catalog_Sync( $this->connection, $this->client );
+		$catalog_sync->register();
+		( new Product_Hooks( $catalog_sync ) )->register();
+
+		// Storefront: the widget's checkout handoff (cart add) + attribution
+		// from cart through to a reported paid order.
+		( new Cart_Controller( $this->connection, $this->client ) )->register();
+		( new Order_Attribution( $this->connection, $this->client ) )->register();
+
 		if ( is_admin() ) {
 			$connect = new Connect_Screen( $this->connection, $this->client );
 			$widget  = new Widget_Settings_Screen( $this->connection, $this->client );
+			$catalog = new Catalog_Screen( $this->connection, $catalog_sync );
 
 			$connect->register();
 			$widget->register();
+			$catalog->register();
 
-			( new Menu( $connect, $widget ) )->register();
+			( new Menu( $connect, $widget, $catalog ) )->register();
+			( new Sync_Status_Column() )->register();
+
+			// Product-editor additions Oyster's recommendations rely on: an
+			// ingredient list and a "Skin Type" attribute the catalog sync
+			// forwards. Admin-only — the storefront just reads the stored data.
+			( new Ingredients_Field() )->register();
+			( new Size_Volume_Field() )->register();
+			( new Skin_Type_Attribute() )->register();
+
+			// Personal-data export/erase requests are processed via
+			// admin-ajax.php (Tools > Export/Erase Personal Data), which is
+			// `is_admin()` — safe to register alongside the settings screens.
+			( new Gdpr() )->register();
 		}
 	}
 
@@ -105,6 +144,12 @@ final class Plugin {
 		if ( false === get_option( Connection::OPTION_KEY, false ) ) {
 			add_option( Connection::OPTION_KEY, array() );
 		}
+
+		// Best-effort: seed the Skin Type attribute now if WooCommerce is
+		// already loaded. If it isn't (activation order), the admin_init
+		// self-heal in Skin_Type_Attribute::register() creates it on the next
+		// admin load. Idempotent either way.
+		Skin_Type_Attribute::maybe_ensure();
 	}
 
 	/**
@@ -113,7 +158,7 @@ final class Plugin {
 	 */
 	public static function on_deactivate(): void {
 		if ( function_exists( 'as_unschedule_all_actions' ) ) {
-			as_unschedule_all_actions( '', array(), 'oyster-woocommerce' );
+			as_unschedule_all_actions( '', array(), Catalog_Sync::ACTION_GROUP );
 		}
 	}
 }

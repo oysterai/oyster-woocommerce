@@ -11,6 +11,7 @@ namespace Oyster\Woo\Admin;
 
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Dashboard_Link;
 use Oyster\Woo\Support\Widget_Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -82,6 +83,10 @@ final class Widget_Settings_Screen {
 
 			return;
 		}
+
+		echo '<p>';
+		Dashboard_Link::render_button();
+		echo '</p>';
 
 		if ( '' === $this->connection->public_key() ) {
 			printf(
