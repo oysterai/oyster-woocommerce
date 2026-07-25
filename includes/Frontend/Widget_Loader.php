@@ -168,7 +168,7 @@ final class Widget_Loader {
 				'attributes'      => array(
 					'height' => array(
 						'type'    => 'number',
-						'default' => 0,
+						'default' => 762,
 					),
 				),
 				'render_callback' => array( $this, 'render_block' ),
