@@ -13,6 +13,7 @@ use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Catalog_Filter;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Sync\Sync_State;
 use WC_Product;
 
 defined( 'ABSPATH' ) || exit;
@@ -143,6 +144,7 @@ final class Catalog_Sync {
 
 		try {
 			$this->client->delete_products( $bearer, array( (string) $product_id ) );
+			Sync_State::clear( $product_id );
 		} catch ( Api_Exception $e ) {
 			$this->log( 'delete_product failed: ' . $e->user_message() );
 		}
@@ -235,12 +237,41 @@ final class Catalog_Sync {
 			return $totals;
 		}
 
+		// Map unit-id → parent product post-id so we can write per-product meta
+		// after the backend confirms a successful upsert. The unit id mirrors the
+		// backend's key in the `results` map: variation id when set, else product id.
+		$unit_to_parent = array();
+		foreach ( $rows as $row ) {
+			$unit = $row['woocommerce_variation_id'] ?? null;
+			$unit = ( is_string( $unit ) && '' !== $unit ) ? $unit : ( (string) $row['woocommerce_product_id'] );
+			$unit_to_parent[ $unit ] = (int) $row['woocommerce_product_id'];
+		}
+
+		$synced_at = time();
+
 		foreach ( array_chunk( $rows, self::UPSERT_CHUNK_SIZE ) as $chunk ) {
 			try {
-				$result = $this->client->bulk_upsert_products( $bearer, $chunk );
-				$data   = is_array( $result['data'] ?? null ) ? $result['data'] : array();
+				$result  = $this->client->bulk_upsert_products( $bearer, $chunk );
+				$data    = is_array( $result['data'] ?? null ) ? $result['data'] : array();
+				$results = is_array( $data['results'] ?? null ) ? $data['results'] : array();
+
 				foreach ( array( 'created', 'updated', 'claimed', 'failed' ) as $key ) {
 					$totals[ $key ] += (int) ( $data[ $key ] ?? 0 );
+				}
+
+				// Persist per-product sync state for each successfully upserted unit.
+				foreach ( $results as $unit_id => $unit_result ) {
+					if ( ! is_array( $unit_result ) ) {
+						continue;
+					}
+					$oyster_id = (string) ( $unit_result['product_id'] ?? '' );
+					if ( '' === $oyster_id ) {
+						continue;
+					}
+					$woo_product_id = $unit_to_parent[ (string) $unit_id ] ?? null;
+					if ( null !== $woo_product_id ) {
+						Sync_State::mark_synced( $woo_product_id, $oyster_id, $synced_at );
+					}
 				}
 			} catch ( Api_Exception $e ) {
 				$totals['failed'] += count( $chunk );
@@ -250,7 +281,7 @@ final class Catalog_Sync {
 
 		$this->update_status(
 			array(
-				'last_synced_at' => time(),
+				'last_synced_at' => $synced_at,
 				'last_result'    => $totals,
 			)
 		);
