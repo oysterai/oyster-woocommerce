@@ -12,7 +12,7 @@ namespace Oyster\Woo\Support;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Resolves a security-sensitive URL (skin-ai-api base, the storefront widget
+ * Resolves a security-sensitive URL (the Oyster API base, the storefront widget
  * script, the vendor-dashboard deep-link) from a wp-config constant — never
  * from a filter. A WordPress filter has no permission model: any active
  * plugin or theme can hook one, so a filter here would let any of them

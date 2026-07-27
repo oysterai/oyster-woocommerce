@@ -1,6 +1,6 @@
 <?php
 /**
- * Error raised when a skin-ai-api call fails.
+ * Error raised when an Oyster API call fails.
  *
  * @package Oyster\Woo
  */

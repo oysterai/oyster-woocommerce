@@ -1,6 +1,6 @@
 <?php
 /**
- * Catalog sync: pushes WooCommerce products to skin-ai-api.
+ * Catalog sync: pushes WooCommerce products to Oyster.
  *
  * @package Oyster\Woo
  */
@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
  *
  *   - Incremental: WooCommerce product hooks (see Product_Hooks) enqueue an
  *     Action Scheduler job per changed/removed product, so a page save never
- *     blocks on an HTTP call to skin-ai-api.
+ *     blocks on an HTTP call to Oyster.
  *   - Full import: a merchant-triggered, self-chaining Action Scheduler job
  *     that pages through the catalog (see run_import_batch) — each page is
  *     its own bounded AS task rather than one long-running request.

@@ -18,12 +18,12 @@ use WC_Product_Variation;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * One Oyster catalog row per purchasable WooCommerce unit — mirrors the
- * backend's modelling (see BulkUpsertWooCommerceCatalog in skin-ai-api): a
- * simple product is one row with `woocommerce_variation_id: null`; a variable
- * product expands into one row per variation, each carrying both ids. The
- * parent product itself is never sent as a row for a variable product — only
- * its variations are purchasable.
+ * One Oyster catalog row per purchasable WooCommerce unit — mirrors how the
+ * backend models a purchasable unit: a simple product is one row with
+ * `woocommerce_variation_id: null`; a variable product expands into one row
+ * per variation, each carrying both ids. The parent product itself is never
+ * sent as a row for a variable product — only its variations are
+ * purchasable.
  */
 final class Product_Mapper {
 
