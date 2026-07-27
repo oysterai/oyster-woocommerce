@@ -37,8 +37,8 @@ final class Self_Updater {
 		// Fetch the zip WE build and attach to each release
 		// (bin/build-release-zip.sh, run by .github/workflows/release.yml)
 		// rather than GitHub's auto-generated "Source code" archive, which
-		// would ship dev-only files (bin/, callouts.md, .github/) straight
-		// to every merchant's site.
+		// would ship dev-only files (bin/, TESTING.md, .github/) straight to
+		// every merchant's site.
 		$checker->getVcsApi()->enableReleaseAssets();
 	}
 }

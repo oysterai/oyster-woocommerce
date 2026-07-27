@@ -12,10 +12,9 @@ namespace Oyster\Woo\Support;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Read/normalize the float-launcher settings. These mirror the per-instance
- * branding that oyster-shopify exposes on its theme launcher block
- * (primary color, intro copy, logo, auto-open) and are the source of truth the
- * storefront loader passes to createScanWidget().
+ * Read/normalize the float-launcher settings — primary color, intro copy,
+ * logo, auto-open — the source of truth the storefront loader passes to
+ * createScanWidget().
  */
 final class Widget_Settings {
 

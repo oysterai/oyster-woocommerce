@@ -1,9 +1,9 @@
 /**
  * Storefront loader for the Oyster widget on WooCommerce.
  *
- * Unlike the Shopify build, config isn't fetched over a signed App Proxy call —
- * the PHP plugin injects it inline as `window.OysterWooConfig` because it runs
- * server-side and already holds the vendor's public key. This script just:
+ * Config isn't fetched client-side — the PHP plugin injects it inline as
+ * `window.OysterWooConfig` because it runs server-side and already holds the
+ * vendor's public key. This script just:
  *
  *   1. Reads the injected config (publicKey, primaryColor, logoUrl, loaderUrl).
  *   2. Finds each anchor a block/launcher/shortcode emitted.
@@ -72,12 +72,11 @@
    *     user?: { id?, email?, ... }
    *   }
    *
-   * Unlike the Shopify loader, this never resolves Oyster ids or calls
-   * skin-ai-api directly from the browser — that would require exposing the
-   * vendor bearer client-side. Instead the whole handoff (resolve + add to
-   * cart + attribution) happens server-side in the plugin's own
-   * `/cart/add` REST route; this function just builds that request and
-   * follows the redirect it returns.
+   * This never resolves Oyster ids or calls Oyster's API directly from the
+   * browser — that would require exposing the vendor bearer client-side.
+   * Instead the whole handoff (resolve + add to cart + attribution) happens
+   * server-side in the plugin's own `/cart/add` REST route; this function
+   * just builds that request and follows the redirect it returns.
    */
   function wooCheckoutHandoff(payload) {
     console.debug('[oyster] checkout handoff', payload)
@@ -103,9 +102,9 @@
       return
     }
 
-    // Attribution fields all live on the per-item record (matches the
-    // Shopify loader's documented behavior) — the first item is authoritative
-    // for a cart that happens to mix recommended + unrelated products.
+    // Attribution fields all live on the per-item record — the first item is
+    // authoritative for a cart that happens to mix recommended + unrelated
+    // products.
     var firstItem = items[0] || {}
     var batchId = firstItem.skin_analysis_batch_id || null
     var routineId = firstItem.product_usage_routine_id || null
@@ -167,9 +166,6 @@
           publicKey: cfg.publicKey,
           primaryColor: anchor.dataset.primaryColor || cfg.primaryColor || '#0e1e3a',
           callback: widgetCallback,
-          // The widget constructor validates `app` and maps it to the request
-          // channel. 'woocommerce' must be an accepted value in
-          // vendor-widget-core (mirrors the existing 'shopify' case).
           app: 'woocommerce',
         }
 

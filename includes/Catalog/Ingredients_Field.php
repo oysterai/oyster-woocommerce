@@ -4,8 +4,8 @@
  *
  * Adds a merchant-editable ingredient list to the WooCommerce product editor
  * and exposes it to the catalog sync. Ingredients are the strongest signal
- * Oyster uses to match products to a shopper's skin, so this mirrors the
- * Shopify app's "Oyster ingredients" metafield box.
+ * Oyster uses to match products to a shopper's skin, mirroring the same
+ * "Oyster ingredients" field Oyster's Shopify integration exposes.
  *
  * @package Oyster\Woo
  */

@@ -4,6 +4,8 @@
 # repo root that isn't part of the runtime plugin.
 /.gitattributes export-ignore
 /.gitignore export-ignore
-/callouts.md export-ignore
 /bin export-ignore
 /.github export-ignore
+/TESTING.md export-ignore
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore

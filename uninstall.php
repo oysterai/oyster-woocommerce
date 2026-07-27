@@ -3,7 +3,7 @@
  * Uninstall cleanup — runs only on explicit "Delete" from the Plugins screen.
  *
  * Removes the plugin's options (including the encrypted vendor bearer). It does
- * NOT delete anything on skin-ai-api: the vendor account, catalog, and orders
+ * NOT delete anything on Oyster's side: the vendor account, catalog, and orders
  * live there and outlive the plugin. Deactivation preserves state; only a true
  * uninstall wipes local config.
  *

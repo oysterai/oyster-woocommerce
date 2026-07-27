@@ -17,16 +17,17 @@ use WC_Order;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Two hand-offs, mirroring the Shopify flow's `orders/paid` webhook:
+ * Two hand-offs:
  *
  *   1. Cart -> order: Cart_Controller stamps `oyster_attribution` directly
  *      into the cart item data it passes to `WC()->cart->add_to_cart()`.
  *      WooCommerce round-trips plain array cart-item data through the session
  *      automatically, so no `woocommerce_get_cart_item_from_session` filter
  *      is needed here. At checkout, `woocommerce_checkout_create_order` reads
- *      the first cart item carrying attribution (same "first item wins"
- *      precedent as the Shopify loader) and stamps it onto order meta.
- *   2. Order -> skin-ai-api: `woocommerce_payment_complete` reports the paid
+ *      the first cart item carrying attribution ("first item wins" for a
+ *      cart that mixes recommended and unrelated products) and stamps it
+ *      onto order meta.
+ *   2. Order -> Oyster: `woocommerce_payment_complete` reports the paid
  *      order for tracking-only attribution. Guarded by an `_oyster_order_
  *      recorded` meta flag so a gateway that fires payment_complete more than
  *      once for the same order doesn't call out twice (the backend is also
@@ -83,15 +84,15 @@ final class Order_Attribution {
 				$order->update_meta_data( self::META_ATTRIBUTION_ID, (string) $attribution['widget_attribution_id'] );
 			}
 
-			// First attributed cart item wins — mirrors the Shopify loader's
-			// documented behavior for a cart with mixed/unrelated items.
+			// First attributed cart item wins for a cart with mixed/unrelated
+			// items.
 			return;
 		}
 	}
 
 	/**
 	 * Fires when payment is confirmed (regardless of gateway). Reports the
-	 * order to skin-ai-api for tracking-only attribution. Silently no-ops for
+	 * order to Oyster for tracking-only attribution. Silently no-ops for
 	 * an order with no Oyster attribution — the overwhelming majority of a
 	 * store's orders won't have any.
 	 */

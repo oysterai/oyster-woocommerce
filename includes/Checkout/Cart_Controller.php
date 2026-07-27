@@ -19,20 +19,18 @@ use WP_REST_Server;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The WooCommerce counterpart of Shopify's `/cart/add.js` + cart-attributes
- * handoff. Unlike Shopify, the storefront loader never resolves Oyster
- * product ids or touches skin-ai-api directly — that would mean exposing the
- * vendor bearer to the browser. Instead the loader POSTs the widget's
- * checkout payload here; this endpoint (running server-side, holding the
- * bearer) resolves Oyster ids to WooCommerce ids, adds purchasable/in-stock
- * items to the *visitor's own* cart session via the standard WC cart API, and
- * returns a redirect URL.
+ * The storefront loader never resolves Oyster product ids or touches
+ * Oyster's API directly — that would mean exposing the vendor bearer to the
+ * browser. Instead the loader POSTs the widget's checkout payload here; this
+ * endpoint (running server-side, holding the bearer) resolves Oyster ids to
+ * WooCommerce ids, adds purchasable/in-stock items to the *visitor's own*
+ * cart session via the standard WC cart API, and returns a redirect URL.
  *
  * Public on purpose (`permission_callback: __return_true`) — it only ever
  * mutates the requesting visitor's own cart session, exactly like any native
  * WooCommerce "Add to cart" form. Forged batch/routine ids carry no risk:
- * RecordWooCommerceOrder validates them server-side against a real scan
- * before attributing anything.
+ * the backend validates them server-side against a real scan before
+ * attributing anything.
  */
 final class Cart_Controller {
 
