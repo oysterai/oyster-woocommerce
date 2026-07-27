@@ -89,16 +89,23 @@ cd /Users/emeka/oyster_workspace/oyster-woocommerce && bin/dev.sh --production
 
 ## 3. Catalog
 
-1. Go to **Oyster → Catalog**, trigger a sync.
-2. Expect the 3 seeded products (`OYS-CLN-001`, `OYS-SER-002`,
+1. Go to **Oyster → Catalog**. On a fresh install, expect a warning notice
+   ("No categories or tags are selected below, so nothing syncs yet.") —
+   **the safe default is to sync nothing** until a scope is chosen, so a
+   large general-inventory store can never accidentally dump its whole
+   catalog into Oyster just by installing the plugin.
+2. Set "Sync scope" to "Sync all published products" and save — this is
+   the deliberate opt-in the rest of this guide assumes as a baseline.
+   Trigger a sync.
+3. Expect the 3 seeded products (`OYS-CLN-001`, `OYS-SER-002`,
    `OYS-MOI-003`) to bulk-upsert to skin-ai-api's
    `/api/v1/integrations/woocommerce/*` catalog endpoint.
-3. Edit a product's price/title in WooCommerce, confirm the product-hook
+4. Edit a product's price/title in WooCommerce, confirm the product-hook
    sync fires (Action Scheduler) and the change propagates.
-4. Note: Action Scheduler timing under Playground's WP-Cron is not
+5. Note: Action Scheduler timing under Playground's WP-Cron is not
    representative of production — if P2 sync scheduling itself is what
    you're testing (not just the payload), do that pass in LocalWP.
-5. Sync scope: on the same screen, set "Sync scope" to "Only sync selected
+6. Sync scope narrowing: set "Sync scope" to "Only sync selected
    categories/tags", pick a category none of the 3 seeded products belong
    to, and re-sync — expect all 3 to be skipped (not upserted). Switch back
    to "Sync all published products" and re-sync to restore the baseline for
@@ -127,6 +134,28 @@ on it; that's expected on `dev` alone, not a bug).
    recommendation payload itself needs to carry the Woo variation id, or
    whether server-side resolution here is sufficient on its own — this
    step is exactly what answers that.
+
+## 5. Self-update
+
+Not distributed through wordpress.org — updates come from GitHub Releases via
+`Support\Self_Updater` (Plugin Update Checker, vendored at
+`lib/plugin-update-checker/`). Playground resets state on every restart, so
+this needs a **persistent** install (LocalWP or a real site) rather than
+`bin/dev.sh`.
+
+1. Install a build with a lower `Version:` than the latest tagged GitHub
+   release (e.g. hand-edit `oyster-woocommerce.php`'s header + a matching
+   `OYSTER_WOO_VERSION` to something older, or install right before a new tag
+   goes out).
+2. On **Plugins**, click "Check for updates" (top of the list) — expect an
+   "Update available" row for Oyster for WooCommerce, pulling from the
+   release's attached zip, not GitHub's auto-generated source archive.
+3. Cutting a release: bump `Version:`/`OYSTER_WOO_VERSION` in
+   `oyster-woocommerce.php`, merge, then `git tag vX.Y.Z && git push --tags`.
+   `.github/workflows/release.yml` builds the zip and attaches it — nothing
+   to upload by hand. The workflow fails loudly if the tag doesn't match the
+   header's `Version:`, since that mismatch would make the release
+   invisible to the self-updater.
 
 ## Resetting
 
