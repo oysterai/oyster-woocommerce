@@ -16,3 +16,6 @@ vendor/
 
 # Local env
 .env
+
+# Personal dev notes — not part of the shared repo
+/callouts.md

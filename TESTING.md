@@ -133,10 +133,9 @@ on it; that's expected on `dev` alone, not a bug).
 3. After completing checkout, confirm the order has `_oyster_batch_id`
    order meta, and check the backend's `orders` table (or its logs) for a
    `channel=woocommerce` row created on `payment_complete`.
-4. Known open question (callout #2 in `callouts.md`): whether the
-   recommendation payload itself needs to carry the Woo variation id, or
-   whether server-side resolution here is sufficient on its own — this
-   step is exactly what answers that.
+4. Known open question: whether the recommendation payload itself needs to
+   carry the Woo variation id, or whether server-side resolution here is
+   sufficient on its own — this step is exactly what answers that.
 
 ## 5. Self-update
 

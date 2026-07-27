@@ -157,8 +157,7 @@ or work around it.
 
 ## Testing
 
-No PHPUnit/WP test harness exists yet (tracked as `callouts.md` #4).
-Verification today is:
+No PHPUnit/WP test harness exists yet. Verification today is:
 
 - `php -l <file>` on every changed PHP file (syntax only).
 - `node --check assets/js/*.js` for the JS.
@@ -172,10 +171,3 @@ Verification today is:
   (`bin/dev.sh`). Assumes access to Oyster's own (private) backend for the
   local-backend sections; everything else works against the public
   production API for any contributor.
-
-## Known gaps
-
-`callouts.md` tracks things that were deliberately flagged and *not* solved
-on the spot — read it before assuming a rough edge is undiscovered, and add
-to it (don't just fix silently, and don't fix silently *without* documenting
-why) when you defer something similarly.
