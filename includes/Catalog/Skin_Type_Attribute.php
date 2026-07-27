@@ -4,9 +4,8 @@
  *
  * Registers a WooCommerce global attribute (taxonomy `pa_skin-type`) seeded
  * with Oyster's canonical skin types, so merchants can tag which skin types a
- * product suits and the catalog sync can forward that to Oyster. The Shopify
- * app derives skin-type fit from ingredients; on WooCommerce we expose it as a
- * first-class product attribute that merchants can also import via CSV.
+ * product suits and the catalog sync can forward that to Oyster. Exposed as a
+ * first-class product attribute so merchants can also import it via CSV.
  *
  * @package Oyster\Woo
  */
@@ -33,8 +32,8 @@ final class Skin_Type_Attribute {
 	private const VERSION        = 1;
 
 	/**
-	 * Canonical Oyster skin types. These MUST match the names in skin-ai-api's
-	 * `skin_types` table — the backend resolves incoming values by name and
+	 * Canonical Oyster skin types. These MUST match the skin-type names
+	 * Oyster's backend recognizes — it resolves incoming values by name and
 	 * ignores anything it doesn't recognise.
 	 *
 	 * @var array<int, string>

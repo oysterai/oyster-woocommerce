@@ -69,7 +69,7 @@ final class Connection {
 	}
 
 	/**
-	 * The storefront origin we reported to skin-ai-api at connect time.
+	 * The storefront origin we reported to Oyster at connect time.
 	 */
 	public function store_url(): string {
 		return (string) ( $this->raw()['store_url'] ?? home_url() );

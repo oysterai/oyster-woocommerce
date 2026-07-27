@@ -63,12 +63,11 @@ final class Product_Hooks {
 		if ( 'product_variation' === $post_type ) {
 			// A single variation was trashed/deleted while its parent product
 			// survives. There's no variation-level delete on the backend —
-			// DeleteWooCommerceProducts is product-level only, by design (see
-			// its doc comment in skin-ai-api). Re-syncing the parent refreshes
-			// its remaining variations, but the removed variation's Oyster row
-			// isn't pruned until the parent product itself is later deleted.
-			// Acceptable for v1; revisit if stale single-variation rows turn
-			// out to be a real merchant complaint.
+			// deletion is product-level only, by design. Re-syncing the parent
+			// refreshes its remaining variations, but the removed variation's
+			// Oyster row isn't pruned until the parent product itself is later
+			// deleted. Acceptable for v1; revisit if stale single-variation
+			// rows turn out to be a real merchant complaint.
 			$parent_id = $this->parent_product_id( $post_id );
 			if ( $parent_id ) {
 				$this->sync->enqueue_sync( $parent_id );

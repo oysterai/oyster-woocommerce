@@ -16,11 +16,11 @@ use Oyster\Woo\Support\Widget_Settings;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Puts the Oyster widget on the storefront. Unlike the Shopify app — which
- * fetches its public key over a signed App Proxy call — this plugin runs
- * server-side inside WordPress, so it injects the resolved public key + display
- * config inline as a JS global. The loader script (assets/js/oyster-loader.js)
- * reads that global and boots createScanWidget() for each anchor on the page.
+ * Puts the Oyster widget on the storefront. This plugin runs server-side
+ * inside WordPress, so it injects the resolved public key + display config
+ * inline as a JS global rather than fetching it client-side. The loader
+ * script (assets/js/oyster-loader.js) reads that global and boots
+ * createScanWidget() for each anchor on the page.
  *
  * Anchors come from three sources, all sharing the same loader:
  *   - the floating launcher (wp_footer, when enabled)

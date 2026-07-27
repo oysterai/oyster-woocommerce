@@ -38,19 +38,19 @@ alongside the classic ones for attribution to survive on a Blocks-only store.
 
 ### 2. Recommendation payload — does it need to carry the Woo variation id?
 
-Original open question from the P1 scaffolding review (mirrored from the
-`oyster-shopify-prd.md` risk list): does `vendor-widget-core`'s recommendation
-payload need to carry `woocommerce_variation_id` per recommended product for
-`woocommerce`-channel vendors, the way it might for Shopify's variant model?
+Original open question from the P1 scaffolding review: does the widget SDK's
+recommendation payload need to carry `woocommerce_variation_id` per
+recommended product for `woocommerce`-channel vendors, the way it might for
+Shopify's variant model?
 
 - **Raised:** initial P1 summary, this session (2026-07-23)
-- **Why deferred:** `Cart_Controller::handle_add` resolves Oyster `product_id` → WooCommerce product/variation id **server-side**, at add-to-cart time, via the `resolve-variants` endpoint — so the payload itself may not need to change at all. This hasn't been confirmed either way against how `vendor-widget-core` actually builds `CheckoutPayload.checkout_items[].product_id` for a WooCommerce-synced recommendation.
-- **Resolves when:** a live scan against a connected, catalog-synced WooCommerce store confirms `checkout_items[].product_id` reliably resolves via `resolve-variants` with no widget-core changes needed. If it doesn't resolve, trace why before assuming the payload needs a new field.
+- **Why deferred:** `Cart_Controller::handle_add` resolves Oyster `product_id` → WooCommerce product/variation id **server-side**, at add-to-cart time, via the `resolve-variants` endpoint — so the payload itself may not need to change at all. This hasn't been confirmed either way against how the widget SDK actually builds `CheckoutPayload.checkout_items[].product_id` for a WooCommerce-synced recommendation.
+- **Resolves when:** a live scan against a connected, catalog-synced WooCommerce store confirms `checkout_items[].product_id` reliably resolves via `resolve-variants` with no widget-side changes needed. If it doesn't resolve, trace why before assuming the payload needs a new field.
 
 ### 3. No variation-level delete on the backend
 
-`DeleteWooCommerceProducts` (skin-api) is **product-level only** by design —
-mirrors `DeleteShopifyProducts`. When a single variation is trashed/deleted
+Product deletion on the backend is **product-level only** by design,
+mirroring how the Shopify integration handles it. When a single variation is trashed/deleted
 but its parent product survives, `Product_Hooks::on_post_removed`
 ([includes/Sync/Product_Hooks.php:56-72](includes/Sync/Product_Hooks.php#L56-L72))
 re-syncs the parent (refreshing its remaining variations) rather than
@@ -84,8 +84,7 @@ WooCommerce (which already triggers the existing delete path via
 
 ### 4. No PHPUnit/WP test harness in the plugin
 
-skin-ai-api's side of this integration is fully Pest-tested (90 tests across
-the three backend PRs). The plugin (`oyster-woocommerce`) has **no automated
+The backend side of this integration is fully unit-tested. The plugin (`oyster-woocommerce`) has **no automated
 test coverage** — verification so far is `php -l` (syntax only) and
 `node --check` on the JS. No WP_UnitTestCase / Brain Monkey / WP-CLI test
 scaffold exists yet.
@@ -114,9 +113,9 @@ This was asked in the original P1 summary and never explicitly confirmed.
 
 ### 6. `app: 'woocommerce'` channel support in the widget
 
-Originally flagged as an unverified spike in the P1 summary: would
-`vendor-widget-core`/`vendor-widget-web` accept `'woocommerce'` as a valid
-embedding app, or silently fall back to the generic `widget` channel?
+Originally flagged as an unverified spike in the P1 summary: would the widget
+SDK accept `'woocommerce'` as a valid embedding app, or silently fall back to
+the generic `widget` channel?
 
-- **Resolved by:** [vendor-widget-web#118](https://github.com/oysterai/vendor-widget-web/pull/118) + [vendor-widget-core#323](https://github.com/oysterai/vendor-widget-core/pull/323) (both merged) + [skin-api#1651](https://github.com/oysterai/skin-api/pull/1651) (merged, `AppChannel::WOOCOMMERCE`).
-- **One remaining operational note (not re-opening this callout, just worth remembering):** the storefront loads the **production** widget bundle from `https://widget-lib.oysterskin.com` (see [assets/js/oyster-loader.js:17](assets/js/oyster-loader.js#L17) and [includes/Frontend/Widget_Loader.php:33](includes/Frontend/Widget_Loader.php#L33)). The source fix is merged, but it needs a **widget-lib release** to actually reach real merchant storefronts. Until that release ships, production stores still see scans attributed to the `widget` channel, not `woocommerce`, even though the code is merged. Local testing can point at a pre-release build via `OYSTER_WOO_WIDGET_BUNDLE_URL`.
+- **Resolved by:** changes merged on both the widget SDK and backend sides, adding `woocommerce` as a recognized channel.
+- **One remaining operational note (not re-opening this callout, just worth remembering):** the storefront loads the **production** widget bundle from `https://widget-lib.oysterskin.com` (see [assets/js/oyster-loader.js:17](assets/js/oyster-loader.js#L17) and [includes/Frontend/Widget_Loader.php:33](includes/Frontend/Widget_Loader.php#L33)). The source fix is merged, but it needs a widget-bundle release to actually reach real merchant storefronts. Until that release ships, production stores still see scans attributed to the `widget` channel, not `woocommerce`, even though the code is merged. Local testing can point at a pre-release build via `OYSTER_WOO_WIDGET_BUNDLE_URL`.

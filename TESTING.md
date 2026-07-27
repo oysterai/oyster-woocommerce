@@ -1,5 +1,10 @@
 # `oyster-woocommerce` — Manual Test Guide
 
+An internal maintainer's guide — testing against a local backend assumes
+access to Oyster's (private) backend repo, which external contributors won't
+have. Everything else here works for anyone: clone this repo, run `bin/dev.sh`,
+and point `OYSTER_WOO_API_BASE_URL` at the public production API.
+
 Run through linearly — each section depends on the previous. Uses [WordPress
 Playground](https://wordpress.github.io/wordpress-playground/) for a
 disposable WP + WooCommerce store — no Docker, no local MySQL.
@@ -9,8 +14,8 @@ disposable WP + WooCommerce store — no Docker, no local MySQL.
 | Need | Why | Get it |
 |---|---|---|
 | Node.js ≥ 20.18 | Runs the Playground CLI | already on this machine (v24) |
-| Existing Oyster vendor account | Test the Connect flow | Use your account on whichever skin-ai-api you point at |
-| (Optional) local skin-ai-api | Test against unreleased backend changes | `cd ../skin-ai-api && php artisan serve` |
+| Existing Oyster vendor account | Test the Connect flow | Use your account on whichever backend you point at |
+| (Optional) local backend | Test against unreleased backend changes | `cd ../<backend repo> && php artisan serve` |
 
 Playground is SQLite-backed and resets on every restart — that's a feature
 for repeatable testing, not a bug. For anything sensitive to real MySQL
@@ -24,7 +29,7 @@ Nothing to install — `bin/dev.sh` shells out to `npx @wp-playground/cli`,
 which Node fetches on first run.
 
 ```bash
-cd /Users/emeka/oyster_workspace/oyster-woocommerce
+cd oyster-woocommerce
 bin/dev.sh
 ```
 
@@ -33,27 +38,26 @@ activates WooCommerce, activates this plugin (auto-mounted from your
 working tree — edits to PHP files need a server restart to pick up;
 static JS/CSS can be hard-refreshed), seeds 3 products with SKUs, and
 points the plugin's API base at `http://localhost:8000` — **your local
-skin-ai-api, which must already be running**:
+backend, which must already be running**:
 
 ```bash
 # terminal 1
-cd /Users/emeka/oyster_workspace/skin-ai-api && php artisan serve
+cd <backend repo> && php artisan serve
 
 # terminal 2
-cd /Users/emeka/oyster_workspace/oyster-woocommerce && bin/dev.sh
+cd oyster-woocommerce && bin/dev.sh
 ```
 
 Local is the default on purpose — it's the only way a test session can
 never accidentally hit production. Vendor credentials you use here must
-exist in your **local** skin-ai-api database, not production; a login
-that "should work" but 401s is usually this — check
-`skin-ai-api/storage/logs/laravel.log` for whether the request even
-arrived locally.
+exist in your **local** backend database, not production; a login
+that "should work" but 401s is usually this — check the local backend's
+logs for whether the request even arrived locally.
 
 To test against the real production backend instead:
 
 ```bash
-cd /Users/emeka/oyster_workspace/oyster-woocommerce && bin/dev.sh --production
+cd oyster-woocommerce && bin/dev.sh --production
 ```
 
 ## 1. Connect
@@ -78,9 +82,8 @@ cd /Users/emeka/oyster_workspace/oyster-woocommerce && bin/dev.sh --production
    renders inline in place of (or alongside) the float launcher per your
    settings.
 4. Open devtools — confirm the loader's outbound request carries
-   `app: 'woocommerce'`. The channel is accepted end-to-end now
-   (vendor-widget-web#118 + vendor-widget-core#323 + skin-api's
-   `AppChannel::WOOCOMMERCE`, all merged) — a scan here should attribute
+   `app: 'woocommerce'`. The channel is accepted end-to-end now (merged on
+   both the widget SDK and backend sides) — a scan here should attribute
    as `woocommerce`, not fall back to the generic `widget` channel. Note:
    this only takes effect once widget-lib ships a release containing
    those merges; if you're testing against the CDN bundle rather than a
@@ -98,7 +101,7 @@ cd /Users/emeka/oyster_workspace/oyster-woocommerce && bin/dev.sh --production
    the deliberate opt-in the rest of this guide assumes as a baseline.
    Trigger a sync.
 3. Expect the 3 seeded products (`OYS-CLN-001`, `OYS-SER-002`,
-   `OYS-MOI-003`) to bulk-upsert to skin-ai-api's
+   `OYS-MOI-003`) to bulk-upsert to the backend's
    `/api/v1/integrations/woocommerce/*` catalog endpoint.
 4. Edit a product's price/title in WooCommerce, confirm the product-hook
    sync fires (Action Scheduler) and the change propagates.
@@ -128,7 +131,7 @@ on it; that's expected on `dev` alone, not a bug).
    resolves Oyster product ids to WooCommerce ids via `resolve-variants`,
    so nothing to resolve means nothing gets added.
 3. After completing checkout, confirm the order has `_oyster_batch_id`
-   order meta, and check skin-ai-api's `orders` table (or its logs) for a
+   order meta, and check the backend's `orders` table (or its logs) for a
    `channel=woocommerce` row created on `payment_complete`.
 4. Known open question (callout #2 in `callouts.md`): whether the
    recommendation payload itself needs to carry the Woo variation id, or

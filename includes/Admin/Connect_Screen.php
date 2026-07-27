@@ -27,7 +27,8 @@ final class Connect_Screen {
 
 	public function __construct(
 		private Connection $connection,
-		private Client $client
+		private Client $client,
+		private Setup_Guide $setup_guide
 	) {}
 
 	public function register(): void {
@@ -180,6 +181,8 @@ final class Connect_Screen {
 		$name         = $this->connection->business_name();
 		$has_widget   = '' !== $this->connection->public_key();
 		$connected_at = $this->connection->connected_at();
+
+		$this->setup_guide->render();
 
 		echo '<div class="oyster-card" style="max-width:640px;background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:24px;margin-top:16px;">';
 

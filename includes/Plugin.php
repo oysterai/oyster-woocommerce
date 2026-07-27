@@ -12,6 +12,7 @@ namespace Oyster\Woo;
 use Oyster\Woo\Admin\Catalog_Screen;
 use Oyster\Woo\Admin\Connect_Screen;
 use Oyster\Woo\Admin\Menu;
+use Oyster\Woo\Admin\Setup_Guide;
 use Oyster\Woo\Admin\Sync_Status_Column;
 use Oyster\Woo\Admin\Widget_Settings_Screen;
 use Oyster\Woo\Api\Client;
@@ -104,10 +105,12 @@ final class Plugin {
 		( new Order_Attribution( $this->connection, $this->client ) )->register();
 
 		if ( is_admin() ) {
-			$connect = new Connect_Screen( $this->connection, $this->client );
-			$widget  = new Widget_Settings_Screen( $this->connection, $this->client );
-			$catalog = new Catalog_Screen( $this->connection, $catalog_sync );
+			$setup_guide = new Setup_Guide( $this->connection, $catalog_sync );
+			$connect     = new Connect_Screen( $this->connection, $this->client, $setup_guide );
+			$widget      = new Widget_Settings_Screen( $this->connection, $this->client );
+			$catalog     = new Catalog_Screen( $this->connection, $catalog_sync );
 
+			$setup_guide->register();
 			$connect->register();
 			$widget->register();
 			$catalog->register();

@@ -1,6 +1,6 @@
 <?php
 /**
- * Thin client around skin-ai-api.
+ * Thin client around Oyster's API.
  *
  * @package Oyster\Woo
  */
@@ -14,9 +14,9 @@ use Oyster\Woo\Support\Url_Guard;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The PHP counterpart of oyster-shopify's worker/oyster-api.ts: one place that
- * injects auth + the X-CHANNEL identifier and turns non-2xx responses into a
- * typed Api_Exception. All domain reads/writes go through here.
+ * One place that injects auth + the X-CHANNEL identifier and turns non-2xx
+ * responses into a typed Api_Exception. All domain reads/writes go through
+ * here.
  */
 final class Client {
 
@@ -46,7 +46,7 @@ final class Client {
 	}
 
 	/**
-	 * Register a new vendor. skin-ai-api emails a verification code and does
+	 * Register a new vendor. Oyster emails a verification code and does
 	 * NOT return a bearer until the vendor verifies, so the caller must send
 	 * the merchant back through login afterwards.
 	 *
@@ -83,8 +83,7 @@ final class Client {
 	 * session token isn't rejected on origin, and so scan-usage is attributed
 	 * to the WooCommerce channel.
 	 *
-	 * Backend counterpart: POST /api/v1/integrations/woocommerce/connect
-	 * (parallel to the Shopify ConnectShop action — see the skin-ai-api PR).
+	 * Backend counterpart: POST /api/v1/integrations/woocommerce/connect.
 	 *
 	 * @return array<string, mixed>
 	 * @throws Api_Exception
@@ -126,7 +125,8 @@ final class Client {
 
 	/**
 	 * Archive every Oyster row (including variations) tied to the given
-	 * WooCommerce product ids. Product-level only — see DeleteWooCommerceProducts.
+	 * WooCommerce product ids. Product-level only — no way to delete a single
+	 * variation without deleting its whole parent product.
 	 *
 	 * @param string[] $product_ids
 	 * @return array<string, mixed> Envelope: { data: { archived } }.
@@ -200,9 +200,10 @@ final class Client {
 
 		$headers = array(
 			'Accept' => 'application/json',
-			// skin-ai-api's ParsesVendorHeader trait gates vendor auth on this
-			// channel. We're the WooCommerce-mounted equivalent of vendors-ui,
-			// so the same vendor-dash channel applies (matches the worker).
+			// The backend gates vendor-authenticated requests on this channel
+			// header; 'vendor-dash' is the same channel Oyster's own vendor
+			// dashboard uses, which this plugin is the WooCommerce-side
+			// equivalent of.
 			'X-CHANNEL'  => 'vendor-dash',
 			'User-Agent' => 'oyster-woocommerce/' . OYSTER_WOO_VERSION . '; ' . home_url(),
 		);
@@ -246,7 +247,7 @@ final class Client {
 	}
 
 	/**
-	 * Resolve the skin-ai-api base URL every request is sent to — including
+	 * Resolve the Oyster API base URL every request is sent to — including
 	 * the Authorization header carrying the vendor's bearer. Deliberately NOT
 	 * filterable; see Url_Guard's class doc for why. The only override is the
 	 * `OYSTER_WOO_API_BASE_URL` wp-config constant, validated by Url_Guard
