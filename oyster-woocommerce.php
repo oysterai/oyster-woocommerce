@@ -3,7 +3,7 @@
  * Plugin Name:       Oyster for WooCommerce
  * Plugin URI:        https://oysterskin.com/woocommerce
  * Description:       Add Oyster's AI face-scan skincare concierge to your WooCommerce store. Shoppers scan their skin, get personalized product recommendations from your catalog, and check out natively — with every order attributed back to the scan.
- * Version:           0.7.0
+ * Version:           0.8.0
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Oyster Skin
@@ -31,7 +31,7 @@ defined( 'ABSPATH' ) || exit;
  * Constants
  * ---------------------------------------------------------------------------
  */
-define( 'OYSTER_WOO_VERSION', '0.7.0' );
+define( 'OYSTER_WOO_VERSION', '0.8.0' );
 define( 'OYSTER_WOO_FILE', __FILE__ );
 define( 'OYSTER_WOO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OYSTER_WOO_URL', plugin_dir_url( __FILE__ ) );
