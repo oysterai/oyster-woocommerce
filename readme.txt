@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.7.0
+Stable tag: 0.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,6 +63,21 @@ https://oysterskin.com/terms for terms of service.
 5. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.8.0 =
+* Self-updating: the plugin now checks for and installs updates directly (no
+  wordpress.org listing yet), so you'll see "Update available" on the Plugins
+  screen the same way you would for any other plugin.
+* Catalog sync now defaults to syncing nothing until you choose a scope —
+  protects stores with a lot of non-skincare inventory from accidentally
+  syncing their whole catalog. Pick "sync all," or scope to specific
+  categories/tags, on the **Oyster → Catalog** screen.
+* Fixed the checkout handoff occasionally failing silently — the widget's
+  "add to cart" step is now more reliable, and any failure sends the shopper
+  to a normal page with a clear notice instead of leaving them stuck.
+* New "Get set up with Oyster" checklist on the **Oyster → Connection**
+  screen, walking through connecting, syncing your catalog, customizing the
+  widget, and confirming your first scan.
 
 = 0.7.0 =
 * Per-product sync tracking: after each successful catalog push, the plugin records
