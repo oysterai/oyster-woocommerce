@@ -23,6 +23,7 @@ use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Compliance\Gdpr;
 use Oyster\Woo\Frontend\Widget_Loader;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Self_Updater;
 use Oyster\Woo\Sync\Catalog_Sync;
 use Oyster\Woo\Sync\Product_Hooks;
 
@@ -80,6 +81,13 @@ final class Plugin {
 			return;
 		}
 		$this->booted = true;
+
+		// Not distributed through wordpress.org, so core has no way to know a
+		// new version exists on its own — this is what makes "Update
+		// available" show up on the Plugins screen instead. Unconditional
+		// (not is_admin()-gated): PUC hooks the update-check transients
+		// itself and only ever surfaces UI on wp-admin regardless.
+		Self_Updater::register();
 
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 

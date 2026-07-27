@@ -1,0 +1,39 @@
+name: Release
+
+# Publishing a GitHub Release (with the built zip attached as an asset) is
+# what Support\Self_Updater / Plugin Update Checker actually checks for — see
+# includes/Support/Self_Updater.php. Cutting a release is just:
+#   git tag v1.2.3 && git push --tags
+# No manual zip upload, no separate hosting.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches the plugin's Version header
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          HEADER_VERSION=$(sed -n -E 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]+([0-9][0-9.]*).*/\1/p' oyster-woocommerce.php | head -1)
+          if [ "$TAG_VERSION" != "$HEADER_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION does not match the plugin header's Version: $HEADER_VERSION. Bump the Version (and OYSTER_WOO_VERSION) in oyster-woocommerce.php first, or the self-updater will never detect this release." >&2
+            exit 1
+          fi
+          echo "Tag matches header version ($HEADER_VERSION) — continuing."
+
+      - name: Build release zip
+        run: bin/build-release-zip.sh
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
