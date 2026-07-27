@@ -89,16 +89,23 @@ cd /Users/emeka/oyster_workspace/oyster-woocommerce && bin/dev.sh --production
 
 ## 3. Catalog
 
-1. Go to **Oyster → Catalog**, trigger a sync.
-2. Expect the 3 seeded products (`OYS-CLN-001`, `OYS-SER-002`,
+1. Go to **Oyster → Catalog**. On a fresh install, expect a warning notice
+   ("No categories or tags are selected below, so nothing syncs yet.") —
+   **the safe default is to sync nothing** until a scope is chosen, so a
+   large general-inventory store can never accidentally dump its whole
+   catalog into Oyster just by installing the plugin.
+2. Set "Sync scope" to "Sync all published products" and save — this is
+   the deliberate opt-in the rest of this guide assumes as a baseline.
+   Trigger a sync.
+3. Expect the 3 seeded products (`OYS-CLN-001`, `OYS-SER-002`,
    `OYS-MOI-003`) to bulk-upsert to skin-ai-api's
    `/api/v1/integrations/woocommerce/*` catalog endpoint.
-3. Edit a product's price/title in WooCommerce, confirm the product-hook
+4. Edit a product's price/title in WooCommerce, confirm the product-hook
    sync fires (Action Scheduler) and the change propagates.
-4. Note: Action Scheduler timing under Playground's WP-Cron is not
+5. Note: Action Scheduler timing under Playground's WP-Cron is not
    representative of production — if P2 sync scheduling itself is what
    you're testing (not just the payload), do that pass in LocalWP.
-5. Sync scope: on the same screen, set "Sync scope" to "Only sync selected
+6. Sync scope narrowing: set "Sync scope" to "Only sync selected
    categories/tags", pick a category none of the 3 seeded products belong
    to, and re-sync — expect all 3 to be skipped (not upserted). Switch back
    to "Sync all published products" and re-sync to restore the baseline for

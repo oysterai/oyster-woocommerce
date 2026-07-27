@@ -166,8 +166,10 @@ final class Catalog_Screen {
 
 		printf(
 			'<p style="max-width:640px;">%s</p>',
-			esc_html__( 'Published simple and variable products sync to Oyster automatically whenever you save them. Use "Sync now" for the first import, or to force a full re-sync.', 'oyster-woocommerce' )
+			esc_html__( 'Products sync to Oyster automatically whenever you save them, scoped to whatever you choose below. Use "Sync now" for the first import, or to force a full re-sync.', 'oyster-woocommerce' )
 		);
+
+		$this->render_scope_notice();
 
 		settings_errors( Catalog_Filter::OPTION_KEY );
 
@@ -191,6 +193,24 @@ final class Catalog_Screen {
 		echo '</form>';
 
 		echo '</div>';
+	}
+
+	/**
+	 * Shown whenever the *current, live* scope means nothing is eligible to
+	 * sync — not just right after a settings save, so a vendor who lands here
+	 * later still sees why their catalog isn't syncing. Deliberately not an
+	 * error: an empty allow-list is the safe default, not a mistake.
+	 */
+	private function render_scope_notice(): void {
+		$settings = Catalog_Filter::get();
+		if ( Catalog_Filter::MODE_ALLOW !== $settings['mode'] || $settings['category_ids'] || $settings['tag_ids'] ) {
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-warning inline"><p>%s</p></div>',
+			esc_html__( 'No categories or tags are selected below, so nothing syncs yet. Pick at least one, or choose "Sync all published products" if that\'s intentional.', 'oyster-woocommerce' )
+		);
 	}
 
 	private function render_status(): void {
