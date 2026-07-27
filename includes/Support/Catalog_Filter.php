@@ -23,6 +23,14 @@ defined( 'ABSPATH' ) || exit;
  * or a deny-list (everything except these syncs). Categories and tags are
  * combined with OR within whichever list is active — a product is a match if
  * it carries ANY of the selected terms, from either taxonomy.
+ *
+ * The default is deliberately the safest possible one: an allow-list with
+ * nothing selected, i.e. nothing syncs until a vendor explicitly chooses a
+ * scope. A store that never touches this screen must never dump its entire
+ * catalog into Oyster's data by accident — a large general retailer with
+ * mostly non-beauty inventory is exactly the case this protects against.
+ * "Sync all published products" is one deliberate click away on the Catalog
+ * screen; it is not, and must not become, the unconfigured default again.
  */
 final class Catalog_Filter {
 
@@ -37,7 +45,7 @@ final class Catalog_Filter {
 	 */
 	public static function defaults(): array {
 		return array(
-			'mode'         => self::MODE_ALL,
+			'mode'         => self::MODE_ALLOW,
 			'category_ids' => array(),
 			'tag_ids'      => array(),
 		);
@@ -73,18 +81,19 @@ final class Catalog_Filter {
 		$category_ids = self::sanitize_term_ids( $input['category_ids'] ?? array(), 'product_cat' );
 		$tag_ids      = self::sanitize_term_ids( $input['tag_ids'] ?? array(), 'product_tag' );
 
-		// An allow-list with nothing selected would silently stop syncing
-		// every product with no obvious explanation — refuse that instead.
-		if ( self::MODE_ALLOW === $mode && ! $category_ids && ! $tag_ids ) {
-			$mode = self::MODE_ALL;
-
-			if ( function_exists( 'add_settings_error' ) ) {
-				add_settings_error(
-					self::OPTION_KEY,
-					'oyster_woo_catalog_filter_empty_allow',
-					__( '"Only sync selected categories/tags" was chosen with nothing selected — reverted to syncing all products. Pick at least one category or tag to restrict sync.', 'oyster-woocommerce' )
-				);
-			}
+		// Deliberately NOT auto-reverted to "all" here. An allow-list with
+		// nothing selected means nothing syncs — that's a safe, inert state,
+		// not a footgun, and silently switching a vendor to "sync everything"
+		// on their behalf would be the actual dangerous behavior this class
+		// exists to prevent. Catalog_Screen surfaces an explanatory notice
+		// instead of correcting it.
+		if ( self::MODE_ALLOW === $mode && ! $category_ids && ! $tag_ids && function_exists( 'add_settings_error' ) ) {
+			add_settings_error(
+				self::OPTION_KEY,
+				'oyster_woo_catalog_filter_empty_allow',
+				__( 'No categories or tags are selected, so nothing will sync yet. Pick at least one, or choose "Sync all published products" if that\'s intentional.', 'oyster-woocommerce' ),
+				'warning'
+			);
 		}
 
 		return array(
