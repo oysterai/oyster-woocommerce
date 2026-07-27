@@ -6,3 +6,4 @@
 /.gitignore export-ignore
 /callouts.md export-ignore
 /bin export-ignore
+/.github export-ignore

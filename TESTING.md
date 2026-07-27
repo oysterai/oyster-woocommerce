@@ -135,6 +135,28 @@ on it; that's expected on `dev` alone, not a bug).
    whether server-side resolution here is sufficient on its own — this
    step is exactly what answers that.
 
+## 5. Self-update
+
+Not distributed through wordpress.org — updates come from GitHub Releases via
+`Support\Self_Updater` (Plugin Update Checker, vendored at
+`lib/plugin-update-checker/`). Playground resets state on every restart, so
+this needs a **persistent** install (LocalWP or a real site) rather than
+`bin/dev.sh`.
+
+1. Install a build with a lower `Version:` than the latest tagged GitHub
+   release (e.g. hand-edit `oyster-woocommerce.php`'s header + a matching
+   `OYSTER_WOO_VERSION` to something older, or install right before a new tag
+   goes out).
+2. On **Plugins**, click "Check for updates" (top of the list) — expect an
+   "Update available" row for Oyster for WooCommerce, pulling from the
+   release's attached zip, not GitHub's auto-generated source archive.
+3. Cutting a release: bump `Version:`/`OYSTER_WOO_VERSION` in
+   `oyster-woocommerce.php`, merge, then `git tag vX.Y.Z && git push --tags`.
+   `.github/workflows/release.yml` builds the zip and attaches it — nothing
+   to upload by hand. The workflow fails loudly if the tag doesn't match the
+   header's `Version:`, since that mismatch would make the release
+   invisible to the self-updater.
+
 ## Resetting
 
 Playground state doesn't persist across `bin/dev.sh` restarts — just
