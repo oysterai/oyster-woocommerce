@@ -32,6 +32,13 @@ jobs:
       - name: Build release zip
         run: bin/build-release-zip.sh
 
+      - name: Add a stable-named copy for direct download links
+        # Same content as the versioned zip — just a second copy under a
+        # filename that never changes, so external links (e.g. the vendors-ui
+        # Apps gallery) don't need updating every release:
+        #   .../releases/latest/download/oyster-woocommerce.zip
+        run: cp dist/oyster-woocommerce-*.zip dist/oyster-woocommerce.zip
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
