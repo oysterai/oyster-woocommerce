@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.8.0
+Stable tag: 0.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,12 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.9.0 =
+* Creating an Oyster account now happens in the Oyster dashboard rather than in
+  wp-admin. The **Oyster → Connection** screen links straight to the sign-up page
+  and keeps the log-in form for connecting an account you already have. If you're
+  already connected, nothing changes for you.
 
 = 0.8.0 =
 * Self-updating: the plugin now checks for and installs updates directly (no
