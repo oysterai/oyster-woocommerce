@@ -61,7 +61,9 @@ while IFS= read -r file; do
 "
     MISSING_COUNT=$((MISSING_COUNT + 1))
   fi
-done < <(find includes lib assets -type f \( -name '*.php' -o -name '*.js' -o -name '*.css' \) | sort)
+done < <(find includes lib assets -type f \
+  \( -name '*.php' -o -name '*.js' -o -name '*.css' \
+     -o -name '*.svg' -o -name '*.png' -o -name '*.jpg' \) | sort)
 
 if [ "$MISSING_COUNT" -gt 0 ]; then
   echo "error: $MISSING_COUNT runtime file(s) exist on disk but are missing from the zip." >&2
