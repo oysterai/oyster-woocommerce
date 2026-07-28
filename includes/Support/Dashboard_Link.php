@@ -34,6 +34,15 @@ final class Dashboard_Link {
 	}
 
 	/**
+	 * Sign-up happens in the Oyster dashboard, never in wp-admin — this plugin
+	 * only ever connects an account that already exists. Derived from url() so
+	 * it inherits the same wp-config override and Url_Guard validation.
+	 */
+	public static function register_url(): string {
+		return self::url() . '/register';
+	}
+
+	/**
 	 * Echoes a single link/button. Always opens in a new tab — merchants stay
 	 * on the WP admin screen they were on.
 	 */
