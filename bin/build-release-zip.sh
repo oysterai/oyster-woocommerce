@@ -41,4 +41,36 @@ rm -f "$DIST_DIR/$ZIP_NAME"
 
 git archive --format=zip --prefix="$SLUG/" -o "$DIST_DIR/$ZIP_NAME" HEAD
 
+# Guard: every runtime file present on disk must also be in the zip.
+#
+# `git archive` only packages *tracked* files, so a runtime file that git
+# ignores is dropped silently — it still works locally (the file is on disk)
+# and only breaks on merchant sites. That shipped once: .gitignore's
+# unanchored `vendor/` also matched lib/plugin-update-checker/vendor/, so
+# Parsedown was never committed, every release omitted it, and the
+# self-updater fataled with "Class Parsedown not found" the moment it parsed
+# a GitHub release body. Nothing caught it because the zip was otherwise
+# complete and the plugin itself ran fine.
+ZIP_LIST=$(unzip -Z1 "$DIST_DIR/$ZIP_NAME")
+MISSING_LIST=""
+MISSING_COUNT=0
+
+while IFS= read -r file; do
+  if ! printf '%s\n' "$ZIP_LIST" | grep -qxF "$SLUG/$file"; then
+    MISSING_LIST="${MISSING_LIST}         ${file}
+"
+    MISSING_COUNT=$((MISSING_COUNT + 1))
+  fi
+done < <(find includes lib assets -type f \( -name '*.php' -o -name '*.js' -o -name '*.css' \) | sort)
+
+if [ "$MISSING_COUNT" -gt 0 ]; then
+  echo "error: $MISSING_COUNT runtime file(s) exist on disk but are missing from the zip." >&2
+  echo "       They are almost certainly untracked or gitignored — 'git archive' ships only tracked files." >&2
+  echo "       Check 'git check-ignore -v <path>' for each:" >&2
+  printf '%s' "$MISSING_LIST" >&2
+  rm -f "$DIST_DIR/$ZIP_NAME"
+  exit 1
+fi
+
 echo "Built dist/$ZIP_NAME (v$VERSION, from $(git rev-parse --short HEAD))"
+echo "Verified $(printf '%s\n' "$ZIP_LIST" | grep -c '\.php$') PHP files packaged; no runtime file missing."
