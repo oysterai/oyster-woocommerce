@@ -46,23 +46,6 @@ final class Client {
 	}
 
 	/**
-	 * Register a new vendor. Oyster emails a verification code and does
-	 * NOT return a bearer until the vendor verifies, so the caller must send
-	 * the merchant back through login afterwards.
-	 *
-	 * @param array<string, mixed> $fields
-	 * @return array<string, mixed>
-	 * @throws Api_Exception
-	 */
-	public function register_vendor( array $fields ): array {
-		return $this->request(
-			'POST',
-			'/api/v1/auth/register/vendor',
-			array( 'body' => $fields )
-		);
-	}
-
-	/**
 	 * @return array<string, mixed> Vendor profile envelope ({ vendor: { id, business_name, ... } }).
 	 * @throws Api_Exception
 	 */

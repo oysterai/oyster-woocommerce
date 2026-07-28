@@ -17,9 +17,15 @@ use Oyster\Woo\Support\Dashboard_Link;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Owns the login / signup / disconnect flow. Form posts route through
- * admin-post.php so each handler can verify a nonce + capability before
- * touching the API, then redirect back with a transient-backed notice.
+ * Owns the login / disconnect flow. Form posts route through admin-post.php so
+ * each handler can verify a nonce + capability before touching the API, then
+ * redirect back with a transient-backed notice.
+ *
+ * Account creation deliberately isn't here: merchants sign up in the Oyster
+ * dashboard, so this screen only ever links out to it. Keeping one signup path
+ * means wp-admin never collects a password for an account that doesn't exist
+ * yet, and email verification, plan selection and terms stay in the one place
+ * that owns them.
  */
 final class Connect_Screen {
 
@@ -33,7 +39,6 @@ final class Connect_Screen {
 
 	public function register(): void {
 		add_action( 'admin_post_oyster_woo_connect', array( $this, 'handle_connect' ) );
-		add_action( 'admin_post_oyster_woo_signup', array( $this, 'handle_signup' ) );
 		add_action( 'admin_post_oyster_woo_disconnect', array( $this, 'handle_disconnect' ) );
 		add_action( 'admin_notices', array( $this, 'render_notice' ) );
 	}
@@ -117,34 +122,6 @@ final class Connect_Screen {
 		);
 
 		$this->redirect_back( 'connected' );
-	}
-
-	public function handle_signup(): void {
-		$this->guard( 'oyster_woo_signup' );
-
-		$fields = array(
-			'business_name'  => sanitize_text_field( wp_unslash( $_POST['business_name'] ?? '' ) ),
-			'business_email' => sanitize_email( wp_unslash( $_POST['business_email'] ?? '' ) ),
-			'business_phone' => sanitize_text_field( wp_unslash( $_POST['business_phone'] ?? '' ) ),
-			'first_name'     => sanitize_text_field( wp_unslash( $_POST['first_name'] ?? '' ) ),
-			'last_name'      => sanitize_text_field( wp_unslash( $_POST['last_name'] ?? '' ) ),
-			'password'       => (string) wp_unslash( $_POST['password'] ?? '' ),
-		);
-
-		if ( '' === $fields['business_email'] || '' === $fields['password'] || '' === $fields['business_name'] ) {
-			$this->redirect_back( 'error', __( 'Business name, email and a password are required to create an account.', 'oyster-woocommerce' ) );
-		}
-
-		try {
-			$this->client->register_vendor( $fields );
-		} catch ( Api_Exception $e ) {
-			if ( 422 === $e->status() ) {
-				$this->redirect_back( 'error', $this->validation_message( $e ) );
-			}
-			$this->redirect_back( 'error', $this->transport_message( $e ) );
-		}
-
-		$this->redirect_back( 'signup_pending' );
 	}
 
 	public function handle_disconnect(): void {
@@ -256,44 +233,37 @@ final class Connect_Screen {
 		echo '</form>';
 		echo '</div>';
 
-		// --- Signup --------------------------------------------------------
+		// --- No account yet ------------------------------------------------
 		echo '<div class="oyster-card" style="flex:1;min-width:320px;background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:24px;">';
-		printf( '<h2 style="margin-top:0;">%s</h2>', esc_html__( 'Create an Oyster account', 'oyster-woocommerce' ) );
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-		echo '<input type="hidden" name="action" value="oyster_woo_signup">';
-		wp_nonce_field( 'oyster_woo_signup' );
-		$this->text_field( 'business_name', __( 'Business name', 'oyster-woocommerce' ), 'text', true, get_bloginfo( 'name' ) );
-		$this->text_field( 'business_email', __( 'Business email', 'oyster-woocommerce' ), 'email', true, get_bloginfo( 'admin_email' ) );
-		$this->text_field( 'business_phone', __( 'Business phone', 'oyster-woocommerce' ), 'text', false );
-		$this->text_field( 'password', __( 'Choose a password', 'oyster-woocommerce' ), 'password', true );
+		printf( '<h2 style="margin-top:0;">%s</h2>', esc_html__( 'New to Oyster?', 'oyster-woocommerce' ) );
 		printf(
-			'<p><button type="submit" class="button">%s</button></p>',
-			esc_html__( 'Create account', 'oyster-woocommerce' )
+			'<p>%s</p>',
+			esc_html__( 'Create your vendor account in the Oyster dashboard — it takes a minute. Once your email is verified, come back here and log in to connect this store.', 'oyster-woocommerce' )
 		);
 		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'We’ll email a verification code. Verify, then log in on the left to finish connecting.', 'oyster-woocommerce' )
+			'<p><a class="button" href="%s" target="_blank" rel="noopener noreferrer">%s</a></p>',
+			esc_url( Dashboard_Link::register_url() ),
+			esc_html__( 'Create an Oyster account', 'oyster-woocommerce' )
 		);
-		echo '</form>';
 		echo '</div>';
 
 		echo '</div>';
 	}
 
 	/**
-	 * Render a labelled input row. Value is only pre-filled for non-secret
-	 * fields; passwords never echo a value.
+	 * Render a labelled input row. Nothing is pre-filled — these are someone
+	 * else's service credentials, so autocomplete is off and the browser is
+	 * told the password field is not a new-account one.
 	 */
-	private function text_field( string $name, string $label, string $type, bool $required, string $value = '' ): void {
+	private function text_field( string $name, string $label, string $type, bool $required ): void {
 		$id = 'oyster_woo_' . $name;
 		printf( '<p><label for="%s" style="display:block;font-weight:600;margin-bottom:4px;">%s</label>', esc_attr( $id ), esc_html( $label ) );
 		printf(
-			'<input type="%s" id="%s" name="%s" class="regular-text" style="width:100%%;" value="%s" autocomplete="%s" %s></p>',
+			'<input type="%s" id="%s" name="%s" class="regular-text" style="width:100%%;" autocomplete="%s" %s></p>',
 			esc_attr( $type ),
 			esc_attr( $id ),
 			esc_attr( $name ),
-			'password' === $type ? '' : esc_attr( $value ),
-			'password' === $type ? 'new-password' : 'off',
+			'password' === $type ? 'current-password' : 'off',
 			$required ? 'required' : ''
 		);
 	}
@@ -312,10 +282,9 @@ final class Connect_Screen {
 		delete_transient( $key );
 
 		$map = array(
-			'connected'      => array( 'success', __( 'Store connected to Oyster.', 'oyster-woocommerce' ) ),
-			'disconnected'   => array( 'success', __( 'Store disconnected from Oyster.', 'oyster-woocommerce' ) ),
-			'signup_pending' => array( 'info', __( 'Account created. Check your email for a verification code, then log in to connect.', 'oyster-woocommerce' ) ),
-			'error'          => array( 'error', (string) ( $notice['detail'] ?? __( 'Something went wrong.', 'oyster-woocommerce' ) ) ),
+			'connected'    => array( 'success', __( 'Store connected to Oyster.', 'oyster-woocommerce' ) ),
+			'disconnected' => array( 'success', __( 'Store disconnected from Oyster.', 'oyster-woocommerce' ) ),
+			'error'        => array( 'error', (string) ( $notice['detail'] ?? __( 'Something went wrong.', 'oyster-woocommerce' ) ) ),
 		);
 
 		$status = (string) ( $notice['status'] ?? '' );
@@ -371,21 +340,6 @@ final class Connect_Screen {
 				__( 'Oyster returned an error: %s', 'oyster-woocommerce' ),
 				$e->user_message()
 			);
-	}
-
-	/**
-	 * Flatten a Laravel 422 validation body into a single readable line.
-	 */
-	private function validation_message( Api_Exception $e ): string {
-		$payload = $e->payload();
-		if ( is_array( $payload ) && isset( $payload['errors'] ) && is_array( $payload['errors'] ) ) {
-			$first = reset( $payload['errors'] );
-			if ( is_array( $first ) && isset( $first[0] ) ) {
-				return (string) $first[0];
-			}
-		}
-
-		return $e->user_message();
 	}
 
 	private function log( string $message ): void {

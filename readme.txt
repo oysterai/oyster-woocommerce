@@ -20,7 +20,7 @@ All AI analysis, recommendation, and reporting happens in Oyster's platform; thi
 
 Features:
 
-* Connect your store to an Oyster vendor account (log in or sign up).
+* Connect your store to an Oyster vendor account.
 * Floating skin-scan launcher on your storefront, with configurable branding.
 * Inline scan via the "Oyster Skin Scan" block or the `[oyster_scan]` shortcode.
 * Automatic catalog sync — published simple and variable products sync to Oyster
@@ -58,9 +58,11 @@ https://oysterskin.com/terms for terms of service.
 
 1. Install and activate WooCommerce.
 2. Upload the plugin to `/wp-content/plugins/oyster-woocommerce` and activate it.
-3. Go to **Oyster → Connection** in wp-admin and log in with (or create) your Oyster vendor account.
-4. Configure the launcher under **Oyster → Widget**.
-5. Run your first catalog sync under **Oyster → Catalog**.
+3. If you don't have an Oyster vendor account yet, create one at https://dash.oysterskin.com/register
+   and verify your email.
+4. Go to **Oyster → Connection** in wp-admin and log in with your Oyster vendor account.
+5. Configure the launcher under **Oyster → Widget**.
+6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
 
