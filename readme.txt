@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.9.0
+Stable tag: 0.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,13 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.9.1 =
+* Fixed "Check for updates" causing a critical error. Part of the bundled
+  update library was missing from the release package, so checking for a new
+  version crashed instead of finding one — which also meant automatic updates
+  could never install. Updating to 0.9.1 (once, by hand) fixes update checks
+  from then on.
 
 = 0.9.0 =
 * Creating an Oyster account now happens in the Oyster dashboard rather than in
