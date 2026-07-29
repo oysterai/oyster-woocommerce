@@ -79,16 +79,16 @@ final class Email_Handoff {
 			return;
 		}
 
-		$items = Cart_Filler::sanitize_items( $this->parse_items( $this->get_param( 'oyster_products' ) ) );
+		$items = Cart_Filler::sanitize_items( $this->parse_items( $this->get_param( 'oyster_products', 'oyster_p' ) ) );
 		if ( ! $items ) {
 			$this->redirect( $this->fallback_url() );
 		}
 
 		$attribution = array_filter(
 			array(
-				'batch_id'              => $this->get_param( 'oyster_batch' ),
-				'routine_id'            => $this->get_param( 'oyster_routine' ),
-				'widget_attribution_id' => $this->get_param( 'oyster_attribution_id' ),
+				'batch_id'              => $this->get_param( 'oyster_batch', 'oyster_b' ),
+				'routine_id'            => $this->get_param( 'oyster_routine', 'oyster_r' ),
+				'widget_attribution_id' => $this->get_param( 'oyster_attribution_id', 'oyster_a' ),
 			),
 			static fn( string $value ): bool => '' !== $value
 		);
@@ -141,9 +141,24 @@ final class Email_Handoff {
 		);
 	}
 
-	private function get_param( string $key ): string {
+	/**
+	 * `$legacy_key` is the abbreviated name this parameter shipped under
+	 * before it was spelled out. It stays supported permanently, on purpose:
+	 * a link that has already gone out lives in someone's inbox for years and
+	 * carries whatever names were current the day it was sent. Dropping the
+	 * old spelling would silently break those clicks long after anyone
+	 * remembers why. It also makes the plugin and the email side safe to
+	 * deploy in either order.
+	 */
+	private function get_param( string $key, string $legacy_key = '' ): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- see maybe_handle().
 		$value = $_GET[ $key ] ?? '';
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- see maybe_handle().
+		if ( '' === $value && '' !== $legacy_key ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- see maybe_handle().
+			$value = $_GET[ $legacy_key ] ?? '';
+		}
 
 		return is_scalar( $value ) ? sanitize_text_field( wp_unslash( (string) $value ) ) : '';
 	}
