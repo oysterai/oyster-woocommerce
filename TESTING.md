@@ -147,7 +147,7 @@ a plain storefront URL.
 1. Run a scan through the widget (§2) and let it recommend at least one
    product that has synced (§3). Note the batch id and the Oyster product
    ids from the recommendation payload in devtools.
-2. Visit `{store}/?oyster_checkout=1&oyster_b=<batch>&oyster_p=<comma-separated ids>`
+2. Visit `{store}/?oyster_checkout=1&oyster_batch=<batch>&oyster_products=<comma-separated ids>`
    in a fresh browser profile (an email click is usually a first-touch session).
    Every parameter is `oyster_`-prefixed deliberately — WordPress reserves `p`
    and friends as public query vars and will 301 a bare one away to a post
