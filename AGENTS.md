@@ -124,18 +124,47 @@ comment that references how another Oyster product/service works internally.
 
 ## Public repo hygiene
 
-This repo used to be private and is now public. Comments must not assert
-facts about, or name internal file/class structure of, other Oyster
-repos/products that a public reader can't access (the backend API's
-internal codebase, the vendor dashboard, the Shopify integration's
-internals, the widget SDK's internal repos). It's fine — often necessary —
-to describe *behavior* of the backend Oyster talks to ("the backend
-resolves incoming values by name," "Oyster emails a verification code"); it
-is not fine to name internal classes, traits, tables, or PR/file references
-in another private repo, since they mean nothing to an external reader and
-leak internal architecture unnecessarily. When in doubt: would this
-sentence make sense to someone who has only ever seen this one repo? If
-not, generalize it.
+**THIS REPO IS PUBLIC. Everything you write here is world-readable, and on
+GitHub most of it cannot be fully unpublished afterwards.**
+
+This applies to **every surface, not just code comments** — the rule below
+has been broken via a PR description, so treat all of these as publishing:
+
+- code comments and docblocks
+- commit messages
+- **PR titles, PR descriptions, and PR/issue comments**
+- `readme.txt` (including the changelog), `AGENTS.md`, `TESTING.md`
+- release notes and tag messages
+
+The rule: never assert facts about, or name the internal structure of,
+other Oyster repos/products a public reader can't access — the backend
+API's codebase, the vendor dashboard, the Shopify integration's internals,
+the widget SDK's repos. Concretely, never write:
+
+- another Oyster repo's name, or a PR/issue/commit reference in one
+  (`oysterai/<private-repo>`, `#1234`, "see the backend PR")
+- internal class, trait, table, column, file or endpoint-handler names from
+  those repos
+- internal infrastructure details (what the other side is hosted on, how it
+  signs things, what its secrets are called)
+- internal team process, ticket ids, or roadmap/timeline specifics
+
+It's fine — often necessary — to describe *behavior* of the backend Oyster
+talks to ("the backend resolves incoming values by name," "Oyster emails a
+verification code," "scan attribution is re-validated server-side"). Say
+what a merchant or contributor can observe, not how it's built.
+
+Cross-repo coordination still has to be expressible: describe it in terms
+of *this* repo. "The email side of this ships separately on Oyster's own
+release cycle; this plugin release should go out first" says everything a
+reader needs without naming anything private.
+
+**Before publishing anything, re-read it once and ask: would this sentence
+make sense to someone who has only ever seen this one repo?** If it names
+something they can't look up, cut it or generalize it. If you notice a slip
+after publishing, fix the text *and* say so — a PR description keeps its
+previous versions in the "edited" history, and clearing that needs a manual
+"Delete revision" in the GitHub UI.
 
 ## Git workflow
 
