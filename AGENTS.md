@@ -33,8 +33,11 @@ comment that references how another Oyster product/service works internally.
     `Catalog_Screen`, `Setup_Guide`, `Menu`, `Sync_Status_Column`).
   - `Frontend\` — `Widget_Loader`, which injects config and enqueues
     `assets/js/oyster-loader.js` on the storefront.
-  - `Checkout\` — `Cart_Controller` (the widget's checkout-handoff REST
-    route) and `Order_Attribution` (cart → order → reported-paid-order).
+  - `Checkout\` — `Cart_Filler` (the one place Oyster product ids become
+    cart lines), `Cart_Controller` (the widget's checkout-handoff REST
+    route), `Email_Handoff` (the scan-result email's checkout CTA, a
+    `?oyster_checkout=1` storefront link) and `Order_Attribution` (cart →
+    order → reported-paid-order).
   - `Sync\` — `Catalog_Sync` (Action Scheduler jobs, both incremental and
     full-import), `Product_Hooks` (WooCommerce hooks → `Catalog_Sync`),
     `Product_Mapper` (WC_Product → API row shape), `Sync_State` (per-product
@@ -91,6 +94,20 @@ comment that references how another Oyster product/service works internally.
   add-to-cart form. It resolves Oyster ids to WooCommerce ids server-side
   specifically so the vendor's bearer token never reaches the browser.
   Don't "fix" the public permission callback without understanding this.
+- **`Email_Handoff`'s `?oyster_checkout=1` link is deliberately unsigned.**
+  A link clicked out of an email can't carry a nonce, and this plugin ships
+  to merchants, so it can't hold a secret shared with Oyster to verify a
+  signature against either. It doesn't need one: it goes through
+  `Cart_Filler`, which resolves the ids server-side against *this* vendor's
+  own synced catalog, so a hand-edited link can at worst put this store's
+  own products into the clicker's own cart — what WooCommerce's built-in
+  `?add-to-cart=` links already do. Don't add a signature scheme that
+  requires shipping a shared secret in plugin code or in the page.
+- **Both routes into the cart must go through `Cart_Filler`.** The in-stock
+  and purchasability filtering, and the `oyster_attribution` stamp
+  `Order_Attribution` later reads, live there once on purpose — a second
+  hand-rolled `add_to_cart()` path is how one of the two surfaces silently
+  stops being attributed.
 - **A REST callback that touches `WC()->cart`/`WC()->session` must call
   `wc_load_cart()` first.** WooCommerce's cart/session is normally
   bootstrapped lazily on `wp_loaded` during a real front-end page load — a
