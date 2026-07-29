@@ -9,9 +9,6 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Checkout;
 
-use Oyster\Woo\Api\Api_Exception;
-use Oyster\Woo\Api\Client;
-use Oyster\Woo\Support\Connection;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -22,9 +19,10 @@ defined( 'ABSPATH' ) || exit;
  * The storefront loader never resolves Oyster product ids or touches
  * Oyster's API directly — that would mean exposing the vendor bearer to the
  * browser. Instead the loader POSTs the widget's checkout payload here; this
- * endpoint (running server-side, holding the bearer) resolves Oyster ids to
- * WooCommerce ids, adds purchasable/in-stock items to the *visitor's own*
- * cart session via the standard WC cart API, and returns a redirect URL.
+ * endpoint (running server-side, holding the bearer) hands it to Cart_Filler,
+ * which resolves Oyster ids to WooCommerce ids and adds purchasable/in-stock
+ * items to the *visitor's own* cart session via the standard WC cart API. The
+ * response tells the loader where to send the shopper next.
  *
  * Public on purpose (`permission_callback: __return_true`) — it only ever
  * mutates the requesting visitor's own cart session, exactly like any native
@@ -37,8 +35,7 @@ final class Cart_Controller {
 	private const NAMESPACE = 'oyster-woocommerce/v1';
 
 	public function __construct(
-		private Connection $connection,
-		private Client $client
+		private Cart_Filler $filler
 	) {}
 
 	public function register(): void {
@@ -47,11 +44,12 @@ final class Cart_Controller {
 	}
 
 	/**
-	 * The loader redirects here with `?oyster_checkout_error=1` when the
-	 * cart/add handoff fails (network error, non-2xx, or a malformed
-	 * response) — see oyster-loader.js's redirectToFallback(). Surfaces a
-	 * real WooCommerce notice on arrival instead of leaving the shopper on a
-	 * page that gives no indication anything went wrong.
+	 * Both handoffs redirect here with `?oyster_checkout_error=1` when they
+	 * can't fill the cart — the loader on a network error, non-2xx or
+	 * malformed response (see oyster-loader.js's redirectToFallback()), and
+	 * Email_Handoff when nothing in the link was addable. Surfaces a real
+	 * WooCommerce notice on arrival instead of leaving the shopper on a page
+	 * that gives no indication anything went wrong.
 	 */
 	public function maybe_show_error_notice(): void {
 		if ( ! isset( $_GET['oyster_checkout_error'] ) || ! function_exists( 'wc_add_notice' ) ) {
@@ -83,77 +81,25 @@ final class Cart_Controller {
 	}
 
 	public function handle_add( WP_REST_Request $request ): WP_REST_Response {
-		if ( ! $this->connection->is_connected() ) {
-			return new WP_REST_Response( array( 'error' => 'not_connected' ), 409 );
-		}
-
-		// REST requests bypass the normal front-end template load, so
-		// WC()->cart/session (usually lazily bootstrapped on `wp_loaded`)
-		// never gets initialized on their own here. wc_load_cart() forces
-		// that init and attaches the requesting visitor's own session cart —
-		// without it, WC()->cart is null and every add is built against no
-		// cart at all, not just built in "the wrong" one.
-		if ( function_exists( 'wc_load_cart' ) ) {
-			wc_load_cart();
-		}
-
-		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
-			return new WP_REST_Response( array( 'error' => 'cart_unavailable' ), 503 );
-		}
-
-		$items = $this->sanitize_items( $request->get_param( 'items' ) );
+		$items = Cart_Filler::sanitize_items( $request->get_param( 'items' ) );
 		if ( ! $items ) {
 			return new WP_REST_Response( array( 'error' => 'no_items' ), 400 );
 		}
 
-		$bearer = $this->connection->bearer();
-		if ( ! $bearer ) {
-			return new WP_REST_Response( array( 'error' => 'not_connected' ), 409 );
-		}
+		$result = $this->filler->fill( $items, $this->sanitize_attribution( $request ) );
 
-		try {
-			$resolved = $this->client->resolve_variants( $bearer, array_column( $items, 'product_id' ) );
-		} catch ( Api_Exception $e ) {
-			$this->log( 'resolve_variants failed: ' . $e->user_message() );
-			return new WP_REST_Response( array( 'error' => 'resolve_failed' ), 502 );
-		}
-
-		$mapping     = is_array( $resolved['data'] ?? null ) ? $resolved['data'] : array();
-		$attribution = $this->sanitize_attribution( $request );
-
-		$added   = 0;
-		$skipped = 0;
-
-		foreach ( $items as $item ) {
-			$entry = $mapping[ (string) $item['product_id'] ] ?? null;
-			if ( ! is_array( $entry ) || empty( $entry['woocommerce_product_id'] ) ) {
-				++$skipped;
-				continue;
-			}
-
-			$product_id   = absint( $entry['woocommerce_product_id'] );
-			$variation_id = ! empty( $entry['woocommerce_variation_id'] ) ? absint( $entry['woocommerce_variation_id'] ) : 0;
-
-			$product = wc_get_product( $variation_id ?: $product_id );
-			if ( ! $product || ! $product->is_purchasable() || ! $product->is_in_stock() ) {
-				++$skipped;
-				continue;
-			}
-
-			$cart_item_key = WC()->cart->add_to_cart(
-				$product_id,
-				$item['quantity'],
-				$variation_id,
-				array(),
-				array( 'oyster_attribution' => $attribution )
+		if ( isset( $result['error'] ) ) {
+			$status = array(
+				'not_connected'    => 409,
+				'cart_unavailable' => 503,
+				'resolve_failed'   => 502,
 			);
 
-			if ( $cart_item_key ) {
-				++$added;
-			} else {
-				++$skipped;
-			}
+			return new WP_REST_Response( $result, $status[ $result['error'] ] ?? 500 );
 		}
+
+		$added   = $result['added'];
+		$skipped = $result['skipped'];
 
 		if ( 0 === $added ) {
 			// Nothing addable — either not yet synced or everything's sold
@@ -178,32 +124,6 @@ final class Cart_Controller {
 	}
 
 	/**
-	 * @param mixed $raw
-	 * @return array<int, array{product_id:int, quantity:int}>
-	 */
-	private function sanitize_items( $raw ): array {
-		if ( ! is_array( $raw ) ) {
-			return array();
-		}
-
-		$items = array();
-		foreach ( $raw as $entry ) {
-			$product_id = is_array( $entry ) && isset( $entry['product_id'] ) ? absint( $entry['product_id'] ) : 0;
-			if ( $product_id <= 0 ) {
-				continue;
-			}
-
-			$quantity = is_array( $entry ) && isset( $entry['quantity'] ) ? max( 1, absint( $entry['quantity'] ) ) : 1;
-			$items[]  = array(
-				'product_id' => $product_id,
-				'quantity'   => $quantity,
-			);
-		}
-
-		return $items;
-	}
-
-	/**
 	 * @return array<string, string>
 	 */
 	private function sanitize_attribution( WP_REST_Request $request ): array {
@@ -222,11 +142,5 @@ final class Cart_Controller {
 		}
 
 		return $sanitized;
-	}
-
-	private function log( string $message ): void {
-		if ( function_exists( 'wc_get_logger' ) ) {
-			wc_get_logger()->warning( $message, array( 'source' => 'oyster-woocommerce' ) );
-		}
 	}
 }

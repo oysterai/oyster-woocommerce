@@ -20,6 +20,8 @@ use Oyster\Woo\Catalog\Ingredients_Field;
 use Oyster\Woo\Catalog\Size_Volume_Field;
 use Oyster\Woo\Catalog\Skin_Type_Attribute;
 use Oyster\Woo\Checkout\Cart_Controller;
+use Oyster\Woo\Checkout\Cart_Filler;
+use Oyster\Woo\Checkout\Email_Handoff;
 use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Compliance\Gdpr;
 use Oyster\Woo\Frontend\Widget_Loader;
@@ -71,11 +73,12 @@ final class Plugin {
 	/**
 	 * Register hooks. Admin-only modules stay behind is_admin() so the
 	 * storefront request never pays to load settings screens. Catalog_Sync,
-	 * Product_Hooks, Cart_Controller, and Order_Attribution are the exception
-	 * — they register unconditionally, because their work (WooCommerce hooks,
-	 * REST routes, Action Scheduler callbacks, checkout/payment events) fires
-	 * from storefront requests, REST API requests, WP-CLI, and the Action
-	 * Scheduler queue runner, none of which are `is_admin()`.
+	 * Product_Hooks, Cart_Controller, Email_Handoff, and Order_Attribution are
+	 * the exception — they register unconditionally, because their work
+	 * (WooCommerce hooks, REST routes, Action Scheduler callbacks,
+	 * checkout/payment events) fires from storefront requests, REST API
+	 * requests, WP-CLI, and the Action Scheduler queue runner, none of which
+	 * are `is_admin()`.
 	 */
 	public function boot(): void {
 		if ( $this->booted ) {
@@ -99,9 +102,12 @@ final class Plugin {
 		$catalog_sync->register();
 		( new Product_Hooks( $catalog_sync ) )->register();
 
-		// Storefront: the widget's checkout handoff (cart add) + attribution
-		// from cart through to a reported paid order.
-		( new Cart_Controller( $this->connection, $this->client ) )->register();
+		// Storefront: the two ways a routine reaches the cart — the widget's
+		// own checkout handoff and the scan-result email's CTA — plus
+		// attribution from cart through to a reported paid order.
+		$cart_filler = new Cart_Filler( $this->connection, $this->client );
+		( new Cart_Controller( $cart_filler ) )->register();
+		( new Email_Handoff( $this->connection, $cart_filler ) )->register();
 		( new Order_Attribution( $this->connection, $this->client ) )->register();
 
 		if ( is_admin() ) {

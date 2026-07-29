@@ -137,6 +137,31 @@ on it; that's expected on `dev` alone, not a bug).
    carry the Woo variation id, or whether server-side resolution here is
    sufficient on its own — this step is exactly what answers that.
 
+## 4b. Scan-result email CTA
+
+The shop links in the scan-result email Oyster sends the shopper point at
+this store, not back at the widget: `Checkout\Email_Handoff` turns them into
+a prefilled cart. Reproducible without waiting for a real email — the link is
+a plain storefront URL.
+
+1. Run a scan through the widget (§2) and let it recommend at least one
+   product that has synced (§3). Note the batch id and the Oyster product
+   ids from the recommendation payload in devtools.
+2. Visit `{store}/?oyster_checkout=1&oyster_batch=<batch>&oyster_products=<comma-separated ids>`
+   in a fresh browser profile (an email click is usually a first-touch session).
+   Every parameter is `oyster_`-prefixed deliberately — WordPress reserves `p`
+   and friends as public query vars and will 301 a bare one away to a post
+   permalink, dropping it. If you ever see this link land on an unrelated post,
+   that's the cause.
+3. Expect: a redirect straight to **Checkout** with those products in the
+   cart. Complete it and confirm the order carries `_oyster_batch_id` meta,
+   same as §4 — an email-driven order has to be attributed identically to a
+   widget-driven one.
+4. Adversarial passes worth doing once: an id that was never synced, an id
+   for a product that's out of stock, and a garbage `p=` value. All three
+   should land on **Cart** with the "couldn't automatically add" notice
+   rather than an empty checkout or a fatal.
+
 ## 5. Self-update
 
 Not distributed through wordpress.org — updates come from GitHub Releases via
