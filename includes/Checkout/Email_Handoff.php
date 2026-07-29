@@ -21,7 +21,15 @@ defined( 'ABSPATH' ) || exit;
  *
  * The link is a plain storefront URL carrying the scan's Oyster product ids:
  *
- *     https://store.example.com/?oyster_checkout=1&b=<batch>&p=<ids>&r=<routine>&a=<attribution>
+ *     https://store.example.com/?oyster_checkout=1&oyster_b=<batch>&oyster_p=<ids>&oyster_r=<routine>&oyster_a=<attribution>
+ *
+ * Every parameter is `oyster_`-prefixed, and that is not cosmetic. WordPress
+ * reserves a set of public query vars, `p` (post id) among them: given a bare
+ * `?p=12,44`, WordPress resolves it to a post and issues a canonical 301 to
+ * that post's permalink *with the parameter stripped*. A store that hasn't
+ * updated yet — the exact window this link is most likely to be clicked in —
+ * would dump the shopper on an unrelated post instead of the home page. Don't
+ * un-prefix these, and don't add a bare `s`, `m`, `w`, `name` or `page` either.
  *
  * We intercept it on `template_redirect` — a normal front-end request, so the
  * visitor's own cart session is already live and the reply carries their cart
@@ -71,16 +79,16 @@ final class Email_Handoff {
 			return;
 		}
 
-		$items = Cart_Filler::sanitize_items( $this->parse_items( $this->get_param( 'p' ) ) );
+		$items = Cart_Filler::sanitize_items( $this->parse_items( $this->get_param( 'oyster_p' ) ) );
 		if ( ! $items ) {
 			$this->redirect( $this->fallback_url() );
 		}
 
 		$attribution = array_filter(
 			array(
-				'batch_id'              => $this->get_param( 'b' ),
-				'routine_id'            => $this->get_param( 'r' ),
-				'widget_attribution_id' => $this->get_param( 'a' ),
+				'batch_id'              => $this->get_param( 'oyster_b' ),
+				'routine_id'            => $this->get_param( 'oyster_r' ),
+				'widget_attribution_id' => $this->get_param( 'oyster_a' ),
 			),
 			static fn( string $value ): bool => '' !== $value
 		);
