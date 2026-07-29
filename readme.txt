@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.9.1
+Stable tag: 0.9.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,12 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.9.2 =
+* The Oyster logo now appears where you'd expect it: the **Oyster** item in the
+  wp-admin sidebar carries the Oyster mark instead of a generic placeholder, and
+  the plugin shows its own icon on the **Updates** screen rather than WordPress's
+  default puzzle piece.
 
 = 0.9.1 =
 * Fixed "Check for updates" causing a critical error. Part of the bundled

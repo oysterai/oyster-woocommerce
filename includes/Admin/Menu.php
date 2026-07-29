@@ -80,12 +80,27 @@ final class Menu {
 	}
 
 	/**
-	 * Inline SVG data URI so the menu icon ships with the plugin and inherits
-	 * the admin menu's currentColor treatment.
+	 * The Oyster mark, served as a file URL rather than a base64 data URI.
+	 *
+	 * WordPress renders those two forms differently (wp-admin/menu-header.php):
+	 * a `data:image/svg+xml;base64,` icon becomes a CSS `background-image` on
+	 * `div.wp-menu-image.svg`, while any other URL becomes an `<img>`. That
+	 * matters twice over:
+	 *
+	 * - Only the `<img>` form picks up core's `opacity: .6` → `1` on
+	 *   hover/current, so a file URL dims and brightens exactly like every
+	 *   built-in menu icon. The background-image form gets no such rule and
+	 *   sits at full strength permanently.
+	 * - An SVG used as a background-image is an isolated document, so
+	 *   `currentColor` in it resolves to black instead of the menu's text
+	 *   colour — which is why the previous placeholder rendered as a near
+	 *   invisible dark blob against the default dark admin sidebar.
+	 *
+	 * The mark is therefore filled with the brand orange, which is legible on
+	 * both the dark colour schemes and the light one — no admin scheme can
+	 * recolour it for us.
 	 */
 	private function menu_icon(): string {
-		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="currentColor" d="M10 2C5.6 2 2 5.6 2 10s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0 3a5 5 0 0 1 5 5 5 5 0 0 1-5 5c-1.3 0-2.4-.5-3.3-1.3C7.5 13.5 8.7 14 10 14a4 4 0 0 0 0-8c-1.3 0-2.5.5-3.3 1.3A4.98 4.98 0 0 1 10 5z"/></svg>';
-
-		return 'data:image/svg+xml;base64,' . base64_encode( $svg );
+		return OYSTER_WOO_URL . 'assets/img/menu-icon.svg';
 	}
 }
