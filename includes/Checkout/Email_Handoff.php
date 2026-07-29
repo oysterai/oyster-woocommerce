@@ -21,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * The link is a plain storefront URL carrying the scan's Oyster product ids:
  *
- *     https://store.example.com/?oyster_checkout=1&oyster_b=<batch>&oyster_p=<ids>&oyster_r=<routine>&oyster_a=<attribution>
+ *     https://store.example.com/?oyster_checkout=1&oyster_batch=<batch>&oyster_products=<ids>&oyster_routine=<routine>&oyster_attribution_id=<uuid>
  *
  * Every parameter is `oyster_`-prefixed, and that is not cosmetic. WordPress
  * reserves a set of public query vars, `p` (post id) among them: given a bare
@@ -79,16 +79,16 @@ final class Email_Handoff {
 			return;
 		}
 
-		$items = Cart_Filler::sanitize_items( $this->parse_items( $this->get_param( 'oyster_p' ) ) );
+		$items = Cart_Filler::sanitize_items( $this->parse_items( $this->get_param( 'oyster_products' ) ) );
 		if ( ! $items ) {
 			$this->redirect( $this->fallback_url() );
 		}
 
 		$attribution = array_filter(
 			array(
-				'batch_id'              => $this->get_param( 'oyster_b' ),
-				'routine_id'            => $this->get_param( 'oyster_r' ),
-				'widget_attribution_id' => $this->get_param( 'oyster_a' ),
+				'batch_id'              => $this->get_param( 'oyster_batch' ),
+				'routine_id'            => $this->get_param( 'oyster_routine' ),
+				'widget_attribution_id' => $this->get_param( 'oyster_attribution_id' ),
 			),
 			static fn( string $value ): bool => '' !== $value
 		);
