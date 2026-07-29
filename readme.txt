@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.9.2
+Stable tag: 0.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,15 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.10.0 =
+* Shoppers coming back from their Oyster scan email now land straight on your
+  checkout with the recommended routine already in the cart, instead of having
+  to find the widget on your store and add every product again. Anything not
+  synced yet or out of stock is left out, and if nothing can be added they land
+  on the cart with a note explaining why rather than on an empty checkout.
+  These orders are attributed to the scan exactly like ones started in the
+  widget. Nothing to configure — it works as soon as this update is installed.
 
 = 0.9.2 =
 * The Oyster logo now appears where you'd expect it: the **Oyster** item in the
