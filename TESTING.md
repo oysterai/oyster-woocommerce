@@ -54,11 +54,50 @@ exist in your **local** backend database, not production; a login
 that "should work" but 401s is usually this — check the local backend's
 logs for whether the request even arrived locally.
 
-To test against the real production backend instead:
+To test against a hosted backend instead — sandbox, or the real production
+API:
 
 ```bash
-cd oyster-woocommerce && bin/dev.sh --production
+cd oyster-woocommerce && bin/dev.sh --sandbox     # https://api.sandbox.oysterskin.com
+cd oyster-woocommerce && bin/dev.sh --production  # https://api.oysterskin.com
 ```
+
+Sandbox is the one to reach for when you want a hosted backend without
+touching production data — it's a separate database, so your production
+vendor credentials won't work there. Create a sandbox vendor account at
+<https://sandbox.dash.oysterskin.com/register> and verify its email first;
+the plugin declines to connect an unverified account.
+
+`--sandbox` points all three overridable URLs at sandbox — the API, the
+vendor dashboard links, and the storefront widget bundle. Note the
+hostnames aren't consistently shaped: the API is `api.sandbox.…`, while
+the dashboard and widget bundle take `sandbox.` as a prefix
+(`sandbox.dash.…`, `sandbox.widget-lib.…`). Copy them rather than
+extrapolating.
+
+### Pointing an ordinary WordPress install at sandbox
+
+Outside Playground, the same three constants go in `wp-config.php`, above
+the `/* That's all, stop editing! */` line:
+
+```php
+define( 'OYSTER_WOO_API_BASE_URL',      'https://api.sandbox.oysterskin.com' );
+define( 'OYSTER_WOO_DASHBOARD_URL',     'https://sandbox.dash.oysterskin.com' );
+define( 'OYSTER_WOO_WIDGET_BUNDLE_URL', 'https://sandbox.widget-lib.oysterskin.com/v1/oysterskin-vendor-widget-web.umd.js' );
+```
+
+Two things worth knowing before you debug a surprise:
+
+- A constant that fails `Support\Url_Guard` validation is **rejected
+  silently and replaced with the production default** — a typo doesn't
+  throw, it just quietly keeps talking to production. Confirm the override
+  took by checking **WooCommerce → Status → Logs** (source
+  `oyster-woocommerce`) for a `was rejected … using the default instead`
+  warning. No warning means the override is live.
+- **Disconnect before switching environments.** The bearer and vendor ID
+  persist in `oyster_woocommerce_connection` across a base-URL change, so
+  the admin keeps showing "Connected" while every call 401s against the
+  new environment. Disconnect, switch, reconnect.
 
 ## 1. Connect
 
