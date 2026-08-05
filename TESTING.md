@@ -233,6 +233,34 @@ a plain storefront URL.
    should land on **Cart** with the "couldn't automatically add" notice
    rather than an empty checkout or a fatal.
 
+## 4c. Scan payments through your own checkout
+
+Only runs for vendors Oyster has switched to collecting scan payments
+themselves. Ask for your test vendor to be switched on before running this —
+without it the widget opens Oyster's own checkout and none of this fires.
+
+1. Open the widget on the storefront and take a scan as a shopper who has to
+   pay. Expect to be sent to **your store's** pay-for-order page, not Oyster's
+   checkout.
+2. Check **WooCommerce → Orders**: a pending order for one "Skin scan" line, at
+   the amount the widget quoted, with the shopper's email on it.
+3. Pay the order with any configured gateway. Expect the scan to start on its
+   own within a few seconds — the widget is waiting on the payment, not polling
+   the browser. The order gains a note saying Oyster was told it settled.
+4. **Cancel instead** — start another, then set the order to Cancelled. Expect
+   the widget to report the payment did not complete rather than sitting until
+   it times out.
+5. **Double-submit** — start a payment, reload the widget, start it again with
+   the same scan. Expect **one** order, not two: a shopper must never be charged
+   twice for one scan.
+6. **Confirmed once** — pay an order, then move it Processing → Completed.
+   Expect only one confirmation note; the later transitions must not re-confirm.
+7. **Hidden product** — confirm "Skin scan" does not appear in the storefront
+   catalog or search. Delete it, then take another scan: it is recreated and the
+   payment still works.
+8. **Not connected** — disconnect the store and take a scan. The widget should
+   report that payment could not be started rather than hanging.
+
 ## 5. Self-update
 
 Not distributed through wordpress.org — updates come from GitHub Releases via
