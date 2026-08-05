@@ -40,8 +40,7 @@ defined( 'ABSPATH' ) || exit;
  * ## Billing consequence
  *
  * A vendor collecting this way is invoiced by Oyster for every scan, including
- * the ones their shopper paid for — they are holding that money. That is a
- * setting an Oyster admin turns on; this plugin only carries it out.
+ * the ones their shopper paid for — they are holding that money.
  */
 final class Scan_Payment {
 
