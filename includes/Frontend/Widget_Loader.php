@@ -94,6 +94,11 @@ final class Widget_Loader {
 			// see oyster-loader.js's wooCheckoutHandoff catch handler. Better
 			// than stranding the shopper on the widget with no way forward.
 			'cartUrl'      => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : '',
+			// Where the loader raises a scan-payment order, for vendors set up to
+			// take those payments through this store. Always present: whether it
+			// gets used is Oyster's decision at scan time, not something the
+			// storefront should try to predict.
+			'scanPaymentUrl' => rest_url( 'oyster-woocommerce/v1/scan-payment/create' ),
 		);
 	}
 
