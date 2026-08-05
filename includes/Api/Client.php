@@ -62,6 +62,47 @@ final class Client {
 	}
 
 	/**
+	 * Tell Oyster this store collected (or failed to collect) a scan payment.
+	 *
+	 * The only thing that unblocks the shopper's scan. Deliberately server-side:
+	 * it authenticates with this store's connection credential, which must never
+	 * reach the storefront — anything on that page is readable by whoever opens
+	 * it, and a leaked credential could confirm scans against this account.
+	 *
+	 * Retries are safe. Confirming a payment that already settled changes
+	 * nothing and reports itself as a replay, so one collection can never become
+	 * two billable scans.
+	 *
+	 * The amount is recorded for reconciliation only — this store sets its own
+	 * price and Oyster does not check it.
+	 *
+	 * @param string                                                        $reference Oyster's reference for the scan payment.
+	 * @param string                                                        $status    'success' or 'failed'.
+	 * @param array{external_reference?: string, amount?: float, currency?: string} $context
+	 *
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function confirm_scan_payment( string $bearer, string $reference, string $status, array $context = array() ): array {
+		$body = array( 'status' => $status );
+
+		foreach ( array( 'external_reference', 'amount', 'currency' ) as $key ) {
+			if ( isset( $context[ $key ] ) && '' !== $context[ $key ] ) {
+				$body[ $key ] = $context[ $key ];
+			}
+		}
+
+		return $this->request(
+			'POST',
+			'/api/v1/scan-payments/' . rawurlencode( $reference ) . '/external/confirm',
+			array(
+				'bearer' => $bearer,
+				'body'   => $body,
+			)
+		);
+	}
+
+	/**
 	 * Ask Oyster to email a one-time code to the account being connected.
 	 *
 	 * Connecting produces a long-lived store credential, so a password alone
