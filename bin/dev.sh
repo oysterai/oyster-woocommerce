@@ -11,8 +11,8 @@ set -euo pipefail
 # Usage:
 #   bin/dev.sh              # plugin talks to http://localhost:8000
 #   bin/dev.sh --local-api   #   (same — explicit form)
-#                            # (run `php artisan serve` in skin-ai-api first)
-#   bin/dev.sh --production  # plugin talks to the real skin-ai-api (prod)
+#                            # (start your local backend first)
+#   bin/dev.sh --production  # plugin talks to the production API
 
 cd "$(dirname "$0")/.."
 
@@ -21,7 +21,7 @@ if [[ "${1:-}" == "--production" ]]; then
   TARGET="production (https://api.oysterskin.com)"
 else
   BLUEPRINT="bin/dev-blueprint.local.json"
-  TARGET="local (http://localhost:8000 — make sure 'php artisan serve' is running in skin-ai-api)"
+  TARGET="local (http://localhost:8000 — make sure your local backend is running)"
 fi
 
 echo "==> Launching Playground — plugin will talk to: $TARGET"
