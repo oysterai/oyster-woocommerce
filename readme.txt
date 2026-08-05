@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.11.0
+Stable tag: 0.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,18 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.12.0 =
+* If Oyster has set your account up to take scan payments yourself, shoppers now
+  pay for their scan through your own checkout instead of Oyster's — using the
+  payment methods you already accept, and appearing in your orders like any
+  other sale. Their scan starts as soon as the order is paid. Nothing to set up
+  here: it switches on from your Oyster account, and stores that aren't set up
+  this way are unaffected.
+* Scan payments appear as ordinary orders against a hidden "Skin scan" product,
+  so refunds, taxes and reporting all work the way you'd expect. The product
+  stays out of your storefront and search, and is safe to delete — it comes back
+  when it's next needed.
 
 = 0.11.0 =
 * Connecting your store now takes a second step: after your password, Oyster

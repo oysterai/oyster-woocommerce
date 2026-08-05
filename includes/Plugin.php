@@ -22,6 +22,8 @@ use Oyster\Woo\Catalog\Skin_Type_Attribute;
 use Oyster\Woo\Checkout\Cart_Controller;
 use Oyster\Woo\Checkout\Cart_Filler;
 use Oyster\Woo\Checkout\Email_Handoff;
+use Oyster\Woo\Checkout\Scan_Payment;
+use Oyster\Woo\Checkout\Scan_Payment_Controller;
 use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Compliance\Gdpr;
 use Oyster\Woo\Frontend\Widget_Loader;
@@ -107,6 +109,14 @@ final class Plugin {
 		// attribution from cart through to a reported paid order.
 		$cart_filler = new Cart_Filler( $this->connection, $this->client );
 		( new Cart_Controller( $cart_filler ) )->register();
+
+		// Scan payments taken through this store's own checkout, for vendors set
+		// up that way. Registered unconditionally: the order hooks have to be
+		// listening whenever an order can change status, not only while the
+		// storefront happens to be rendering.
+		$scan_payment = new Scan_Payment( $this->connection, $this->client );
+		$scan_payment->register();
+		( new Scan_Payment_Controller( $scan_payment ) )->register();
 		( new Email_Handoff( $this->connection, $cart_filler ) )->register();
 		( new Order_Attribution( $this->connection, $this->client ) )->register();
 
