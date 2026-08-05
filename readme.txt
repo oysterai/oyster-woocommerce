@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.10.0
+Stable tag: 0.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,22 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.11.0 =
+* Connecting your store now takes a second step: after your password, Oyster
+  emails you a one-time code to enter. Connecting creates a credential this
+  store keeps using, so a password on its own no longer hands one out — if
+  someone learns your password, they still cannot connect a store to your
+  account without also reading your email.
+* Your store now has its own connection credential instead of borrowing the
+  login of whoever set it up. Two things stop breaking as a result: the
+  connection no longer expires after about a month and quietly stops syncing,
+  and it no longer dies when the person who connected it leaves or has their
+  access changed.
+* Disconnecting now actually disconnects. It used to clear this site's copy
+  and leave the connection live on Oyster's side; it is now retired properly.
+  Deleting the plugin does the same on its way out, so a store you take down
+  does not leave a working connection behind.
 
 = 0.10.0 =
 * Shoppers coming back from their Oyster scan email now land straight on your

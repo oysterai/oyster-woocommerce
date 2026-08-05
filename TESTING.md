@@ -101,13 +101,45 @@ Two things worth knowing before you debug a surprise:
 
 ## 1. Connect
 
+Connecting is two steps now: password, then a one-time code Oyster emails.
+Connecting produces a credential this store keeps using until it disconnects,
+so a password alone no longer earns one.
+
 1. Land on **Oyster → Connection** (`wp-admin/admin.php?page=oyster-woocommerce`).
 2. Enter vendor credentials, submit.
-3. Expect: bearer stored (encrypted via `Support\Crypto`), redirect to
-   **Oyster → Widget**, connection status shows "Connected" with the
-   vendor name/email from `GET /api/v1/vendors/profile`.
-4. Disconnect and reconnect once to confirm the encrypted option is
-   cleared and re-written cleanly (`oyster_woocommerce_connection`).
+3. Expect: the **Enter your code** step, with the masked address the code went
+   to. Nothing is written to `oyster_woocommerce_connection` yet — check the
+   option is still absent.
+4. Enter the code from your inbox, submit.
+5. Expect: the store credential stored (encrypted via `Support\Crypto`), redirect
+   to **Oyster → Widget**, connection status "Connected" with the vendor
+   name/email from `GET /api/v1/vendors/profile`.
+
+Then the paths that matter more than the happy one:
+
+6. **Wrong code** — connect again, enter `000000`. Expect a "not accepted"
+   notice and the option still absent. Repeat five times: the code burns, and
+   even the real one stops working until you request a new one.
+7. **Resend** — use *Send a new code*. The previous code stops working; the new
+   one works. Click it half a dozen times quickly and expect a "too many codes"
+   notice rather than an endless stream of email.
+8. **Cancel** — start a connection, then *Cancel*. Expect the login step back,
+   and the parked session gone (`oyster_woo_pending_connect_<user id>` transient
+   deleted).
+9. **Expiry** — start a connection, wait past 10 minutes, submit a code. Expect
+   "that took too long" and the login step back.
+
+10. **Disconnect** — disconnect, then reconnect, and confirm the encrypted option
+    is cleared and re-written cleanly. Disconnecting also retires the credential
+    at Oyster, so the previous one stops working: confirm the *old* stored value
+    is rejected if you kept a copy. Reconnecting always issues a fresh one.
+11. **Disconnect while offline** — point `OYSTER_WOO_API_BASE_URL` at something
+    unreachable and disconnect. Expect it to still disconnect locally: refusing
+    would strand someone with no way to finish.
+12. **Uninstall** — with a store connected, *Delete* the plugin from the Plugins
+    screen. The credential is retired on the way out, so it stops working even
+    though nobody clicked disconnect. This is the only moment that can happen
+    automatically, which is why it is worth checking.
 
 ## 2. Widget
 
