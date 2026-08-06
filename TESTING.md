@@ -239,6 +239,15 @@ Only runs for vendors Oyster has switched to collecting scan payments
 themselves. Ask for your test vendor to be switched on before running this —
 without it the widget opens Oyster's own checkout and none of this fires.
 
+Two things that will otherwise waste your time:
+
+- **The vendor needs a non-zero scan rate.** With a zero rate there is nothing to
+  charge, so Oyster never asks for payment and scans simply run free. That looks
+  identical to the feature being broken.
+- **The store needs an enabled payment gateway.** `bin/dev.sh` now enables Cash on
+  delivery for exactly this; on any other store, enable one under
+  **WooCommerce → Settings → Payments** or the pay page has nothing to submit.
+
 1. Open the widget on the storefront and take a scan as a shopper who has to
    pay. Expect to be sent to **your store's** pay-for-order page, not Oyster's
    checkout.
