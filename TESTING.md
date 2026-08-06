@@ -247,6 +247,11 @@ Two things that will otherwise waste your time:
 - **The store needs an enabled payment gateway.** `bin/dev.sh` now enables Cash on
   delivery for exactly this; on any other store, enable one under
   **WooCommerce → Settings → Payments** or the pay page has nothing to submit.
+- **The store must not be in "Coming soon" mode.** WooCommerce turns it on for a
+  fresh install, and it puts a launch placeholder in front of the pay-for-order
+  page. The order is created and the URL is correct — the page simply never
+  renders, which reads as a broken handoff. `bin/dev.sh` now turns it off;
+  elsewhere it is **WooCommerce → Settings → Site visibility**.
 
 1. Open the widget on the storefront and take a scan as a shopper who has to
    pay. Expect to be sent to **your store's** pay-for-order page, not Oyster's
