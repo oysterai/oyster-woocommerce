@@ -5,20 +5,26 @@ name: Release
 # includes/Support/Self_Updater.php. No manual zip upload, no separate hosting.
 #
 # Cutting a release is two deliberate steps:
-#   1. git tag v1.2.3 && git push --tags
-#   2. publish the release for that tag on GitHub
+#   1. git tag v1.2.3 && git push --tags  -> this workflow stages a DRAFT
+#      release with the zips already attached
+#   2. review that draft and publish it   -> that is what ships
 #
-# It does NOT run on the tag push. A tag is cheap to create and easy to create
-# by accident; publishing a release is a decision. Since every install polls
-# the published release and offers merchants the update, the moment it appears
-# is the moment it ships — so that moment should be chosen, not a side effect
-# of pushing a ref.
+# It runs on the tag push, and its only job is to prepare a draft. A draft
+# reaches nobody, so building on a push costs nothing; publishing stays the
+# decision that ships.
 #
-# `workflow_dispatch` re-runs the build for an existing release: pick the tag,
-# and the run replaces that release's assets.
+# It CANNOT run after publishing. A published release is immutable and assets
+# can only be added while it is still a draft, so attaching on
+# `release: published` fails with "Cannot upload asset to an immutable release"
+# and leaves a live release carrying no zip — the one thing the self-updater
+# needs.
+#
+# `workflow_dispatch` rebuilds the draft for a tag that already exists.
+
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
@@ -33,19 +39,19 @@ jobs:
   build-and-release:
     runs-on: ubuntu-latest
     steps:
-      # The tag comes from the release on a publish, and from the input on a
-      # manual re-run. GITHUB_REF_NAME is not usable for both: on a manual run
-      # it is the branch the workflow was started from, not the tag.
+      # The tag comes from the ref on a push, and from the input on a manual
+      # run. GITHUB_REF_NAME is not usable for both: on a manual run it is the
+      # branch the workflow was started from, not a tag.
       - name: Resolve the tag being released
         id: tag
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          PUSHED_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          TAG="${RELEASE_TAG:-$INPUT_TAG}"
+          TAG="${PUSHED_TAG:-$INPUT_TAG}"
           if [ -z "$TAG" ]; then
-            echo "::error::No tag to build. Publish a release, or supply one when running manually." >&2
+            echo "::error::No tag to build. Push a tag, or supply one when running manually." >&2
             exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -80,11 +86,30 @@ jobs:
         #   .../releases/latest/download/oyster-woocommerce.zip
         run: cp dist/oyster-woocommerce-*.zip dist/oyster-woocommerce.zip
 
-      # Attaches to the release that already exists for this tag. Release notes
-      # are deliberately not generated here: whoever publishes the release
-      # writes them, and regenerating would overwrite what they wrote.
-      - name: Attach the zips to the release
+      # Refuse plainly rather than fail inside the upload. A published release
+      # cannot take new assets, so there is nothing useful to do here.
+      - name: Refuse if this tag is already published
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          STATE=$(gh release view "$TAG" --json isDraft -q .isDraft 2>/dev/null || echo "none")
+          if [ "$STATE" = "false" ]; then
+            echo "::error::$TAG is already published. Published releases are immutable, so the zips can no longer be attached. Delete that release (the tag can stay) and re-run this, or cut a new version." >&2
+            exit 1
+          fi
+          echo "No published release for $TAG — staging a draft."
+
+      # Stages a DRAFT with the zips attached. Publishing is left to a human:
+      # it is the step that ships, and also the last moment assets can be added,
+      # since publishing makes the release immutable.
+      #
+      # Release notes are deliberately not generated — whoever publishes writes
+      # them, and regenerating would overwrite that.
+      - name: Stage a draft release with the zips attached
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
+          draft: true
           files: dist/*.zip

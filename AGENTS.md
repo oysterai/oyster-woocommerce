@@ -188,31 +188,40 @@ detected by `Support\Self_Updater` (Plugin Update Checker). Cutting a
 release:
 
 1. Bump `Version:` in `oyster-woocommerce.php`'s header **and**
-   `OYSTER_WOO_VERSION` to match. Update `readme.txt`'s `Stable tag` and
-   add its changelog entry.
+   `OYSTER_WOO_VERSION` to match. Update `readme.txt`'s `Stable tag` and add
+   its changelog entry.
 2. Merge that to `main`.
-3. `git tag vX.Y.Z && git push --tags`.
-4. **Publish the GitHub Release for that tag.** This is what ships it.
+3. `git tag vX.Y.Z && git push --tags`. The workflow builds the zip and stages
+   a **draft** release with it attached. Nothing has shipped yet.
+4. Review the draft, write the notes, and **publish it**. That is what ships.
 
-Step 4 is the one that matters. Pushing the tag builds nothing and reaches
-nobody — the workflow runs on the release being *published*. Every install
-polls the published release and offers merchants the update, so the moment it
-appears is the moment it ships; that should be a decision, not a side effect
-of pushing a ref. A tag can sit unreleased for as long as you like.
+Step 4 is the one that reaches merchants: every install polls the published
+release and offers them the update. A draft reaches nobody, so a tag can sit
+staged for as long as you like.
 
-`.github/workflows/release.yml` then builds the zip (`bin/build-release-zip.sh`,
-a `git archive` from the tag — only committed files ship, filtered by
-`.gitattributes`' `export-ignore` entries) and attaches it to that Release,
-plus an identically-named `oyster-woocommerce.zip` copy for a stable "always
-latest" download link. It builds from the **tag**, not from `main`, so a
-release always ships the code it names. The workflow **fails the build** if
-the tag doesn't match the header's `Version:` — that mismatch would
-silently make the release invisible to the self-updater, so don't skip it
-or work around it.
+**Assets must be attached before publishing, and the workflow is what does
+that.** A published release is immutable — GitHub refuses new assets on one —
+so there is no attaching the zip afterwards. Publish a release the workflow
+did not stage and you get a live release with no zip on it, which is precisely
+what `Support\Self_Updater` needs: it calls `enableReleaseAssets()` so
+merchants get the zip we build rather than GitHub's "Source code" archive,
+which would ship `bin/`, `TESTING.md` and `.github/` to every site.
+
+If that happens, the fix is to delete the release — the tag can stay — and
+re-run the workflow for that tag to stage a fresh draft.
+
+`.github/workflows/release.yml` builds with `bin/build-release-zip.sh`, a
+`git archive` from the **tag** (so a release always ships the code it names,
+and only committed files ship, filtered by `.gitattributes`' `export-ignore`
+entries). It attaches both the versioned zip and an identically-named
+`oyster-woocommerce.zip` copy for a stable "always latest" download link. It
+**fails the build** if the tag doesn't match the header's `Version:` — that
+mismatch would silently make the release invisible to the self-updater, so
+don't skip it or work around it.
 
 Release notes are yours to write when you publish; the workflow does not
-generate or overwrite them. To rebuild the assets for a release that already
-exists, run the workflow manually and give it the tag.
+generate or overwrite them. To rebuild a draft for a tag that already exists,
+run the workflow manually and give it the tag.
 
 ## Testing
 
