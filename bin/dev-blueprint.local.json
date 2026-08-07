@@ -33,7 +33,7 @@
       "step": "defineWpConfigConsts",
       "consts": {
         "OYSTER_WOO_API_BASE_URL": "http://localhost:8000",
-        "OYSTER_WOO_WIDGET_BUNDLE_URL": "http://localhost:4173/v1.13.2/oysterskin-vendor-widget-web.umd.js",
+        "OYSTER_WOO_WIDGET_BUNDLE_URL": "http://localhost:4173/latest/oysterskin-vendor-widget-web.umd.js",
         "OYSTER_WOO_DASHBOARD_URL": "http://localhost:5180"
       }
     },
