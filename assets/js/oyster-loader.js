@@ -145,6 +145,50 @@
     wooCheckoutHandoff(message.data || {})
   }
 
+  /**
+   * Collect a scan payment through this store's checkout.
+   *
+   * Only ever called for vendors set up to take scan payments themselves; for
+   * everyone else the widget opens Oyster's checkout and this never runs.
+   *
+   * Raises a pending order server-side and sends the shopper to pay for it. What
+   * we return here only moves the widget's UI along — the scan is unblocked when
+   * the order actually reaches a paid state and the plugin says so from PHP, with
+   * a credential that never touches this page.
+   */
+  function collectScanPayment(request) {
+    var cfg = config()
+    if (!cfg.scanPaymentUrl) {
+      return Promise.resolve({
+        status: 'failed',
+        reason: 'This store is not set up to collect scan payments.',
+      })
+    }
+
+    return postJson(cfg.scanPaymentUrl, {
+      reference: request.reference,
+      amount: request.amount,
+      currency: request.currency,
+      email: request.email,
+      batch_id: request.batchId,
+    })
+      .then(function (res) {
+        if (!res || !res.checkout_url) {
+          return { status: 'failed', reason: 'Could not start the payment.' }
+        }
+
+        return { status: 'redirect', checkoutUrl: res.checkout_url }
+      })
+      .catch(function (err) {
+        console.error('[oyster] scan payment could not be started', err)
+
+        // Answer rather than going quiet: a shopper left waiting on a silent
+        // handler sits through the widget's full timeout before being told
+        // anything went wrong.
+        return { status: 'failed', reason: 'Could not start the payment.' }
+      })
+  }
+
   function bootAnchor(anchor) {
     var cfg = config()
     if (!cfg.publicKey) {
@@ -166,6 +210,7 @@
           publicKey: cfg.publicKey,
           primaryColor: anchor.dataset.primaryColor || cfg.primaryColor || '#0e1e3a',
           callback: widgetCallback,
+          onCollectPayment: collectScanPayment,
           app: 'woocommerce',
         }
 

@@ -62,23 +62,114 @@ final class Client {
 	}
 
 	/**
-	 * Register this store's domain against the vendor so the storefront widget
-	 * session token isn't rejected on origin, and so scan-usage is attributed
-	 * to the WooCommerce channel.
+	 * Tell Oyster this store collected (or failed to collect) a scan payment.
 	 *
-	 * Backend counterpart: POST /api/v1/integrations/woocommerce/connect.
+	 * The only thing that unblocks the shopper's scan. Deliberately server-side:
+	 * it authenticates with this store's connection credential, which must never
+	 * reach the storefront — anything on that page is readable by whoever opens
+	 * it, and a leaked credential could confirm scans against this account.
+	 *
+	 * Retries are safe. Confirming a payment that already settled changes
+	 * nothing and reports itself as a replay, so one collection can never become
+	 * two billable scans.
+	 *
+	 * The amount is recorded for reconciliation only — this store sets its own
+	 * price and Oyster does not check it.
+	 *
+	 * @param string                                                        $reference Oyster's reference for the scan payment.
+	 * @param string                                                        $status    'success' or 'failed'.
+	 * @param array{external_reference?: string, amount?: float, currency?: string} $context
 	 *
 	 * @return array<string, mixed>
 	 * @throws Api_Exception
 	 */
-	public function connect_store( string $bearer, string $store_url ): array {
+	public function confirm_scan_payment( string $bearer, string $reference, string $status, array $context = array() ): array {
+		$body = array( 'status' => $status );
+
+		foreach ( array( 'external_reference', 'amount', 'currency' ) as $key ) {
+			if ( isset( $context[ $key ] ) && '' !== $context[ $key ] ) {
+				$body[ $key ] = $context[ $key ];
+			}
+		}
+
+		return $this->request(
+			'POST',
+			'/api/v1/scan-payments/' . rawurlencode( $reference ) . '/external/confirm',
+			array(
+				'bearer' => $bearer,
+				'body'   => $body,
+			)
+		);
+	}
+
+	/**
+	 * Ask Oyster to email a one-time code to the account being connected.
+	 *
+	 * Connecting produces a long-lived store credential, so a password alone
+	 * isn't enough to obtain one — the code proves whoever is at this keyboard
+	 * can also read that account's email.
+	 *
+	 * Oyster rate-limits this, so a stream of resend clicks eventually 429s.
+	 *
+	 * @return array<string, mixed> { data: { sent_to, expires_in_minutes } }
+	 * @throws Api_Exception
+	 */
+	public function request_connect_code( string $bearer ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/connect/challenge',
+			array( 'bearer' => $bearer )
+		);
+	}
+
+	/**
+	 * Register this store's domain against the vendor so the storefront widget
+	 * session token isn't rejected on origin, and so scan-usage is attributed
+	 * to the WooCommerce channel.
+	 *
+	 * Also returns this store's own long-lived connection credential, which is
+	 * what every later call authenticates with. It is shown once and cannot be
+	 * retrieved again — reconnecting issues a fresh one and retires the old.
+	 *
+	 * Backend counterpart: POST /api/v1/integrations/woocommerce/connect.
+	 *
+	 * @param string $code One-time code from request_connect_code().
+	 *
+	 * @return array<string, mixed> { public_key, connection_token }
+	 * @throws Api_Exception
+	 */
+	public function connect_store( string $bearer, string $store_url, string $code ): array {
 		return $this->request(
 			'POST',
 			'/api/v1/integrations/woocommerce/connect',
 			array(
 				'bearer' => $bearer,
-				'body'   => array( 'store_url' => $store_url ),
+				'body'   => array(
+					'store_url' => $store_url,
+					'code'      => $code,
+				),
 			)
+		);
+	}
+
+	/**
+	 * Retire this store's connection credential.
+	 *
+	 * Authenticated by the credential itself, so it works with nothing but what
+	 * this site already holds — no login, no human present — which is what lets
+	 * the uninstall routine call it.
+	 *
+	 * Idempotent: disconnecting a store that was never connected, or twice over,
+	 * succeeds rather than erroring.
+	 *
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function disconnect_store( string $bearer ): array {
+		return $this->request(
+			'DELETE',
+			'/api/v1/integrations/woocommerce/connect',
+			array( 'bearer' => $bearer )
 		);
 	}
 

@@ -32,7 +32,9 @@
     {
       "step": "defineWpConfigConsts",
       "consts": {
-        "OYSTER_WOO_API_BASE_URL": "https://api.oysterskin.com"
+        "OYSTER_WOO_API_BASE_URL": "https://api.sandbox.oysterskin.com",
+        "OYSTER_WOO_DASHBOARD_URL": "https://sandbox.dash.oysterskin.com",
+        "OYSTER_WOO_WIDGET_BUNDLE_URL": "https://sandbox.widget-lib.oysterskin.com/v1/oysterskin-vendor-widget-web.umd.js"
       }
     },
     {

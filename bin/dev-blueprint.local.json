@@ -5,7 +5,9 @@
     "php": "8.1",
     "wp": "latest"
   },
-  "phpExtensionBundles": ["kitchen-sink"],
+  "phpExtensionBundles": [
+    "kitchen-sink"
+  ],
   "features": {
     "networking": true
   },
@@ -31,13 +33,13 @@
       "step": "defineWpConfigConsts",
       "consts": {
         "OYSTER_WOO_API_BASE_URL": "http://localhost:8000",
-        "OYSTER_WOO_WIDGET_BUNDLE_URL": "http://localhost:4173/v1.13.0/oysterskin-vendor-widget-web.umd.js",
+        "OYSTER_WOO_WIDGET_BUNDLE_URL": "http://localhost:4173/latest/oysterskin-vendor-widget-web.umd.js",
         "OYSTER_WOO_DASHBOARD_URL": "http://localhost:5180"
       }
     },
     {
       "step": "runPHP",
-      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\n\n// Skip the WooCommerce setup wizard redirect — this is a disposable\n// test store, not a real shop being onboarded.\ndelete_transient( '_wc_activation_redirect' );\nupdate_option( 'woocommerce_onboarding_profile', array( 'skipped' => true ) );\n\n// Seed a few products with SKUs so catalog sync has something to push.\nif ( class_exists( 'WC_Product_Simple' ) ) {\n\t$products = array(\n\t\tarray( 'name' => 'Calming Cleanser', 'sku' => 'OYS-CLN-001', 'price' => '24.00' ),\n\t\tarray( 'name' => 'Vitamin C Serum', 'sku' => 'OYS-SER-002', 'price' => '48.00' ),\n\t\tarray( 'name' => 'Barrier Repair Moisturizer', 'sku' => 'OYS-MOI-003', 'price' => '32.00' ),\n\t);\n\tforeach ( $products as $p ) {\n\t\tif ( wc_get_product_id_by_sku( $p['sku'] ) ) {\n\t\t\tcontinue;\n\t\t}\n\t\t$product = new WC_Product_Simple();\n\t\t$product->set_name( $p['name'] );\n\t\t$product->set_sku( $p['sku'] );\n\t\t$product->set_regular_price( $p['price'] );\n\t\t$product->set_status( 'publish' );\n\t\t$product->set_catalog_visibility( 'visible' );\n\t\t$product->save();\n\t}\n}\n"
+      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\n\n// Skip the WooCommerce setup wizard redirect — this is a disposable\n// test store, not a real shop being onboarded.\ndelete_transient( '_wc_activation_redirect' );\nupdate_option( 'woocommerce_onboarding_profile', array( 'skipped' => true ) );\n\n// Seed a few products with SKUs so catalog sync has something to push.\nif ( class_exists( 'WC_Product_Simple' ) ) {\n\t$products = array(\n\t\tarray( 'name' => 'Calming Cleanser', 'sku' => 'OYS-CLN-001', 'price' => '24.00' ),\n\t\tarray( 'name' => 'Vitamin C Serum', 'sku' => 'OYS-SER-002', 'price' => '48.00' ),\n\t\tarray( 'name' => 'Barrier Repair Moisturizer', 'sku' => 'OYS-MOI-003', 'price' => '32.00' ),\n\t);\n\tforeach ( $products as $p ) {\n\t\tif ( wc_get_product_id_by_sku( $p['sku'] ) ) {\n\t\t\tcontinue;\n\t\t}\n\t\t$product = new WC_Product_Simple();\n\t\t$product->set_name( $p['name'] );\n\t\t$product->set_sku( $p['sku'] );\n\t\t$product->set_regular_price( $p['price'] );\n\t\t$product->set_status( 'publish' );\n\t\t$product->set_catalog_visibility( 'visible' );\n\t\t$product->save();\n\t}\n}\n\n// Enable Cash on delivery. WooCommerce ships every gateway disabled, so a\n// fresh store's pay-for-order page has nothing to submit — which makes the\n// scan-payment flow untestable end to end. COD is the right one here: placing\n// the order moves it straight to `processing`, which is what the plugin\n// listens for, so the whole confirm-and-unblock path runs without needing\n// real gateway credentials.\nupdate_option(\n\t'woocommerce_cod_settings',\n\tarray(\n\t\t'enabled'      => 'yes',\n\t\t'title'        => 'Cash on delivery',\n\t\t'description'  => 'Test payment method for this disposable store.',\n\t\t'instructions' => '',\n\t)\n);\n\n// Take the store out of \"Coming soon\" mode. WooCommerce turns it on for a\n// fresh install, which puts a launch placeholder in front of the storefront —\n// including the pay-for-order page a scan payment sends the shopper to. The\n// order is created correctly and the URL is right; the page just never renders.\nupdate_option( 'woocommerce_coming_soon', 'no' );\n"
     }
   ]
 }

@@ -94,6 +94,23 @@ final class Widget_Loader {
 			// see oyster-loader.js's wooCheckoutHandoff catch handler. Better
 			// than stranding the shopper on the widget with no way forward.
 			'cartUrl'      => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : '',
+			// Where the loader raises a scan-payment order, for vendors set up to
+			// take those payments through this store. Always present: whether it
+			// gets used is Oyster's decision at scan time, not something the
+			// storefront should try to predict.
+			//
+			// Root-relative, NOT the absolute URL rest_url() returns. That one is
+			// built from the site's stored home URL, which routinely differs from
+			// the host the shopper is actually on — `127.0.0.1` vs `localhost`, or
+			// www vs bare. The browser treats those as different origins, so the
+			// POST becomes cross-origin, gets a preflight, and WordPress's
+			// canonical redirect answers that preflight with a 302 — which
+			// browsers refuse outright. Relative keeps it same-origin whatever
+			// host the page was served from.
+			//
+			// Still built from rest_url() rather than hard-coded, so a site with a
+			// custom REST prefix keeps working.
+			'scanPaymentUrl' => wp_make_link_relative( rest_url( 'oyster-woocommerce/v1/scan-payment/create' ) ),
 		);
 	}
 
