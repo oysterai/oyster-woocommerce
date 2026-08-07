@@ -2,13 +2,29 @@ name: Release
 
 # Publishing a GitHub Release (with the built zip attached as an asset) is
 # what Support\Self_Updater / Plugin Update Checker actually checks for — see
-# includes/Support/Self_Updater.php. Cutting a release is just:
-#   git tag v1.2.3 && git push --tags
-# No manual zip upload, no separate hosting.
+# includes/Support/Self_Updater.php. No manual zip upload, no separate hosting.
+#
+# Cutting a release is two deliberate steps:
+#   1. git tag v1.2.3 && git push --tags
+#   2. publish the release for that tag on GitHub
+#
+# It does NOT run on the tag push. A tag is cheap to create and easy to create
+# by accident; publishing a release is a decision. Since every install polls
+# the published release and offers merchants the update, the moment it appears
+# is the moment it ships — so that moment should be chosen, not a side effect
+# of pushing a ref.
+#
+# `workflow_dispatch` re-runs the build for an existing release: pick the tag,
+# and the run replaces that release's assets.
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and attach (e.g. v0.12.0)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -17,14 +33,39 @@ jobs:
   build-and-release:
     runs-on: ubuntu-latest
     steps:
+      # The tag comes from the release on a publish, and from the input on a
+      # manual re-run. GITHUB_REF_NAME is not usable for both: on a manual run
+      # it is the branch the workflow was started from, not the tag.
+      - name: Resolve the tag being released
+        id: tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          TAG="${RELEASE_TAG:-$INPUT_TAG}"
+          if [ -z "$TAG" ]; then
+            echo "::error::No tag to build. Publish a release, or supply one when running manually." >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Building $TAG"
+
+      # Build from the tag, not from whatever the default branch holds now, so
+      # a release always ships the code it names.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
 
       - name: Verify tag matches the plugin's Version header
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          set -euo pipefail
+          TAG_VERSION="${TAG#v}"
           HEADER_VERSION=$(sed -n -E 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]+([0-9][0-9.]*).*/\1/p' oyster-woocommerce.php | head -1)
           if [ "$TAG_VERSION" != "$HEADER_VERSION" ]; then
-            echo "::error::Tag v$TAG_VERSION does not match the plugin header's Version: $HEADER_VERSION. Bump the Version (and OYSTER_WOO_VERSION) in oyster-woocommerce.php first, or the self-updater will never detect this release." >&2
+            echo "::error::Tag $TAG does not match the plugin header's Version: $HEADER_VERSION. Bump the Version (and OYSTER_WOO_VERSION) in oyster-woocommerce.php first, or the self-updater will never detect this release." >&2
             exit 1
           fi
           echo "Tag matches header version ($HEADER_VERSION) — continuing."
@@ -34,13 +75,16 @@ jobs:
 
       - name: Add a stable-named copy for direct download links
         # Same content as the versioned zip — just a second copy under a
-        # filename that never changes, so external links (e.g. the vendors-ui
-        # Apps gallery) don't need updating every release:
+        # filename that never changes, so anywhere that links to the download
+        # doesn't need updating every release:
         #   .../releases/latest/download/oyster-woocommerce.zip
         run: cp dist/oyster-woocommerce-*.zip dist/oyster-woocommerce.zip
 
-      - name: Publish GitHub Release
+      # Attaches to the release that already exists for this tag. Release notes
+      # are deliberately not generated here: whoever publishes the release
+      # writes them, and regenerating would overwrite what they wrote.
+      - name: Attach the zips to the release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
           files: dist/*.zip
-          generate_release_notes: true
