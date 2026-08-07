@@ -249,8 +249,20 @@ what `Support\Self_Updater` needs: it calls `enableReleaseAssets()` so
 merchants get the zip we build rather than GitHub's "Source code" archive,
 which would ship `bin/`, `TESTING.md` and `.github/` to every site.
 
-If that happens, the fix is to delete the release — the tag can stay — and
-re-run the workflow for that tag to stage a fresh draft.
+**A published version number cannot be reused.** Deleting the release does not
+free it: GitHub keeps the tag name reserved against the release that was
+published, and any later attempt to release under it fails with *"tag name was
+used by an immutable release"* — including a draft the workflow staged
+successfully. The draft simply can never be published.
+
+So if a release goes out wrong, the recovery is **not** to delete and redo it.
+It is to bump to the next patch version and release that. Note in the changelog
+that the previous one was withdrawn, so the gap in versions is explained to
+anyone reading it.
+
+The workflow cannot detect this case for you. Once the release is deleted there
+is nothing left to look at, so its "already published" guard sees a clean slate
+and stages a draft that will fail at the last step.
 
 `.github/workflows/release.yml` builds with `bin/build-release-zip.sh`, a
 `git archive` from the **tag** (so a release always ships the code it names,
