@@ -188,18 +188,31 @@ detected by `Support\Self_Updater` (Plugin Update Checker). Cutting a
 release:
 
 1. Bump `Version:` in `oyster-woocommerce.php`'s header **and**
-   `OYSTER_WOO_VERSION` to match.
+   `OYSTER_WOO_VERSION` to match. Update `readme.txt`'s `Stable tag` and
+   add its changelog entry.
 2. Merge that to `main`.
 3. `git tag vX.Y.Z && git push --tags`.
+4. **Publish the GitHub Release for that tag.** This is what ships it.
+
+Step 4 is the one that matters. Pushing the tag builds nothing and reaches
+nobody — the workflow runs on the release being *published*. Every install
+polls the published release and offers merchants the update, so the moment it
+appears is the moment it ships; that should be a decision, not a side effect
+of pushing a ref. A tag can sit unreleased for as long as you like.
 
 `.github/workflows/release.yml` then builds the zip (`bin/build-release-zip.sh`,
 a `git archive` from the tag — only committed files ship, filtered by
-`.gitattributes`' `export-ignore` entries) and attaches it to a GitHub
-Release, plus an identically-named `oyster-woocommerce.zip` copy for a
-stable "always latest" download link. The workflow **fails the build** if
+`.gitattributes`' `export-ignore` entries) and attaches it to that Release,
+plus an identically-named `oyster-woocommerce.zip` copy for a stable "always
+latest" download link. It builds from the **tag**, not from `main`, so a
+release always ships the code it names. The workflow **fails the build** if
 the tag doesn't match the header's `Version:` — that mismatch would
 silently make the release invisible to the self-updater, so don't skip it
 or work around it.
+
+Release notes are yours to write when you publish; the workflow does not
+generate or overwrite them. To rebuild the assets for a release that already
+exists, run the workflow manually and give it the tag.
 
 ## Testing
 
