@@ -8,6 +8,11 @@
 > backend Oyster talks to, never its internals. Read **Public repo hygiene**
 > in [AGENTS.md](AGENTS.md) before writing any of the above — this rule has
 > been broken before, via a PR description.
+>
+> A PR description is a **published document, not a message to a colleague**.
+> No one addressed directly, no narration of what you tried, no live status, no
+> "merge this first". Status and coordination go to the team channel; the PR
+> gets the change. See **A PR description is a document, not a message**.
 
 See [AGENTS.md](AGENTS.md) for the full guide (architecture, conventions,
 security invariants, git workflow, release process, testing). Keeping the
