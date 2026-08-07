@@ -159,6 +159,48 @@ of *this* repo. "The email side of this ships separately on Oyster's own
 release cycle; this plugin release should go out first" says everything a
 reader needs without naming anything private.
 
+### A PR description is a document, not a message
+
+The list above says what not to *name*. This says who you are writing *to*.
+
+A PR here is read by strangers, months later, with no other context — not by
+the person reviewing it this afternoon. Writing it as a message to a colleague
+publishes the working relationship along with the change: who is waiting on
+whom, what is broken right now, what someone decided and why they hesitated.
+None of that is a secret, and none of it belongs in a public repo.
+
+Never put in a PR title, description or comment:
+
+- **anyone addressed directly** — "your call", "over to you", "as you asked",
+  "let me know". If a sentence has a *you* in it who works here, it belongs in
+  the team channel
+- **narration of your own process** — what you tried, what you got wrong, what
+  you decided not to do. The diff is the claim; the reasoning that survives is
+  the reasoning about the *code*
+- **the live state of anything** — "X is currently broken", "this is not
+  deployed yet", "waiting on the other release". Written down, that reads to an
+  outsider as a running commentary on incidents
+- **sequencing across repos or teams** — "merge this first", "needs the other
+  thing live". Describe the dependency in terms of this repo's behaviour, or
+  keep it out (see the paragraph above on cross-repo coordination)
+
+What does belong: what changed, why it changed, what it affects, and how it was
+verified. Enough for someone to review the diff and to understand it later.
+
+The version that went out:
+
+> ~~**v0.12.0 is live with zero assets.** … I have not deleted anything — that
+> is a live release and it is your call.~~
+
+and what it should have been:
+
+> A published release is immutable, so assets can only be attached while it is
+> still a draft. `Support\Self_Updater` calls `enableReleaseAssets()`, so a
+> release without one falls back to GitHub's generated archive.
+
+Same technical content, no incident, nobody addressed. **Status, coordination
+and decisions go to the team channel. The PR gets the change.**
+
 **Before publishing anything, re-read it once and ask: would this sentence
 make sense to someone who has only ever seen this one repo?** If it names
 something they can't look up, cut it or generalize it. If you notice a slip
@@ -207,8 +249,20 @@ what `Support\Self_Updater` needs: it calls `enableReleaseAssets()` so
 merchants get the zip we build rather than GitHub's "Source code" archive,
 which would ship `bin/`, `TESTING.md` and `.github/` to every site.
 
-If that happens, the fix is to delete the release — the tag can stay — and
-re-run the workflow for that tag to stage a fresh draft.
+**A published version number cannot be reused.** Deleting the release does not
+free it: GitHub keeps the tag name reserved against the release that was
+published, and any later attempt to release under it fails with *"tag name was
+used by an immutable release"* — including a draft the workflow staged
+successfully. The draft simply can never be published.
+
+So if a release goes out wrong, the recovery is **not** to delete and redo it.
+It is to bump to the next patch version and release that. Note in the changelog
+that the previous one was withdrawn, so the gap in versions is explained to
+anyone reading it.
+
+The workflow cannot detect this case for you. Once the release is deleted there
+is nothing left to look at, so its "already published" guard sees a clean slate
+and stages a draft that will fail at the last step.
 
 `.github/workflows/release.yml` builds with `bin/build-release-zip.sh`, a
 `git archive` from the **tag** (so a release always ships the code it names,

@@ -6,7 +6,7 @@ Tested up to: 6.7
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 9.6
-Stable tag: 0.12.0
+Stable tag: 0.12.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,10 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.12.1 =
+* Same changes as 0.12.0, re-issued. 0.12.0 was withdrawn before it could be
+  installed, so upgrade straight to this one.
 
 = 0.12.0 =
 * If Oyster has set your account up to take scan payments yourself, shoppers now
