@@ -62,6 +62,48 @@ final class Client {
 	}
 
 	/**
+	 * What this store charges shoppers for a scan, and the rate Oyster charges
+	 * the store for one.
+	 *
+	 * Only meaningful for a store that collects scan payments through its own
+	 * checkout. Oyster bills the store for every scan whoever paid, so its rate
+	 * is the store's cost and the shopper's price is the store's to set.
+	 *
+	 * @return array<string, mixed> { data: { collects_externally, mode, value, oyster_rate, customer_price, currency, ... } }
+	 * @throws Api_Exception
+	 */
+	public function get_scan_pricing( string $bearer ): array {
+		return $this->request( 'GET', '/api/v1/vendors/billing/scan-retail-price', array( 'bearer' => $bearer ) );
+	}
+
+	/**
+	 * Set what shoppers pay for a scan.
+	 *
+	 * Changes what a shopper is charged, never whether they are charged — that
+	 * stays a billing setting on the Oyster account. A store covering its
+	 * shoppers' first few scans still covers them.
+	 *
+	 * @param string     $mode  One of passthrough, markup_percent, markup_amount, fixed_amount.
+	 * @param float|null $value The amount or percentage the mode applies; null for passthrough.
+	 *
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function update_scan_pricing( string $bearer, string $mode, ?float $value ): array {
+		return $this->request(
+			'PATCH',
+			'/api/v1/vendors/billing/scan-retail-price',
+			array(
+				'bearer' => $bearer,
+				'body'   => array(
+					'mode'  => $mode,
+					'value' => $value,
+				),
+			)
+		);
+	}
+
+	/**
 	 * Tell Oyster this store collected (or failed to collect) a scan payment.
 	 *
 	 * The only thing that unblocks the shopper's scan. Deliberately server-side:
