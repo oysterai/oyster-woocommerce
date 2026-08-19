@@ -9,3 +9,6 @@
 /TESTING.md export-ignore
 /AGENTS.md export-ignore
 /CLAUDE.md export-ignore
+/composer.json export-ignore
+/phpunit.xml export-ignore
+/tests export-ignore

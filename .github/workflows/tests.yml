@@ -1,0 +1,35 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 8.1 is the plugin's declared floor (see the header of
+        # oyster-woocommerce.php); the rest are what merchants actually run.
+        php: ['8.1', '8.2', '8.3', '8.4']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        # No lock file is committed: the only dependency is the test runner, and
+        # pinning it would mean the floor and the newest PHP resolve to the same
+        # build regardless of what each supports.
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run unit tests
+        run: ./vendor/bin/phpunit --testdox
