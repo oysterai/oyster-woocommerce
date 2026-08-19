@@ -51,10 +51,41 @@ require_once $_tests_dir . '/includes/functions.php';
  * and functions already exist, which is also the order WordPress loads them in
  * on a real site.
  */
+/**
+ * Where WooCommerce ended up.
+ *
+ * Not hardcoded: how a plugin directory is named depends on how it was
+ * installed, and a wrong guess fails deep inside WordPress' boot with a stack
+ * trace that says nothing about the cause. Looked up instead, and if it is
+ * genuinely absent the error says what was searched and what was there.
+ */
+$_woocommerce = static function (): string {
+	$expected = WP_PLUGIN_DIR . '/woocommerce/woocommerce.php';
+
+	if ( file_exists( $expected ) ) {
+		return $expected;
+	}
+
+	foreach ( (array) glob( WP_PLUGIN_DIR . '/*/woocommerce.php' ) as $candidate ) {
+		if ( is_string( $candidate ) && file_exists( $candidate ) ) {
+			return $candidate;
+		}
+	}
+
+	$present = array_map( 'basename', (array) glob( WP_PLUGIN_DIR . '/*', GLOB_ONLYDIR ) );
+
+	fwrite(
+		STDERR,
+		"WooCommerce is not installed in this environment.\n" .
+		'Looked in ' . WP_PLUGIN_DIR . '; found: ' . ( $present ? implode( ', ', $present ) : '(nothing)' ) . "\n"
+	);
+	exit( 1 );
+};
+
 tests_add_filter(
 	'muplugins_loaded',
-	static function (): void {
-		require_once WP_PLUGIN_DIR . '/woocommerce/woocommerce.php';
+	static function () use ( $_woocommerce ): void {
+		require_once $_woocommerce();
 		require_once dirname( __DIR__, 2 ) . '/oyster-woocommerce.php';
 	}
 );
