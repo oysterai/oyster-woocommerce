@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Integration suite: everything the unit suite structurally cannot reach —
+    hooks actually firing, real post meta, real WooCommerce product objects.
+
+    Runs inside wp-env against a real WordPress + WooCommerce, so it needs
+    Docker and takes minutes rather than milliseconds. Kept in its own config so
+    `composer test` stays the fast one that can run on every push.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/Integration/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache">
+    <testsuites>
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

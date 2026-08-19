@@ -33,3 +33,55 @@ jobs:
 
       - name: Run unit tests
         run: ./vendor/bin/phpunit --testdox
+
+  integration:
+    name: Integration (WordPress ${{ matrix.wp }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Current, and the oldest WordPress this plugin is tested against.
+        # Whatever is listed here is the de-facto floor.
+        wp: ['latest', '6.5']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+          tools: composer:v2
+
+      # PHPUnit is installed on the runner and mounted into the container with
+      # the plugin, so the suite runs against the same runner it does locally.
+      - name: Install PHP dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Install wp-env
+        run: npm install --no-audit --no-fund
+
+      # Two steps rather than one with a conditional value: wp-env reads
+      # WP_ENV_CORE as a string, so there is no way to express "unset, use the
+      # default" through it — a blank or the word "null" would be taken
+      # literally and fail to resolve.
+      - name: Start WordPress (latest) + WooCommerce
+        if: matrix.wp == 'latest'
+        run: npx wp-env start --update
+
+      - name: Start WordPress ${{ matrix.wp }} + WooCommerce
+        if: matrix.wp != 'latest'
+        run: npx wp-env start --update
+        env:
+          WP_ENV_CORE: https://wordpress.org/wordpress-${{ matrix.wp }}.zip
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Show WordPress debug log on failure
+        if: failure()
+        run: npx wp-env run tests-wordpress cat /var/www/html/wp-content/debug.log || true
