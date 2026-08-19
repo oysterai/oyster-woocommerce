@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace Oyster\Woo;
 
 use Oyster\Woo\Admin\Catalog_Screen;
+use Oyster\Woo\Admin\Scan_Pricing_Screen;
 use Oyster\Woo\Admin\Connect_Screen;
 use Oyster\Woo\Admin\Menu;
 use Oyster\Woo\Admin\Setup_Guide;
@@ -28,6 +29,7 @@ use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Compliance\Gdpr;
 use Oyster\Woo\Frontend\Widget_Loader;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Scan_Pricing;
 use Oyster\Woo\Support\Self_Updater;
 use Oyster\Woo\Sync\Catalog_Sync;
 use Oyster\Woo\Sync\Product_Hooks;
@@ -114,7 +116,8 @@ final class Plugin {
 		// up that way. Registered unconditionally: the order hooks have to be
 		// listening whenever an order can change status, not only while the
 		// storefront happens to be rendering.
-		$scan_payment = new Scan_Payment( $this->connection, $this->client );
+		$scan_pricing = new Scan_Pricing( $this->connection, $this->client );
+		$scan_payment = new Scan_Payment( $this->connection, $this->client, $scan_pricing );
 		$scan_payment->register();
 		( new Scan_Payment_Controller( $scan_payment ) )->register();
 		( new Email_Handoff( $this->connection, $cart_filler ) )->register();
@@ -125,13 +128,15 @@ final class Plugin {
 			$connect     = new Connect_Screen( $this->connection, $this->client, $setup_guide );
 			$widget      = new Widget_Settings_Screen( $this->connection, $this->client );
 			$catalog     = new Catalog_Screen( $this->connection, $catalog_sync );
+			$pricing     = new Scan_Pricing_Screen( $this->connection, $scan_pricing );
 
 			$setup_guide->register();
 			$connect->register();
 			$widget->register();
 			$catalog->register();
+			$pricing->register();
 
-			( new Menu( $connect, $widget, $catalog ) )->register();
+			( new Menu( $connect, $widget, $catalog, $pricing ) )->register();
 			( new Sync_Status_Column() )->register();
 
 			// Product-editor additions Oyster's recommendations rely on: an
