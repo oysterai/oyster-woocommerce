@@ -1,0 +1,14 @@
+{
+  "name": "oyster-woocommerce",
+  "private": true,
+  "description": "Development tooling only. The plugin ships no JavaScript build \u2014 assets/js is plain, hand-written script served as-is.",
+  "scripts": {
+    "env:start": "wp-env start",
+    "env:stop": "wp-env stop",
+    "env:prepare": "wp-env run tests-cli wp plugin install woocommerce",
+    "test:integration": "npm run env:prepare && wp-env run tests-cli --env-cwd=wp-content/plugins/oyster-woocommerce ./vendor/bin/phpunit -c phpunit-integration.xml"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^10.34.0"
+  }
+}

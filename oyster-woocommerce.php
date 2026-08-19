@@ -14,7 +14,7 @@
  * Domain Path:       /languages
  *
  * WC requires at least: 8.0
- * WC tested up to:      9.6
+ * WC tested up to:      11.0
  *
  * @package Oyster\Woo
  */
