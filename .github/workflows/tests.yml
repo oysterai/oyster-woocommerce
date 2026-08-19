@@ -43,9 +43,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Current, and the oldest WordPress this plugin is tested against.
-        # Whatever is listed here is the de-facto floor.
-        wp: ['latest', '6.5']
+        # Current, and the oldest WordPress that can be tested at all: this
+        # plugin needs WooCommerce, and WooCommerce currently refuses to install
+        # below WordPress 6.9. That requirement, not a choice made here, is what
+        # sets the floor — so it moves when WooCommerce moves.
+        wp: ['latest', '6.9']
 
     steps:
       - uses: actions/checkout@v4
