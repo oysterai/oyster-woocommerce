@@ -6,7 +6,7 @@ Tested up to: 7.0
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.0
-Stable tag: 0.12.1
+Stable tag: 0.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,21 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.13.0 =
+* If you take scan payments through your own checkout, you can now set what you
+  charge for them. Add a percentage, add a fixed amount, or set your own price —
+  Oyster's rate becomes your cost rather than your price. Find it under
+  Oyster > Scan pricing, which also shows what a scan costs you and what you
+  keep. This changes what a shopper is charged, never whether they are charged.
+* Your products list now shows which products reached Oyster, and you can filter
+  it by synced, failed, or not yet synced.
+* When a product does not sync, the reason is shown against that product instead
+  of only a count on the sync screen — including for products that never get
+  sent, most often because they have no price. Database errors are translated
+  into plain language, so a clash between two products sharing a SKU says so.
+* Scan orders are raised at no less than the price you set, so the amount charged
+  cannot be altered from the browser.
 
 = 0.12.1 =
 * Same changes as 0.12.0, re-issued. 0.12.0 was withdrawn before it could be
