@@ -11,7 +11,7 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="tests/Integration/bootstrap.php"
          colors="true"
-         cacheDirectory=".phpunit.cache">
+         cacheResultFile=".phpunit.cache/result-integration">
     <testsuites>
         <testsuite name="integration">
             <directory>tests/Integration</directory>

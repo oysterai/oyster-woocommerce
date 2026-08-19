@@ -13,8 +13,11 @@ jobs:
       fail-fast: false
       matrix:
         # 8.1 is the plugin's declared floor (see the header of
-        # oyster-woocommerce.php); the rest are what merchants actually run.
-        php: ['8.1', '8.2', '8.3', '8.4']
+        # oyster-woocommerce.php). 8.4 is deliberately absent: the suite runs on
+        # PHPUnit 9, which is the line WordPress' own test suite supports and the
+        # only one the Polyfills cover alongside it, and 9.6 is not tested
+        # against 8.4 upstream. Revisit when WordPress moves to PHPUnit 11.
+        php: ['8.1', '8.2', '8.3']
 
     steps:
       - uses: actions/checkout@v4

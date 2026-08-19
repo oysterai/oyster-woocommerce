@@ -31,6 +31,19 @@ if ( ! file_exists( $_tests_dir . '/includes/functions.php' ) ) {
 	exit( 1 );
 }
 
+/**
+ * WordPress' test suite is built on Yoast's PHPUnit Polyfills and refuses to
+ * boot without them. Pointed at explicitly rather than relying on the Composer
+ * autoloader having been pulled in first, which is the difference between a
+ * clear failure and a confusing one.
+ */
+$_polyfills = dirname( __DIR__, 2 ) . '/vendor/yoast/phpunit-polyfills';
+
+if ( ! defined( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH' ) && is_dir( $_polyfills ) ) {
+	define( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH', $_polyfills );
+}
+
+require_once dirname( __DIR__, 2 ) . '/vendor/autoload.php';
 require_once $_tests_dir . '/includes/functions.php';
 
 /**
