@@ -130,6 +130,15 @@ final class Catalog_Sync {
 
 		$rows = Product_Mapper::to_rows( $product );
 		if ( ! $rows ) {
+			// Eligible but unsendable — a missing price, usually. Recorded
+			// against the product rather than dropped, so the products list can
+			// say why it never reached Oyster instead of showing it as simply
+			// not synced yet.
+			$reason = Product_Mapper::skip_reason( $product );
+			if ( null !== $reason ) {
+				Sync_State::mark_failed( $product_id, $reason, time() );
+			}
+
 			return;
 		}
 
@@ -174,9 +183,22 @@ final class Catalog_Sync {
 
 		$rows = array();
 		foreach ( $products as $product ) {
-			if ( $product instanceof WC_Product && Catalog_Filter::is_eligible( $product ) ) {
-				$rows = array_merge( $rows, Product_Mapper::to_rows( $product ) );
+			if ( ! $product instanceof WC_Product || ! Catalog_Filter::is_eligible( $product ) ) {
+				continue;
 			}
+
+			$product_rows = Product_Mapper::to_rows( $product );
+
+			if ( ! $product_rows ) {
+				$reason = Product_Mapper::skip_reason( $product );
+				if ( null !== $reason ) {
+					Sync_State::mark_failed( $product->get_id(), $reason, time() );
+				}
+
+				continue;
+			}
+
+			$rows = array_merge( $rows, $product_rows );
 		}
 
 		$page_result = $rows ? $this->upsert_rows( $rows ) : array(
@@ -239,7 +261,7 @@ final class Catalog_Sync {
 				continue;
 			}
 
-			$reason = (string) ( $item['error'] ?? '' );
+			$reason = Sync_Error_Message::humanize( (string) ( $item['error'] ?? '' ) );
 
 			// Name the variation when there is one: a variable product with one
 			// bad variation otherwise reads as though the whole product failed.

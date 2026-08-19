@@ -53,20 +53,74 @@ final class Product_Mapper {
 	}
 
 	/**
-	 * @return array<string, mixed>|null Null when the unit has no resolvable
-	 *         name or price — sending it would fail the backend's `required`
-	 *         validation for the whole batch, so we skip it here instead.
+	 * Why this unit cannot be sent, or null when it can.
+	 *
+	 * Oyster requires a name and a price on every row and rejects the whole
+	 * batch when one is missing, so these are caught here instead. Skipping is
+	 * the right behaviour; doing it silently was not, because a product with no
+	 * price is the likeliest reason a merchant's product never appears in Oyster
+	 * and the products list had no way to say so.
 	 */
-	private static function build_row( WC_Product $unit ): ?array {
+	private static function row_problem( WC_Product $unit ): ?string {
 		$price = $unit->get_price();
 		if ( '' === $price || null === $price || ! is_numeric( $price ) ) {
+			return __( 'This product has no price. Oyster needs a price to list it.', 'oyster-woocommerce' );
+		}
+
+		if ( '' === trim( (string) $unit->get_name() ) ) {
+			return __( 'This product has no name.', 'oyster-woocommerce' );
+		}
+
+		return null;
+	}
+
+	/**
+	 * Why a product produced no rows to sync, or null when it produced some.
+	 *
+	 * A variable product is reported on its variations, since that is where the
+	 * price actually lives and where the merchant has to go to fix it.
+	 */
+	public static function skip_reason( WC_Product $product ): ?string {
+		if ( ! $product->is_type( 'variable' ) ) {
+			return self::row_problem( $product );
+		}
+
+		$children = $product->get_children();
+		if ( ! $children ) {
+			return __( 'This product has no variations to sync.', 'oyster-woocommerce' );
+		}
+
+		$reasons = array();
+		foreach ( $children as $variation_id ) {
+			$variation = function_exists( 'wc_get_product' ) ? wc_get_product( $variation_id ) : null;
+			if ( ! $variation instanceof WC_Product_Variation ) {
+				continue;
+			}
+
+			$problem = self::row_problem( $variation );
+			if ( null === $problem ) {
+				return null; // At least one variation is syncable.
+			}
+
+			$reasons[ $problem ] = true;
+		}
+
+		return $reasons
+			? implode( ' ', array_keys( $reasons ) )
+			: __( 'This product has no variations to sync.', 'oyster-woocommerce' );
+	}
+
+	/**
+	 * @return array<string, mixed>|null Null when the unit cannot be sent;
+	 *         {@see row_problem()} says why.
+	 */
+	private static function build_row( WC_Product $unit ): ?array {
+		if ( null !== self::row_problem( $unit ) ) {
 			return null;
 		}
 
-		$name = $unit->get_name();
-		if ( '' === trim( (string) $name ) ) {
-			return null;
-		}
+		$price = $unit->get_price();
+		$name  = $unit->get_name();
 
 		$is_variation = $unit instanceof WC_Product_Variation;
 		$product_id   = $is_variation ? $unit->get_parent_id() : $unit->get_id();
