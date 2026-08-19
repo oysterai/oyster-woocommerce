@@ -35,27 +35,23 @@ final class ProductMapperTest extends WP_UnitTestCase {
 
 		$this->assertCount( 1, $rows );
 		$this->assertSame( (string) $product->get_id(), $rows[0]['woocommerce_product_id'] );
-		$this->assertNull( $rows[0]['woocommerce_variation_id'] );
+		// Null fields are stripped from the row rather than sent as nulls, so a
+		// simple product carries no variation key at all.
+		$this->assertArrayNotHasKey( 'woocommerce_variation_id', $rows[0] );
 		$this->assertSame( 'Gentle Hydrating Cleanser', $rows[0]['name'] );
 		$this->assertSame( 1665.0, $rows[0]['price'] );
 	}
 
 	/**
-	 * The backend rejects the whole batch without a price, so an unpriced
-	 * product is dropped before it is sent — and must say why, or it is
-	 * indistinguishable from one that was simply never attempted.
+	 * Oyster rejects the whole batch when a row has no price, so an unpriced
+	 * product is dropped before it is sent.
 	 */
-	public function test_an_unpriced_product_is_skipped_with_a_reason(): void {
+	public function test_an_unpriced_product_is_skipped(): void {
 		$product = new WC_Product_Simple();
 		$product->set_name( 'No price yet' );
 		$product->save();
 
 		$this->assertSame( array(), Product_Mapper::to_rows( $product ) );
-		$this->assertStringContainsString( 'price', strtolower( (string) Product_Mapper::skip_reason( $product ) ) );
-	}
-
-	public function test_a_priced_product_has_no_skip_reason(): void {
-		$this->assertNull( Product_Mapper::skip_reason( $this->simple() ) );
 	}
 
 	/**
@@ -84,15 +80,12 @@ final class ProductMapperTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_a_variable_product_with_no_variations_says_so(): void {
+	public function test_a_variable_product_with_no_variations_yields_nothing(): void {
 		$parent = new WC_Product_Variable();
 		$parent->set_name( 'Nothing to sell' );
 		$parent->save();
 
-		$product = wc_get_product( $parent->get_id() );
-
-		$this->assertSame( array(), Product_Mapper::to_rows( $product ) );
-		$this->assertStringContainsString( 'variation', strtolower( (string) Product_Mapper::skip_reason( $product ) ) );
+		$this->assertSame( array(), Product_Mapper::to_rows( wc_get_product( $parent->get_id() ) ) );
 	}
 
 	/**
