@@ -28,26 +28,25 @@ final class Sync_Status_Column {
 	/** Query string key the filter reads and writes. */
 	private const QUERY_VAR = 'oyster_sync_status';
 
-	/** The two product list screens this attaches to. */
-	private const SCREENS = array( 'edit-product', 'woocommerce_page_product-list' );
+	/**
+	 * The products list screen.
+	 *
+	 * There is only one: WooCommerce's product list is a standard WordPress list
+	 * table over edit.php?post_type=product (WC_Admin_List_Table_Products), not a
+	 * table of its own. HPOS is order storage and has no product equivalent.
+	 */
+	private const SCREENS = array( 'edit-product' );
 
 	public function register(): void {
-		// Classic product list table (HPOS disabled or legacy list).
+		// WooCommerce customises the WordPress products list table rather than
+		// replacing it, so these are the hooks that screen actually fires. The
+		// `woocommerce_product_list_table_*` names this file used to also
+		// register do not exist in WooCommerce and never ran.
 		add_filter( 'manage_product_posts_columns', array( $this, 'add_column' ) );
 		add_action( 'manage_product_posts_custom_column', array( $this, 'render_cell' ), 10, 2 );
 
-		// HPOS product list table (WooCommerce > Products when HPOS enabled).
-		add_filter( 'woocommerce_product_list_table_columns', array( $this, 'add_column' ) );
-		add_action( 'woocommerce_product_list_table_custom_column', array( $this, 'render_cell' ), 10, 2 );
-
-		// Filter control + the query it drives. `restrict_manage_posts` is the
-		// classic list and is what the great majority of stores render.
+		// Filter control + the query it drives.
 		add_action( 'restrict_manage_posts', array( $this, 'render_filter' ) );
-		// Named by analogy with the two column hooks above, for WooCommerce's own
-		// product list table. If the hook is absent the action simply never runs
-		// and that screen shows no filter — the column still works, and the
-		// classic list is unaffected.
-		add_action( 'woocommerce_product_list_table_restrict_manage_products', array( $this, 'render_filter' ) );
 		add_filter( 'request', array( $this, 'apply_filter_to_query' ) );
 
 		add_action( 'admin_head', array( $this, 'inline_styles' ) );
