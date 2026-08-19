@@ -56,7 +56,7 @@ final class Scan_Pricing_Screen {
 
 		check_admin_referer( self::NONCE );
 
-		$mode = sanitize_text_field( (string) ( $_POST['mode'] ?? '' ) );
+		$mode = isset( $_POST['mode'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['mode'] ) ) : '';
 
 		if ( ! array_key_exists( $mode, Scan_Pricing::MODES ) ) {
 			$this->redirect_back( 'invalid_mode' );
@@ -277,8 +277,11 @@ final class Scan_Pricing_Screen {
 		);
 	}
 
-	private function redirect_back( string $status, string $detail = '' ): void {
-		$args = array( 'page' => Menu::PRICING_SLUG, 'oyster_pricing' => $status );
+	private function redirect_back( string $status, string $detail = '' ): never {
+		$args = array(
+			'page'           => Menu::PRICING_SLUG,
+			'oyster_pricing' => $status,
+		);
 
 		if ( '' !== $detail ) {
 			$args['oyster_detail'] = $detail;
