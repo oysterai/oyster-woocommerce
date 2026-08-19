@@ -12,6 +12,7 @@ namespace Oyster\Woo\Checkout;
 use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Scan_Pricing;
 use WC_Order;
 use WC_Product_Simple;
 
@@ -55,7 +56,8 @@ final class Scan_Payment {
 
 	public function __construct(
 		private Connection $connection,
-		private Client $client
+		private Client $client,
+		private Scan_Pricing $pricing
 	) {}
 
 	public function register(): void {
@@ -105,6 +107,13 @@ final class Scan_Payment {
 			);
 		}
 
+		// The amount reaches us through the shopper's browser, so it is raised to
+		// at least the price this store has set. Without this a shopper could ask
+		// for an order of a few cents and get a scan the store is billed in full
+		// for. Never lowered: a session capturing more than a face scan costs
+		// more than the base price, and the widget knows which this is.
+		$amount = max( $request['amount'], $this->pricing->minimum_charge() ?? 0.0 );
+
 		$order = wc_create_order();
 		if ( ! $order instanceof WC_Order ) {
 			return array( 'error' => 'order_failed' );
@@ -113,7 +122,7 @@ final class Scan_Payment {
 		// Priced from the request rather than the product, because the product
 		// is a placeholder — the amount belongs to this scan, not to a catalog
 		// item the merchant maintains.
-		$order->add_product( $product, 1, array( 'total' => $request['amount'] ) );
+		$order->add_product( $product, 1, array( 'total' => $amount ) );
 
 		if ( '' !== $request['email'] ) {
 			$order->set_billing_email( $request['email'] );

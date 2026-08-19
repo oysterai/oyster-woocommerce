@@ -43,6 +43,17 @@ final class Dashboard_Link {
 	}
 
 	/**
+	 * The merchant's billing and usage page, where the rate Oyster charges them
+	 * per scan is shown along with what they have spent.
+	 *
+	 * Derived from url() so it inherits the same wp-config override and
+	 * validation as every other deep link here.
+	 */
+	public static function billing_url(): string {
+		return self::url() . '/billing/usage';
+	}
+
+	/**
 	 * Echoes a single link/button. Always opens in a new tab — merchants stay
 	 * on the WP admin screen they were on.
 	 */

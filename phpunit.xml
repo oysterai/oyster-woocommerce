@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Unit tests only: classes whose behaviour is plain PHP, exercised without
+    loading WordPress. That keeps the suite fast enough to run on every push and
+    free of a WordPress/WooCommerce install in CI.
+
+    Anything that genuinely needs WordPress — hooks firing, real post meta, real
+    WC_Product objects — is out of scope here and wants an integration suite.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         beStrictAboutOutputDuringTests="true"
+         cacheResultFile=".phpunit.cache/result">
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

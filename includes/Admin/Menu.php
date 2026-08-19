@@ -23,6 +23,8 @@ final class Menu {
 
 	public const CATALOG_SLUG = 'oyster-woocommerce-catalog';
 
+	public const PRICING_SLUG = 'oyster-woocommerce-scan-pricing';
+
 	/**
 	 * Capability required to manage the integration. `manage_woocommerce` maps
 	 * to Shop Managers + Admins, matching who configures other Woo extensions.
@@ -32,7 +34,8 @@ final class Menu {
 	public function __construct(
 		private Connect_Screen $connect,
 		private Widget_Settings_Screen $widget,
-		private Catalog_Screen $catalog
+		private Catalog_Screen $catalog,
+		private Scan_Pricing_Screen $pricing
 	) {}
 
 	public function register(): void {
@@ -76,6 +79,18 @@ final class Menu {
 			self::CAPABILITY,
 			self::CATALOG_SLUG,
 			array( $this->catalog, 'render' )
+		);
+
+		// Only relevant when this store takes the shopper's scan payment
+		// itself. The screen says so rather than the menu hiding it, so a
+		// merchant who was told they can set a price can find where.
+		add_submenu_page(
+			self::PARENT_SLUG,
+			__( 'Oyster — Scan pricing', 'oyster-woocommerce' ),
+			__( 'Scan pricing', 'oyster-woocommerce' ),
+			self::CAPABILITY,
+			self::PRICING_SLUG,
+			array( $this->pricing, 'render' )
 		);
 	}
 

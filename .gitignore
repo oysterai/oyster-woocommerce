@@ -23,3 +23,9 @@ Thumbs.db
 
 # Personal dev notes — not part of the shared repo
 /callouts.md
+
+# Composer dev dependencies — the plugin itself has none and autoloads its own classes.
+/vendor/
+/composer.lock
+/.phpunit.cache/
+/node_modules/
