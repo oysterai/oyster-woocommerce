@@ -13,6 +13,7 @@ use Oyster\Woo\Support\Catalog_Filter;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Dashboard_Link;
 use Oyster\Woo\Sync\Catalog_Sync;
+use Oyster\Woo\Sync\Sync_State;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -180,6 +181,7 @@ final class Catalog_Screen {
 		echo '</form>';
 
 		$this->render_status();
+		$this->render_failures();
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:16px;">';
 		echo '<input type="hidden" name="action" value="oyster_woo_sync_catalog">';
@@ -235,6 +237,83 @@ final class Catalog_Screen {
 			$this->render_totals( $totals );
 		} else {
 			echo '<p>' . esc_html__( 'Not synced yet.', 'oyster-woocommerce' ) . '</p>';
+		}
+
+		echo '</div>';
+	}
+
+	/** Most failures listed before pointing the merchant at the filtered list. */
+	private const FAILURE_PREVIEW_LIMIT = 20;
+
+	/**
+	 * The products Oyster rejected, and what it said about each.
+	 *
+	 * A count on its own tells a merchant something is wrong without telling
+	 * them what to fix or which product to open. These are the rows their next
+	 * action is on, so they are named, with the reason beside them and a link
+	 * straight to the editor.
+	 */
+	private function render_failures(): void {
+		$failed = get_posts(
+			array(
+				'post_type'      => 'product',
+				'post_status'    => 'any',
+				'posts_per_page' => self::FAILURE_PREVIEW_LIMIT + 1,
+				'orderby'        => 'modified',
+				'order'          => 'DESC',
+				'fields'         => 'ids',
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				'meta_key'       => Sync_State::META_ERROR,
+				'meta_compare'   => 'EXISTS',
+			)
+		);
+
+		if ( ! $failed ) {
+			return;
+		}
+
+		$more = count( $failed ) > self::FAILURE_PREVIEW_LIMIT;
+		$rows = array_slice( $failed, 0, self::FAILURE_PREVIEW_LIMIT );
+
+		echo '<div class="oyster-card" style="margin-top:16px;padding:12px 16px;border:1px solid #d63638;border-left-width:4px;background:#fff;">';
+		printf( '<h2 style="margin-top:0;">%s</h2>', esc_html__( 'Products that did not sync', 'oyster-woocommerce' ) );
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Oyster rejected these. Fix the product and save it — it re-syncs on save, or use "Sync now" to retry them all.', 'oyster-woocommerce' )
+		);
+
+		echo '<table class="widefat striped"><thead><tr>';
+		printf( '<th>%s</th>', esc_html__( 'Product', 'oyster-woocommerce' ) );
+		printf( '<th>%s</th>', esc_html__( 'Why it failed', 'oyster-woocommerce' ) );
+		printf( '<th style="width:9em;">%s</th>', esc_html__( 'When', 'oyster-woocommerce' ) );
+		echo '</tr></thead><tbody>';
+
+		foreach ( $rows as $product_id ) {
+			$state = Sync_State::get( (int) $product_id );
+			$when  = null !== $state['failed_at']
+				/* translators: %s: human-readable time ago */
+				? sprintf( __( '%s ago', 'oyster-woocommerce' ), human_time_diff( $state['failed_at'] ) )
+				: '&mdash;';
+
+			printf(
+				'<tr><td><a href="%s">%s</a></td><td>%s</td><td>%s</td></tr>',
+				esc_url( (string) get_edit_post_link( (int) $product_id ) ),
+				esc_html( get_the_title( (int) $product_id ) ?: __( '(no title)', 'oyster-woocommerce' ) ),
+				esc_html( (string) $state['error'] ),
+				esc_html( $when )
+			);
+		}
+
+		echo '</tbody></table>';
+
+		// Never silently truncated: the list is capped, so say so and hand over
+		// the filtered products list, which shows all of them.
+		if ( $more ) {
+			printf(
+				'<p><a href="%s">%s</a></p>',
+				esc_url( admin_url( 'edit.php?post_type=product&oyster_sync_status=failed' ) ),
+				esc_html__( 'Show every product that failed to sync', 'oyster-woocommerce' )
+			);
 		}
 
 		echo '</div>';
