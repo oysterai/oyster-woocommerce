@@ -220,6 +220,40 @@ final class Catalog_Sync {
 	 */
 
 	/**
+	 * Attach Oyster's per-row rejection reasons to the products they belong to.
+	 *
+	 * Oyster keys a failure by the WooCommerce ids it was sent, so a rejected
+	 * variation is recorded against its parent product — that is the row the
+	 * merchant sees in the products list and the one they would open to fix it.
+	 *
+	 * @param array<int, array<string, mixed>> $failed_items
+	 */
+	private function record_failures( array $failed_items, int $failed_at ): void {
+		foreach ( $failed_items as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+
+			$parent = (int) ( $item['woocommerce_product_id'] ?? 0 );
+			if ( $parent <= 0 ) {
+				continue;
+			}
+
+			$reason = (string) ( $item['error'] ?? '' );
+
+			// Name the variation when there is one: a variable product with one
+			// bad variation otherwise reads as though the whole product failed.
+			$variation = (string) ( $item['woocommerce_variation_id'] ?? '' );
+			if ( '' !== $variation ) {
+				/* translators: 1: variation id, 2: error message */
+				$reason = sprintf( __( 'Variation %1$s: %2$s', 'oyster-woocommerce' ), $variation, $reason );
+			}
+
+			Sync_State::mark_failed( $parent, $reason, $failed_at );
+		}
+	}
+
+	/**
 	 * @param array<int, array<string, mixed>> $rows
 	 * @return array{created:int,updated:int,claimed:int,failed:int}
 	 */
@@ -273,9 +307,28 @@ final class Catalog_Sync {
 						Sync_State::mark_synced( $woo_product_id, $oyster_id, $synced_at );
 					}
 				}
+
+				// Oyster reports which rows it rejected and why. A count alone
+				// tells a merchant something is wrong without telling them what
+				// to fix, so the reason is stored against the product itself.
+				$this->record_failures(
+					is_array( $data['failed_items'] ?? null ) ? $data['failed_items'] : array(),
+					$synced_at
+				);
 			} catch ( Api_Exception $e ) {
 				$totals['failed'] += count( $chunk );
 				$this->log( 'bulk_upsert_products failed: ' . $e->user_message() );
+
+				// The whole request failed, so nothing in it has a per-row
+				// reason. Every product in the chunk carries the request's error
+				// instead — otherwise a failed batch leaves no trace on any of
+				// the products it was carrying.
+				foreach ( $chunk as $row ) {
+					$parent = (int) ( $row['woocommerce_product_id'] ?? 0 );
+					if ( $parent > 0 ) {
+						Sync_State::mark_failed( $parent, $e->user_message(), $synced_at );
+					}
+				}
 			}
 		}
 
