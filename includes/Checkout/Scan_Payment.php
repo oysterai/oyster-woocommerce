@@ -149,6 +149,37 @@ final class Scan_Payment {
 	}
 
 	/**
+	 * Whether this request is a shopper paying for a scan.
+	 *
+	 * Answered from the order being paid for, not from the flag on the URL. The
+	 * flag is a hint for the page's own markup and can be dropped by a gateway
+	 * bouncing the shopper back; the order's reference is what actually makes
+	 * this a scan payment, and it survives any number of round trips.
+	 *
+	 * Deliberately narrow: an ordinary pay-for-order page is a merchant's own
+	 * checkout for their own sale, and this plugin has no business changing what
+	 * renders there.
+	 */
+	public static function is_paying_for_a_scan(): bool {
+		if ( ! function_exists( 'is_checkout_pay_page' ) || ! is_checkout_pay_page() ) {
+			return false;
+		}
+
+		global $wp;
+
+		$order_id = isset( $wp->query_vars['order-pay'] ) ? absint( $wp->query_vars['order-pay'] ) : 0;
+
+		if ( $order_id <= 0 || ! function_exists( 'wc_get_order' ) ) {
+			return false;
+		}
+
+		$order = wc_get_order( $order_id );
+
+		return $order instanceof WC_Order
+			&& '' !== (string) $order->get_meta( self::ORDER_META_REFERENCE );
+	}
+
+	/**
 	 * @param array<int, string> $classes
 	 * @return array<int, string>
 	 */

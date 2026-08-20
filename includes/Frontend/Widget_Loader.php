@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Frontend;
 
+use Oyster\Woo\Checkout\Scan_Payment;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Url_Guard;
 use Oyster\Woo\Support\Widget_Settings;
@@ -49,20 +50,6 @@ final class Widget_Loader {
 		return $this->connection->is_connected() && '' !== $this->connection->public_key();
 	}
 
-	/**
-	 * Whether this request is someone paying for an order.
-	 *
-	 * The launcher is a scan invitation, and a shopper on this page has already
-	 * accepted one — a scan payment opens this very page in a popup, so the
-	 * widget was appearing on top of the checkout the customer was sent there to
-	 * complete, and had to be dismissed before they could pay.
-	 *
-	 * Covers every pay-for-order page rather than only scan payments: nobody
-	 * part-way through paying for anything wants to be asked to start a scan.
-	 */
-	private static function is_paying_for_an_order(): bool {
-		return function_exists( 'is_checkout_pay_page' ) && is_checkout_pay_page();
-	}
 
 	/**
 	 * Register (not enqueue) the loader + attach the inline config. Registering
@@ -133,7 +120,12 @@ final class Widget_Loader {
 	 * The floating launcher anchor + settings, emitted in the footer.
 	 */
 	public function render_float_launcher(): void {
-		if ( ! $this->is_active() || self::is_paying_for_an_order() ) {
+		// A scan payment opens this very page in a popup, so the launcher
+		// was inviting the shopper to start a scan on top of the checkout they
+		// had already accepted one to reach — and had to be dismissed before
+		// they could pay. Only that page: an ordinary pay-for-order page is the
+		// merchant's own sale and none of this plugin's business.
+		if ( ! $this->is_active() || Scan_Payment::is_paying_for_a_scan() ) {
 			return;
 		}
 
