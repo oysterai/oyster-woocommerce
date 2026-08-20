@@ -141,8 +141,31 @@ final class Widget_Loader {
 			esc_attr( (string) $settings['intro_message'] ),
 			esc_attr( (string) $settings['message_body'] ),
 			esc_attr( $settings['display_logo'] ? 'true' : 'false' ),
-			esc_attr( $settings['auto_open'] ? 'true' : 'false' )
+			esc_attr( $this->auto_open( $settings ) ? 'true' : 'false' )
 		);
+	}
+
+	/**
+	 * Whether the widget may open itself, which the checkout overrides.
+	 *
+	 * A shopper on the checkout has already decided what they are buying.
+	 * Opening a scan over the page they are paying on interrupts a purchase in
+	 * progress and has to be dismissed before they can finish it — the same
+	 * interruption the scan payment page had, arriving on the merchant's own
+	 * sale instead.
+	 *
+	 * The launcher itself stays: starting a scan from the checkout is a
+	 * reasonable thing for a shopper to choose, and this only stops it being
+	 * chosen for them.
+	 *
+	 * @param array<string, mixed> $settings
+	 */
+	private function auto_open( array $settings ): bool {
+		if ( empty( $settings['auto_open'] ) ) {
+			return false;
+		}
+
+		return ! ( function_exists( 'is_checkout' ) && is_checkout() );
 	}
 
 	/**
