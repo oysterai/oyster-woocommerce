@@ -79,6 +79,11 @@ https://oysterskin.com/terms for terms of service.
 * Only methods your checkout has enabled can be picked, and the screen says so if
   the ones you picked are later all disabled — that would leave a shopper with no
   way to pay for a scan at all.
+* The scan widget no longer opens itself on your checkout, whatever you have set
+  under Oyster > Widget. A shopper who has reached the checkout has decided what
+  they are buying, and a scan opening over the page they are paying on has to be
+  dismissed before they can finish. The floating launcher stays put — starting a
+  scan from there is still theirs to choose.
 * "Scan pricing" is now **Oyster > Scan payments**, since it covers both what a
   scan costs and how it can be paid for.
 * Deleting the plugin now clears the last of the settings it stored.
