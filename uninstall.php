@@ -77,6 +77,11 @@ $oyster_woo_retire_credential();
 
 delete_option( 'oyster_woocommerce_connection' );
 delete_option( 'oyster_woocommerce_widget_settings' );
+delete_option( 'oyster_woocommerce_scan_payment_methods' );
+// The hidden product scan orders are raised against is left in place: it may be
+// attached to real orders. Only the pointer to it goes.
+delete_option( 'oyster_woocommerce_scan_product_id' );
+delete_transient( 'oyster_woocommerce_scan_pricing' );
 
 // Best-effort: drop any Action Scheduler jobs we own (catalog sync, added in P2).
 if ( function_exists( 'as_unschedule_all_actions' ) ) {

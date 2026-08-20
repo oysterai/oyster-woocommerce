@@ -12,6 +12,7 @@ namespace Oyster\Woo\Checkout;
 use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Scan_Payment_Methods;
 use Oyster\Woo\Support\Scan_Pricing;
 use WC_Order;
 use WC_Product_Simple;
@@ -64,6 +65,8 @@ final class Scan_Payment {
 		// Lets a merchant hide their own storefront's greetings on this page
 		// without writing PHP — see mark_as_scan_payment().
 		add_filter( 'body_class', array( $this, 'add_body_class' ) );
+
+		add_filter( 'woocommerce_available_payment_gateways', array( $this, 'restrict_payment_methods' ) );
 
 		// Every route to "the shopper has paid". WooCommerce fires these for
 		// different gateways and configurations, so listening to one alone
@@ -177,6 +180,28 @@ final class Scan_Payment {
 
 		return $order instanceof WC_Order
 			&& '' !== (string) $order->get_meta( self::ORDER_META_REFERENCE );
+	}
+
+	/**
+	 * Offer only the payment methods this store allows a scan to be paid with.
+	 *
+	 * Scoped to the scan payment page: the same filter drives the store's own
+	 * cart and checkout, where the merchant's choice about scans has no business
+	 * removing anything.
+	 *
+	 * WooCommerce validates a submitted payment method against this same list
+	 * before charging, so a method left out here cannot be put back from the
+	 * browser — this is the restriction, not a way of hiding it.
+	 *
+	 * @param mixed $gateways Available gateways, keyed by id.
+	 * @return mixed
+	 */
+	public function restrict_payment_methods( $gateways ) {
+		if ( ! is_array( $gateways ) || ! self::is_paying_for_a_scan() ) {
+			return $gateways;
+		}
+
+		return Scan_Payment_Methods::restrict( $gateways, Scan_Payment_Methods::chosen() );
 	}
 
 	/**
