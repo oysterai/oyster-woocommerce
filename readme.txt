@@ -6,7 +6,7 @@ Tested up to: 7.0
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.0
-Stable tag: 0.13.1
+Stable tag: 0.14.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,23 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.14.0 =
+* If you collect scan payments through your own checkout, you can now choose
+  which of your payment methods a shopper may pay for a scan with, under
+  **Oyster > Scan payments**. Tick nothing — the default, and what your store
+  does today — and every method you have enabled stays on offer.
+* Worth knowing before you choose: a method that settles an order without taking
+  money, such as cash on delivery, cheque or direct bank transfer, hands the scan
+  over as soon as the order is marked paid. That is useful while you are testing
+  the integration, and expensive on a live storefront — the shopper gets their
+  scan, you are billed for it, and nothing was collected.
+* Only methods your checkout has enabled can be picked, and the screen says so if
+  the ones you picked are later all disabled — that would leave a shopper with no
+  way to pay for a scan at all.
+* "Scan pricing" is now **Oyster > Scan payments**, since it covers both what a
+  scan costs and how it can be paid for.
+* Deleting the plugin now clears the last of the settings it stored.
 
 = 0.13.1 =
 * The scan widget no longer appears over the checkout when a shopper is paying
