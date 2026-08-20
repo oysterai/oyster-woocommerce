@@ -334,10 +334,6 @@ final class Scan_Pricing_Screen {
 		}
 		echo '</fieldset>';
 
-		echo '<p class="description" style="max-width:40em">';
-		esc_html_e( 'Settles an order without taking money. Useful while you are testing', 'oyster-woocommerce' );
-		echo '</p>';
-
 		// Installing a gateway does not enable it, and an absence here reads as
 		// this plugin not supporting it rather than the checkout not offering it.
 		printf(
