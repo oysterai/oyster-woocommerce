@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Frontend;
 
+use Oyster\Woo\Checkout\Scan_Payment;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Url_Guard;
 use Oyster\Woo\Support\Widget_Settings;
@@ -48,6 +49,7 @@ final class Widget_Loader {
 	private function is_active(): bool {
 		return $this->connection->is_connected() && '' !== $this->connection->public_key();
 	}
+
 
 	/**
 	 * Register (not enqueue) the loader + attach the inline config. Registering
@@ -118,7 +120,12 @@ final class Widget_Loader {
 	 * The floating launcher anchor + settings, emitted in the footer.
 	 */
 	public function render_float_launcher(): void {
-		if ( ! $this->is_active() ) {
+		// A scan payment opens this very page in a popup, so the launcher
+		// was inviting the shopper to start a scan on top of the checkout they
+		// had already accepted one to reach — and had to be dismissed before
+		// they could pay. Only that page: an ordinary pay-for-order page is the
+		// merchant's own sale and none of this plugin's business.
+		if ( ! $this->is_active() || Scan_Payment::is_paying_for_a_scan() ) {
 			return;
 		}
 
