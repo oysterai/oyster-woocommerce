@@ -146,15 +146,15 @@ final class Widget_Loader {
 	}
 
 	/**
-	 * Whether the widget may open itself, which the checkout overrides.
+	 * Whether the widget may open itself, which a purchase in progress overrides.
 	 *
-	 * A shopper on the checkout has already decided what they are buying.
-	 * Opening a scan over the page they are paying on interrupts a purchase in
-	 * progress and has to be dismissed before they can finish it — the same
-	 * interruption the scan payment page had, arriving on the merchant's own
-	 * sale instead.
+	 * A shopper who has reached the cart or the checkout has already decided
+	 * what they are buying. Opening a scan over the page they are reviewing or
+	 * paying on interrupts that and has to be dismissed before they can finish —
+	 * the same interruption the scan payment page had, arriving on the
+	 * merchant's own sale instead.
 	 *
-	 * The launcher itself stays: starting a scan from the checkout is a
+	 * The launcher itself stays: starting a scan from either page is a
 	 * reasonable thing for a shopper to choose, and this only stops it being
 	 * chosen for them.
 	 *
@@ -165,7 +165,15 @@ final class Widget_Loader {
 			return false;
 		}
 
-		return ! ( function_exists( 'is_checkout' ) && is_checkout() );
+		return ! $this->is_mid_purchase();
+	}
+
+	private function is_mid_purchase(): bool {
+		if ( ! function_exists( 'is_cart' ) || ! function_exists( 'is_checkout' ) ) {
+			return false;
+		}
+
+		return is_cart() || is_checkout();
 	}
 
 	/**
