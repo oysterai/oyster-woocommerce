@@ -321,6 +321,10 @@ final class Scan_Pricing_Screen {
 
 		echo '<fieldset>';
 		foreach ( $enabled as $id => $title ) {
+			// PHP turns a numeric-string array key into an int, so the saved
+			// choice would never match one.
+			$id = (string) $id;
+
 			printf(
 				'<label for="oyster-method-%1$s" style="display:block;margin:.35em 0"><input type="checkbox" id="oyster-method-%1$s" name="methods[]" value="%1$s"%2$s /> %3$s</label>',
 				esc_attr( $id ),
