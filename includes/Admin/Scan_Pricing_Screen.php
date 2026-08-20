@@ -338,6 +338,15 @@ final class Scan_Pricing_Screen {
 		esc_html_e( 'Settles an order without taking money. Useful while you are testing', 'oyster-woocommerce' );
 		echo '</p>';
 
+		// Installing a gateway does not enable it, and an absence here reads as
+		// this plugin not supporting it rather than the checkout not offering it.
+		printf(
+			'<p class="description" style="max-width:40em">%s <a href="%s">%s</a></p>',
+			esc_html__( 'Only methods your checkout has enabled are listed.', 'oyster-woocommerce' ),
+			esc_url( admin_url( 'admin.php?page=wc-settings&tab=checkout' ) ),
+			esc_html__( 'Manage payment methods', 'oyster-woocommerce' )
+		);
+
 		submit_button( __( 'Save payment methods', 'oyster-woocommerce' ), 'secondary' );
 		echo '</form>';
 	}
