@@ -6,7 +6,7 @@ Tested up to: 7.0
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.0
-Stable tag: 0.13.0
+Stable tag: 0.13.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,17 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.13.1 =
+* The scan widget no longer appears over the checkout when a shopper is paying
+  for their scan. That checkout opens in a new window mid-scan, so the launcher
+  was inviting them to start a scan on top of the one they were already paying
+  for, and had to be dismissed first. Ordinary order payment pages are unchanged.
+* If your storefront greets visitors with a popup, chat bubble or banner, those
+  appear in that window too — they belong to your other plugins rather than this
+  one, so this release adds a hook to hide them. The page now carries an
+  `oyster-scan-payment` body class you can target with CSS, for example:
+  `body.oyster-scan-payment .newsletter-modal { display: none; }`
 
 = 0.13.0 =
 * If you take scan payments through your own checkout, you can now set what you
