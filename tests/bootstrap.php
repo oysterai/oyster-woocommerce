@@ -26,6 +26,17 @@ defined( 'ABSPATH' ) || define( 'ABSPATH', __DIR__ . '/' );
 require_once __DIR__ . '/../vendor/autoload.php';
 
 /**
+ * WordPress' time constants. Plain integers with no behaviour of their own, so
+ * unlike a stubbed function there is nothing here that can drift from what
+ * WordPress does. Defined because classes use them in constant expressions,
+ * which are evaluated at class-definition time.
+ */
+defined( 'MINUTE_IN_SECONDS' ) || define( 'MINUTE_IN_SECONDS', 60 );
+defined( 'HOUR_IN_SECONDS' ) || define( 'HOUR_IN_SECONDS', 60 * MINUTE_IN_SECONDS );
+defined( 'DAY_IN_SECONDS' ) || define( 'DAY_IN_SECONDS', 24 * HOUR_IN_SECONDS );
+defined( 'WEEK_IN_SECONDS' ) || define( 'WEEK_IN_SECONDS', 7 * DAY_IN_SECONDS );
+
+/**
  * Translation passthrough. WordPress returns the string unchanged when no
  * translation is loaded, which is exactly the case under test.
  */

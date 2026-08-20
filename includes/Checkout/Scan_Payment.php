@@ -61,6 +61,10 @@ final class Scan_Payment {
 	) {}
 
 	public function register(): void {
+		// Lets a merchant hide their own storefront's greetings on this page
+		// without writing PHP — see mark_as_scan_payment().
+		add_filter( 'body_class', array( $this, 'add_body_class' ) );
+
 		// Every route to "the shopper has paid". WooCommerce fires these for
 		// different gateways and configurations, so listening to one alone
 		// silently misses whole categories of store.
@@ -102,7 +106,7 @@ final class Scan_Payment {
 		$existing = $this->find_order_for_reference( $request['reference'] );
 		if ( $existing instanceof WC_Order ) {
 			return array(
-				'checkout_url' => $existing->get_checkout_payment_url(),
+				'checkout_url' => self::mark_as_scan_payment( $existing->get_checkout_payment_url() ),
 				'order_id'     => $existing->get_id(),
 			);
 		}
@@ -139,9 +143,46 @@ final class Scan_Payment {
 		$order->update_status( 'pending', __( 'Awaiting payment for an Oyster skin scan.', 'oyster-woocommerce' ) );
 
 		return array(
-			'checkout_url' => $order->get_checkout_payment_url(),
+			'checkout_url' => self::mark_as_scan_payment( $order->get_checkout_payment_url() ),
 			'order_id'     => $order->get_id(),
 		);
+	}
+
+	/**
+	 * @param array<int, string> $classes
+	 * @return array<int, string>
+	 */
+	public function add_body_class( array $classes ): array {
+		// Read-only page state, no action taken — the same way a theme reads a
+		// query flag to vary its own markup.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_GET[ self::PAYMENT_FLAG ] ) ) {
+			$classes[] = 'oyster-scan-payment';
+		}
+
+		return $classes;
+	}
+
+	/** Query flag identifying a checkout opened to pay for a scan. */
+	public const PAYMENT_FLAG = 'oyster_scan_payment';
+
+	/**
+	 * Marks the checkout URL so the page it opens can tell why it was opened.
+	 *
+	 * This checkout is loaded in a popup the shopper never navigated to, in the
+	 * middle of a scan they have already started. Anything the storefront would
+	 * normally greet a visitor with — a newsletter modal, a chat bubble, a cookie
+	 * banner — arrives on top of the one thing they are there to do, and has to
+	 * be dismissed before they can pay.
+	 *
+	 * The plugin keeps its own widget off this page outright. Everything else
+	 * belongs to the merchant, so the flag becomes a body class instead, which
+	 * they can target without writing PHP:
+	 *
+	 *     body.oyster-scan-payment .newsletter-modal { display: none; }
+	 */
+	private static function mark_as_scan_payment( string $url ): string {
+		return add_query_arg( self::PAYMENT_FLAG, '1', $url );
 	}
 
 	/**

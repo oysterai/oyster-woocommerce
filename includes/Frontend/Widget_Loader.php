@@ -50,6 +50,21 @@ final class Widget_Loader {
 	}
 
 	/**
+	 * Whether this request is someone paying for an order.
+	 *
+	 * The launcher is a scan invitation, and a shopper on this page has already
+	 * accepted one — a scan payment opens this very page in a popup, so the
+	 * widget was appearing on top of the checkout the customer was sent there to
+	 * complete, and had to be dismissed before they could pay.
+	 *
+	 * Covers every pay-for-order page rather than only scan payments: nobody
+	 * part-way through paying for anything wants to be asked to start a scan.
+	 */
+	private static function is_paying_for_an_order(): bool {
+		return function_exists( 'is_checkout_pay_page' ) && is_checkout_pay_page();
+	}
+
+	/**
 	 * Register (not enqueue) the loader + attach the inline config. Registering
 	 * lets us enqueue on demand — only pages that actually render an anchor pull
 	 * the script in. The config global is attached here so it rides along
@@ -118,7 +133,7 @@ final class Widget_Loader {
 	 * The floating launcher anchor + settings, emitted in the footer.
 	 */
 	public function render_float_launcher(): void {
-		if ( ! $this->is_active() ) {
+		if ( ! $this->is_active() || self::is_paying_for_an_order() ) {
 			return;
 		}
 
