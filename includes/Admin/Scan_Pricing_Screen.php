@@ -335,7 +335,7 @@ final class Scan_Pricing_Screen {
 		echo '</fieldset>';
 
 		echo '<p class="description" style="max-width:40em">';
-		esc_html_e( 'A method that settles an order without taking money — cash on delivery, cheque, direct bank transfer — hands over the scan as soon as the order is marked paid. Useful while you are testing; a scan you are billed for if a shopper picks it in earnest.', 'oyster-woocommerce' );
+		esc_html_e( 'Settles an order without taking money. Useful while you are testing', 'oyster-woocommerce' );
 		echo '</p>';
 
 		submit_button( __( 'Save payment methods', 'oyster-woocommerce' ), 'secondary' );
