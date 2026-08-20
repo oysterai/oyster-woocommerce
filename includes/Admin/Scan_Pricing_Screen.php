@@ -1,6 +1,6 @@
 <?php
 /**
- * "Scan pricing" admin screen — what shoppers pay for a skin scan.
+ * "Scan payments" admin screen — what shoppers pay for a skin scan, and how.
  *
  * @package Oyster\Woo
  */
@@ -12,6 +12,7 @@ namespace Oyster\Woo\Admin;
 use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Dashboard_Link;
+use Oyster\Woo\Support\Scan_Payment_Methods;
 use Oyster\Woo\Support\Scan_Pricing;
 
 defined( 'ABSPATH' ) || exit;
@@ -33,12 +34,23 @@ defined( 'ABSPATH' ) || exit;
  *
  * Because the value lives on the other side, this uses a plain POST handler
  * rather than the Settings API, which exists to persist into wp_options.
+ *
+ * ## The second half of the screen
+ *
+ * Which payment methods a scan may be paid with is the opposite: a fact about
+ * this store's checkout that Oyster has no view of, so it is an option here.
+ * Both belong on one screen because a merchant thinking about scan payments is
+ * thinking about both at once.
  */
 final class Scan_Pricing_Screen {
 
 	private const ACTION = 'oyster_woo_save_scan_pricing';
 
 	private const NONCE = 'oyster_woo_scan_pricing';
+
+	private const ACTION_METHODS = 'oyster_woo_save_scan_methods';
+
+	private const NONCE_METHODS = 'oyster_woo_scan_methods';
 
 	public function __construct(
 		private Connection $connection,
@@ -47,6 +59,7 @@ final class Scan_Pricing_Screen {
 
 	public function register(): void {
 		add_action( 'admin_post_' . self::ACTION, array( $this, 'handle_save' ) );
+		add_action( 'admin_post_' . self::ACTION_METHODS, array( $this, 'handle_save_methods' ) );
 	}
 
 	public function handle_save(): void {
@@ -80,18 +93,39 @@ final class Scan_Pricing_Screen {
 		$this->redirect_back( 'saved' );
 	}
 
+	public function handle_save_methods(): void {
+		if ( ! current_user_can( Menu::CAPABILITY ) ) {
+			wp_die( esc_html__( 'You do not have permission to manage this integration.', 'oyster-woocommerce' ) );
+		}
+
+		check_admin_referer( self::NONCE_METHODS );
+
+		// Unticking every box posts no field at all, which is the "offer them
+		// all" choice rather than a missing submission.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$posted = isset( $_POST['methods'] ) ? (array) wp_unslash( $_POST['methods'] ) : array();
+
+		update_option(
+			Scan_Payment_Methods::OPTION_KEY,
+			Scan_Payment_Methods::sanitize( $posted, array_keys( Scan_Payment_Methods::enabled_gateways() ) ),
+			false
+		);
+
+		$this->redirect_back( 'methods_saved' );
+	}
+
 	public function render(): void {
 		if ( ! current_user_can( Menu::CAPABILITY ) ) {
 			wp_die( esc_html__( 'You do not have permission to manage this integration.', 'oyster-woocommerce' ) );
 		}
 
 		echo '<div class="wrap oyster-woo">';
-		printf( '<h1>%s</h1>', esc_html__( 'Scan pricing', 'oyster-woocommerce' ) );
+		printf( '<h1>%s</h1>', esc_html__( 'Scan payments', 'oyster-woocommerce' ) );
 
 		if ( ! $this->connection->is_connected() ) {
 			printf(
 				'<div class="notice notice-warning"><p>%s <a href="%s">%s</a></p></div>',
-				esc_html__( 'Connect your store to Oyster before setting scan pricing.', 'oyster-woocommerce' ),
+				esc_html__( 'Connect your store to Oyster before setting up scan payments.', 'oyster-woocommerce' ),
 				esc_url( admin_url( 'admin.php?page=' . Menu::PARENT_SLUG ) ),
 				esc_html__( 'Go to Connection', 'oyster-woocommerce' )
 			);
@@ -123,6 +157,7 @@ final class Scan_Pricing_Screen {
 
 		$this->render_summary( $pricing );
 		$this->render_form( $pricing );
+		$this->render_payment_methods();
 
 		echo '</div>';
 	}
@@ -202,6 +237,8 @@ final class Scan_Pricing_Screen {
 		$value    = isset( $pricing['value'] ) ? (string) $pricing['value'] : '';
 		$currency = (string) ( $pricing['currency'] ?? '' );
 
+		printf( '<h2>%s</h2>', esc_html__( 'Pricing', 'oyster-woocommerce' ) );
+
 		printf( '<form method="post" action="%s">', esc_url( admin_url( 'admin-post.php' ) ) );
 		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( self::ACTION ) );
 		wp_nonce_field( self::NONCE );
@@ -244,6 +281,63 @@ final class Scan_Pricing_Screen {
 		echo '</form>';
 	}
 
+	/**
+	 * Which of the store's payment methods a scan may be paid with.
+	 */
+	private function render_payment_methods(): void {
+		printf( '<h2>%s</h2>', esc_html__( 'Payment methods', 'oyster-woocommerce' ) );
+
+		echo '<p class="description" style="max-width:40em">';
+		esc_html_e( 'Choose what a shopper may pay for a scan with. Tick nothing to offer every method your checkout has enabled — your own checkout is unaffected either way.', 'oyster-woocommerce' );
+		echo '</p>';
+
+		$enabled = Scan_Payment_Methods::enabled_gateways();
+
+		if ( empty( $enabled ) ) {
+			printf(
+				'<div class="notice notice-warning inline"><p>%s <a href="%s">%s</a></p></div>',
+				esc_html__( 'Your checkout has no payment methods enabled, so nothing can be paid for here yet.', 'oyster-woocommerce' ),
+				esc_url( admin_url( 'admin.php?page=wc-settings&tab=checkout' ) ),
+				esc_html__( 'Set up payments', 'oyster-woocommerce' )
+			);
+
+			return;
+		}
+
+		$chosen = Scan_Payment_Methods::chosen();
+
+		// The one state a merchant cannot see coming: they picked a method, then
+		// disabled it somewhere else entirely, and scan payments stopped.
+		if ( ! empty( $chosen ) && empty( array_intersect( $chosen, array_keys( $enabled ) ) ) ) {
+			printf(
+				'<div class="notice notice-error inline"><p>%s</p></div>',
+				esc_html__( 'None of the methods you chose are enabled in your checkout, so a shopper has no way to pay for a scan. Tick one that is enabled, or untick everything to offer them all.', 'oyster-woocommerce' )
+			);
+		}
+
+		printf( '<form method="post" action="%s">', esc_url( admin_url( 'admin-post.php' ) ) );
+		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( self::ACTION_METHODS ) );
+		wp_nonce_field( self::NONCE_METHODS );
+
+		echo '<fieldset>';
+		foreach ( $enabled as $id => $title ) {
+			printf(
+				'<label for="oyster-method-%1$s" style="display:block;margin:.35em 0"><input type="checkbox" id="oyster-method-%1$s" name="methods[]" value="%1$s"%2$s /> %3$s</label>',
+				esc_attr( $id ),
+				checked( in_array( $id, $chosen, true ), true, false ),
+				esc_html( $title )
+			);
+		}
+		echo '</fieldset>';
+
+		echo '<p class="description" style="max-width:40em">';
+		esc_html_e( 'A method that settles an order without taking money — cash on delivery, cheque, direct bank transfer — hands over the scan as soon as the order is marked paid. Useful while you are testing; a scan you are billed for if a shopper picks it in earnest.', 'oyster-woocommerce' );
+		echo '</p>';
+
+		submit_button( __( 'Save payment methods', 'oyster-woocommerce' ), 'secondary' );
+		echo '</form>';
+	}
+
 	private function render_notice(): void {
 		$status = isset( $_GET['oyster_pricing'] ) ? sanitize_text_field( (string) wp_unslash( $_GET['oyster_pricing'] ) ) : '';
 
@@ -251,10 +345,15 @@ final class Scan_Pricing_Screen {
 			return;
 		}
 
-		if ( 'saved' === $status ) {
+		$saved = array(
+			'saved'         => __( 'Scan pricing updated. Shoppers are quoted the new price from their next scan.', 'oyster-woocommerce' ),
+			'methods_saved' => __( 'Payment methods updated. Shoppers see the new choice the next time one pays for a scan.', 'oyster-woocommerce' ),
+		);
+
+		if ( isset( $saved[ $status ] ) ) {
 			printf(
 				'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
-				esc_html__( 'Scan pricing updated. Shoppers are quoted the new price from their next scan.', 'oyster-woocommerce' )
+				esc_html( $saved[ $status ] )
 			);
 
 			return;
@@ -265,7 +364,7 @@ final class Scan_Pricing_Screen {
 		$messages = array(
 			'invalid_mode'   => __( 'That pricing option is not one this store offers.', 'oyster-woocommerce' ),
 			'value_required' => __( 'Enter an amount for the pricing option you chose.', 'oyster-woocommerce' ),
-			'not_connected'  => __( 'Connect your store to Oyster before setting scan pricing.', 'oyster-woocommerce' ),
+			'not_connected'  => __( 'Connect your store to Oyster before setting up scan payments.', 'oyster-woocommerce' ),
 			'failed'         => '' !== $detail
 				? $detail
 				: __( 'Oyster did not accept that price. Check the amount and try again.', 'oyster-woocommerce' ),

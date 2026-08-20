@@ -86,8 +86,8 @@ final class Menu {
 		// merchant who was told they can set a price can find where.
 		add_submenu_page(
 			self::PARENT_SLUG,
-			__( 'Oyster — Scan pricing', 'oyster-woocommerce' ),
-			__( 'Scan pricing', 'oyster-woocommerce' ),
+			__( 'Oyster — Scan payments', 'oyster-woocommerce' ),
+			__( 'Scan payments', 'oyster-woocommerce' ),
 			self::CAPABILITY,
 			self::PRICING_SLUG,
 			array( $this->pricing, 'render' )
