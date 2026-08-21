@@ -45,6 +45,17 @@ final class Api_Exception extends \RuntimeException {
 	}
 
 	/**
+	 * True when Oyster refused the credential rather than failing to answer.
+	 *
+	 * Worth separating from every other failure: a rejected credential does not
+	 * come back on its own, so telling a merchant to try again sends them round
+	 * a loop that cannot end. Reconnecting the store is what fixes it.
+	 */
+	public function denies_access(): bool {
+		return 401 === $this->status || 403 === $this->status;
+	}
+
+	/**
 	 * Best-effort human-readable message pulled from a Laravel-style error body
 	 * ({ message: "...", errors: { field: [...] } }), falling back to the
 	 * exception message.

@@ -86,6 +86,9 @@ https://oysterskin.com/terms for terms of service.
   scan from there is still theirs to choose.
 * "Scan pricing" is now **Oyster > Scan payments**, since it covers both what a
   scan costs and how it can be paid for.
+* If your store's connection is not permitted to read scan pricing, the Scan
+  payments screen now says so and offers to reconnect, instead of asking you to
+  reload a page that could never have loaded.
 * Deleting the plugin now clears the last of the settings it stored.
 
 = 0.13.1 =

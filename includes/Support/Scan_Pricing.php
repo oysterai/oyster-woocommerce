@@ -45,10 +45,20 @@ final class Scan_Pricing {
 		'fixed_amount'   => 'Set my own price',
 	);
 
+	/**
+	 * Whether the last read was refused rather than merely unavailable. See
+	 * Api_Exception::denies_access() for why the two are worth telling apart.
+	 */
+	private bool $access_denied = false;
+
 	public function __construct(
 		private Connection $connection,
 		private Client $client
 	) {}
+
+	public function access_was_denied(): bool {
+		return $this->access_denied;
+	}
 
 	/**
 	 * The store's current pricing, or null when it cannot be read.
@@ -71,8 +81,12 @@ final class Scan_Pricing {
 		try {
 			$response = $this->client->get_scan_pricing( $bearer );
 		} catch ( Api_Exception $e ) {
+			$this->access_denied = $e->denies_access();
+
 			return null;
 		}
+
+		$this->access_denied = false;
 
 		$data = isset( $response['data'] ) && is_array( $response['data'] ) ? $response['data'] : null;
 
