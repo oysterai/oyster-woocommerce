@@ -139,10 +139,7 @@ final class Scan_Pricing_Screen {
 		$pricing = $this->pricing->current();
 
 		if ( null === $pricing ) {
-			printf(
-				'<div class="notice notice-error"><p>%s</p></div>',
-				esc_html__( 'Could not read your scan pricing from Oyster just now. Reload to try again.', 'oyster-woocommerce' )
-			);
+			$this->render_unreadable();
 			echo '</div>';
 
 			return;
@@ -160,6 +157,31 @@ final class Scan_Pricing_Screen {
 		$this->render_payment_methods();
 
 		echo '</div>';
+	}
+
+	/**
+	 * Shown when the price could not be read.
+	 *
+	 * Two different problems wear the same symptom. Oyster being briefly
+	 * unreachable is fixed by reloading; a credential Oyster refuses is not, and
+	 * telling a merchant to reload sends them round a loop that cannot end.
+	 */
+	private function render_unreadable(): void {
+		if ( ! $this->pricing->access_was_denied() ) {
+			printf(
+				'<div class="notice notice-error"><p>%s</p></div>',
+				esc_html__( 'Could not read your scan pricing from Oyster just now. Reload to try again.', 'oyster-woocommerce' )
+			);
+
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-error"><p>%s</p><p><a href="%s" class="button">%s</a></p></div>',
+			esc_html__( 'Your store\'s connection to Oyster is not permitted to read scan pricing. Reconnecting your store renews it, and nothing else about your setup changes.', 'oyster-woocommerce' ),
+			esc_url( admin_url( 'admin.php?page=' . Menu::PARENT_SLUG ) ),
+			esc_html__( 'Reconnect your store', 'oyster-woocommerce' )
+		);
 	}
 
 	/**
