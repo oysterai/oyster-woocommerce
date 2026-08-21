@@ -6,7 +6,7 @@ Tested up to: 7.0
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.0
-Stable tag: 0.14.0
+Stable tag: 0.14.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -66,6 +66,11 @@ https://oysterskin.com/terms for terms of service.
 
 == Changelog ==
 
+= 0.14.1 =
+* If your store's connection is not permitted to read scan pricing, the Scan
+  payments screen now says so and offers to reconnect, instead of asking you to
+  reload a page that could never have loaded.
+
 = 0.14.0 =
 * If you collect scan payments through your own checkout, you can now choose
   which of your payment methods a shopper may pay for a scan with, under
@@ -86,9 +91,6 @@ https://oysterskin.com/terms for terms of service.
   scan from there is still theirs to choose.
 * "Scan pricing" is now **Oyster > Scan payments**, since it covers both what a
   scan costs and how it can be paid for.
-* If your store's connection is not permitted to read scan pricing, the Scan
-  payments screen now says so and offers to reconnect, instead of asking you to
-  reload a page that could never have loaded.
 * Deleting the plugin now clears the last of the settings it stored.
 
 = 0.13.1 =
