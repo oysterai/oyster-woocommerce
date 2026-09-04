@@ -44,10 +44,12 @@ jobs:
       fail-fast: false
       matrix:
         # Current, and the oldest WordPress that can be tested at all: this
-        # plugin needs WooCommerce, and WooCommerce currently refuses to install
-        # below WordPress 6.9. That requirement, not a choice made here, is what
-        # sets the floor — so it moves when WooCommerce moves.
-        wp: ['latest', '6.9']
+        # plugin needs WooCommerce, and WooCommerce refuses to install below
+        # WordPress 7.0. That requirement, not a choice made here, is what sets
+        # the floor — so it moves when WooCommerce moves, as it just did from
+        # 6.9. Nothing installs on the old floor any more, so the leg tested
+        # nothing and failed before reaching the plugin.
+        wp: ['latest', '7.0']
 
     steps:
       - uses: actions/checkout@v4
