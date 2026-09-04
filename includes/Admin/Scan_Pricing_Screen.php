@@ -178,7 +178,10 @@ final class Scan_Pricing_Screen {
 
 		$this->render_notice();
 
-		$pricing = $this->pricing->current();
+		// Read past the cache. A merchant who just changed a price on the Oyster
+		// dashboard would otherwise be shown the old one here, with nothing saying
+		// so — the checkout keeps the cache, and this screen is loaded rarely.
+		$pricing = $this->pricing->current( true );
 
 		if ( null === $pricing ) {
 			$this->render_unreadable();
@@ -364,7 +367,7 @@ final class Scan_Pricing_Screen {
 	 * second API call, so a store that does not sell packs never pays for it.
 	 */
 	private function render_pack_form(): void {
-		$pack = $this->pricing->current_pack();
+		$pack = $this->pricing->current_pack( true );
 
 		if ( null === $pack || empty( $pack['enabled'] ) ) {
 			return;
