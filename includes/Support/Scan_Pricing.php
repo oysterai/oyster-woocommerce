@@ -113,9 +113,31 @@ final class Scan_Pricing {
 			return null;
 		}
 
-		$price = $pricing['customer_price'] ?? null;
+		return self::lowest_price( $pricing, $this->current_pack() );
+	}
 
-		return is_numeric( $price ) && (float) $price > 0 ? (float) $price : null;
+	/**
+	 * The cheapest thing the store sells, which is not always a single scan: a
+	 * pack can cost less when Oyster has discounted the pack rate, and flooring
+	 * at the single price would charge a shopper more than they were quoted.
+	 *
+	 * @param array<string, mixed>      $pricing
+	 * @param array<string, mixed>|null $pack
+	 */
+	public static function lowest_price( array $pricing, ?array $pack ): ?float {
+		$prices = array( self::positive_price( $pricing['customer_price'] ?? null ) );
+
+		if ( null !== $pack && ! empty( $pack['enabled'] ) && ! empty( $pack['sellable'] ) ) {
+			$prices[] = self::positive_price( $pack['pack_price'] ?? null );
+		}
+
+		$prices = array_filter( $prices, static fn ( ?float $price ): bool => null !== $price );
+
+		return array() === $prices ? null : min( $prices );
+	}
+
+	private static function positive_price( mixed $value ): ?float {
+		return is_numeric( $value ) && (float) $value > 0 ? (float) $value : null;
 	}
 
 	public function forget(): void {
