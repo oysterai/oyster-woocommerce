@@ -32,7 +32,8 @@ final class Widget_Settings {
 	 */
 	public static function defaults(): array {
 		return array(
-			'float_enabled' => true,
+			// Off: a storefront should not gain a floating button nobody chose.
+			'float_enabled' => false,
 			'primary_color' => '', // Empty = inherit the vendor's configured color.
 			'intro_message' => __( 'Skin issues?', 'oyster-woocommerce' ),
 			'message_body'  => __( 'Take a complete skin analysis and find the right products for your skin.', 'oyster-woocommerce' ),

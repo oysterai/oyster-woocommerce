@@ -53,12 +53,20 @@ final class WidgetSettingsTest extends TestCase {
 	 * a default-on toggle could never be turned off.
 	 */
 	public function test_an_absent_checkbox_reads_as_off(): void {
-		$this->assertTrue( Widget_Settings::defaults()['float_enabled'], 'precondition: this default is on' );
+		$this->assertTrue( Widget_Settings::defaults()['display_logo'], 'precondition: this default is on' );
 
 		$result = Widget_Settings::sanitize( array( 'intro_message' => 'Hello' ) );
 
 		$this->assertFalse( $result['float_enabled'] );
 		$this->assertFalse( $result['display_logo'] );
+	}
+
+	/**
+	 * A store that has never opened the Widget screen shows no launcher. The
+	 * merchant asks for it rather than removing one that appeared on its own.
+	 */
+	public function test_the_floating_launcher_is_off_until_it_is_chosen(): void {
+		$this->assertFalse( Widget_Settings::defaults()['float_enabled'] );
 	}
 
 	public function test_a_ticked_checkbox_reads_as_on(): void {
