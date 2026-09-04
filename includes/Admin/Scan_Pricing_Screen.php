@@ -255,8 +255,10 @@ final class Scan_Pricing_Screen {
 		$price    = isset( $pricing['customer_price'] ) ? (float) $pricing['customer_price'] : null;
 		$margin   = ( null !== $cost && null !== $price ) ? round( $price - $cost, 2 ) : null;
 
+		printf( '<h2>%s</h2>', esc_html__( 'Single scan', 'oyster-woocommerce' ) );
+
 		echo '<p class="description" style="max-width:40em">';
-		esc_html_e( 'Your store collects scan payments through its own checkout, so you set what shoppers pay. This changes the amount charged — not whether a shopper is charged, and not what Oyster bills you.', 'oyster-woocommerce' );
+		esc_html_e( 'You collect through your own checkout, so you set what shoppers pay.', 'oyster-woocommerce' );
 		echo '</p>';
 
 		echo '<table class="widefat striped" style="max-width:40em;margin:1em 0"><tbody>';
@@ -309,6 +311,10 @@ final class Scan_Pricing_Screen {
 
 		printf( '<h2>%s</h2>', esc_html__( 'Pricing', 'oyster-woocommerce' ) );
 
+		echo '<p class="description" style="max-width:40em">';
+		esc_html_e( 'Applies to single scans and to packs.', 'oyster-woocommerce' );
+		echo '</p>';
+
 		printf( '<form method="post" action="%s">', esc_url( admin_url( 'admin-post.php' ) ) );
 		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( self::ACTION ) );
 		wp_nonce_field( self::NONCE );
@@ -328,7 +334,7 @@ final class Scan_Pricing_Screen {
 		echo '</select>';
 		echo '</td></tr>';
 
-		echo '<tr><th scope="row"><label for="oyster-pricing-value">' . esc_html__( 'Amount', 'oyster-woocommerce' ) . '</label></th><td>';
+		echo '<tr><th scope="row"><label for="oyster-pricing-value">' . esc_html__( 'Amount for one scan', 'oyster-woocommerce' ) . '</label></th><td>';
 		printf(
 			'<input type="number" step="0.01" name="value" id="oyster-pricing-value" value="%s" class="regular-text" />',
 			esc_attr( $value )
@@ -336,12 +342,9 @@ final class Scan_Pricing_Screen {
 		echo '<p class="description">';
 		printf(
 			/* translators: %s: store currency code */
-			esc_html__( 'A percentage for "Add a percentage" — negative to discount. Otherwise an amount in %s. Leave empty when charging Oyster\'s rate.', 'oyster-woocommerce' ),
+			esc_html__( 'A percentage for "Add a percentage", negative to discount. Otherwise an amount in %s.', 'oyster-woocommerce' ),
 			esc_html( $currency )
 		);
-		echo '</p>';
-		echo '<p class="description">';
-		esc_html_e( 'A fixed markup only adds. To charge less than a scan costs you, use a negative percentage or set your own price.', 'oyster-woocommerce' );
 		echo '</p>';
 		echo '</td></tr>';
 
@@ -377,13 +380,13 @@ final class Scan_Pricing_Screen {
 		printf( '<h2>%s</h2>', esc_html__( 'Scan packs', 'oyster-woocommerce' ) );
 
 		echo '<p class="description">';
-		esc_html_e( 'A shopper pays once and gets several scans. They run the rest whenever they like, using the payment reference we email them. The whole pack is settled when it is bought, so a later scan costs you nothing more.', 'oyster-woocommerce' );
+		esc_html_e( 'One payment, several scans. Shoppers redeem the rest with the reference we email them.', 'oyster-woocommerce' );
 		echo '</p>';
 
 		if ( empty( $pack['sellable'] ) ) {
 			printf(
 				'<div class="notice notice-warning inline"><p>%s</p></div>',
-				esc_html__( 'No pack is being offered to your shoppers yet. Fill in the fields below to start selling one.', 'oyster-woocommerce' )
+				esc_html__( 'No pack is on offer yet. Fill in the fields below to start selling one.', 'oyster-woocommerce' )
 			);
 		}
 
@@ -416,7 +419,7 @@ final class Scan_Pricing_Screen {
 			esc_html_e( 'Leave empty to use the default.', 'oyster-woocommerce' );
 		}
 		echo ' ';
-		esc_html_e( 'A pack stops working after this, so anything unused is lost. Leave your shoppers long enough to come back.', 'oyster-woocommerce' );
+		esc_html_e( 'Unused scans are lost when a pack expires.', 'oyster-woocommerce' );
 		echo '</p>';
 		echo '</td></tr>';
 
@@ -429,7 +432,7 @@ final class Scan_Pricing_Screen {
 			echo '<p class="description">';
 			printf(
 				/* translators: %s: store currency code */
-				esc_html__( 'In %s. Your pricing option needs a figure of its own for packs. A percentage already scales with the pack, but a flat amount belongs to the offer and is charged once.', 'oyster-woocommerce' ),
+				esc_html__( 'In %s, charged once for the whole pack.', 'oyster-woocommerce' ),
 				esc_html( $currency )
 			);
 			echo '</p>';
@@ -446,7 +449,7 @@ final class Scan_Pricing_Screen {
 		printf( '<h2>%s</h2>', esc_html__( 'Payment methods', 'oyster-woocommerce' ) );
 
 		echo '<p class="description" style="max-width:40em">';
-		esc_html_e( 'Choose what a shopper may pay for a scan with. Tick nothing to offer every method your checkout has enabled — your own checkout is unaffected either way.', 'oyster-woocommerce' );
+		esc_html_e( 'Choose what a shopper may pay for a scan with. Tick nothing to offer every enabled method.', 'oyster-woocommerce' );
 		echo '</p>';
 
 		$enabled = Scan_Payment_Methods::enabled_gateways();
