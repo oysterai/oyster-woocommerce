@@ -104,6 +104,41 @@ final class Client {
 	}
 
 	/**
+	 * The store's scan pack: several scans sold on one payment.
+	 *
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function get_scan_pack( string $bearer ): array {
+		return $this->request( 'GET', '/api/v1/vendors/billing/scan-pack', array( 'bearer' => $bearer ) );
+	}
+
+	/**
+	 * Shape the store's scan pack. Whether packs may be sold is not settable here.
+	 *
+	 * @param int        $size             Scans in one pack.
+	 * @param int|null   $validity_days    How long it stays redeemable; null for the default.
+	 * @param float|null $pack_price_value The pack figure, for pricing modes that take one.
+	 *
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function update_scan_pack( string $bearer, int $size, ?int $validity_days, ?float $pack_price_value ): array {
+		return $this->request(
+			'PATCH',
+			'/api/v1/vendors/billing/scan-pack',
+			array(
+				'bearer' => $bearer,
+				'body'   => array(
+					'size'             => $size,
+					'validity_days'    => $validity_days,
+					'pack_price_value' => $pack_price_value,
+				),
+			)
+		);
+	}
+
+	/**
 	 * Tell Oyster this store collected (or failed to collect) a scan payment.
 	 *
 	 * The only thing that unblocks the shopper's scan. Deliberately server-side:

@@ -2,11 +2,11 @@
 Contributors: oysterskin
 Tags: woocommerce, skincare, ai, recommendations, face scan
 Requires at least: 6.4
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
-WC tested up to: 11.0
-Stable tag: 0.14.1
+WC tested up to: 11.1
+Stable tag: 0.15.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,25 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.15.0 =
+* **The floating launcher is now off until you turn it on.** If you never opened
+  **Oyster > Widget**, your storefront was showing the floating scan button because
+  that was the old default — it will stop showing after this update. Tick **Show
+  floating launcher** on that screen to bring it back. If you had already saved
+  that screen, whatever you chose there is untouched.
+* You can now sell **scan packs**: a shopper pays once and gets several scans,
+  running the rest whenever they like with the payment reference we email them.
+  Set the number of scans, how long a pack lasts and what it costs under
+  **Oyster > Scan payments**. Your Oyster account decides whether packs are
+  available to your store.
+* The whole pack is settled when it is bought, so a scan taken weeks later costs
+  you nothing more.
+* Fixed: a shopper buying a discounted pack could be charged the price of a single
+  scan instead of the pack price they were quoted. Orders are now never raised
+  above the cheapest thing your store sells.
+* If your store no longer sells single scans, the single-scan pricing form is
+  hidden rather than asking you to price something you cannot sell.
 
 = 0.14.1 =
 * If your store's connection is not permitted to read scan pricing, the Scan

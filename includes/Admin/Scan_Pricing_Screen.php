@@ -52,6 +52,10 @@ final class Scan_Pricing_Screen {
 
 	private const NONCE_METHODS = 'oyster_woo_scan_methods';
 
+	private const ACTION_PACK = 'oyster_woo_save_scan_pack';
+
+	private const NONCE_PACK = 'oyster_woo_scan_pack';
+
 	public function __construct(
 		private Connection $connection,
 		private Scan_Pricing $pricing
@@ -60,6 +64,7 @@ final class Scan_Pricing_Screen {
 	public function register(): void {
 		add_action( 'admin_post_' . self::ACTION, array( $this, 'handle_save' ) );
 		add_action( 'admin_post_' . self::ACTION_METHODS, array( $this, 'handle_save_methods' ) );
+		add_action( 'admin_post_' . self::ACTION_PACK, array( $this, 'handle_save_pack' ) );
 	}
 
 	public function handle_save(): void {
@@ -91,6 +96,43 @@ final class Scan_Pricing_Screen {
 		}
 
 		$this->redirect_back( 'saved' );
+	}
+
+	/**
+	 * Shape the store's scan pack, only the parts the store owns. Whether packs may be
+	 * sold, and the margin Oyster pays back, are Oyster account settings.
+	 */
+	public function handle_save_pack(): void {
+		if ( ! current_user_can( Menu::CAPABILITY ) ) {
+			wp_die( esc_html__( 'You do not have permission to manage this integration.', 'oyster-woocommerce' ) );
+		}
+
+		check_admin_referer( self::NONCE_PACK );
+
+		$size = isset( $_POST['pack_size'] ) ? (int) wp_unslash( $_POST['pack_size'] ) : 0;
+
+		if ( $size < 2 ) {
+			$this->redirect_back( 'pack_size_invalid' );
+		}
+
+		// Strings, so an empty field stays distinguishable from a zero.
+		$raw_validity = isset( $_POST['pack_validity_days'] ) ? trim( (string) wp_unslash( $_POST['pack_validity_days'] ) ) : '';
+		$validity     = '' === $raw_validity ? null : (int) $raw_validity;
+
+		if ( null !== $validity && $validity < 1 ) {
+			$this->redirect_back( 'pack_validity_invalid' );
+		}
+
+		$raw_price = isset( $_POST['pack_price_value'] ) ? trim( (string) wp_unslash( $_POST['pack_price_value'] ) ) : '';
+		$price     = '' === $raw_price ? null : (float) $raw_price;
+
+		try {
+			$this->pricing->update_pack( $size, $validity, $price );
+		} catch ( Api_Exception $e ) {
+			$this->redirect_back( 'failed', $e->user_message() );
+		}
+
+		$this->redirect_back( 'pack_saved' );
 	}
 
 	public function handle_save_methods(): void {
@@ -152,8 +194,14 @@ final class Scan_Pricing_Screen {
 			return;
 		}
 
-		$this->render_summary( $pricing );
-		$this->render_form( $pricing );
+		// Absent means offered: a store on an older Oyster release still sells
+		// single scans, and hiding their pricing would leave them unable to change it.
+		if ( false !== ( $pricing['single_scan_offered'] ?? true ) ) {
+			$this->render_summary( $pricing );
+			$this->render_form( $pricing );
+		}
+
+		$this->render_pack_form();
 		$this->render_payment_methods();
 
 		echo '</div>';
@@ -306,6 +354,94 @@ final class Scan_Pricing_Screen {
 	/**
 	 * Which of the store's payment methods a scan may be paid with.
 	 */
+	/**
+	 * Several scans on one payment.
+	 *
+	 * Rendered only when Oyster has enabled packs for this store. Reading the pack is a
+	 * second API call, so a store that does not sell packs never pays for it.
+	 */
+	private function render_pack_form(): void {
+		$pack = $this->pricing->current_pack();
+
+		if ( null === $pack || empty( $pack['enabled'] ) ) {
+			return;
+		}
+
+		$size      = (string) ( $pack['size'] ?? '' );
+		$validity  = isset( $pack['validity_days'] ) ? (string) $pack['validity_days'] : '';
+		$max_days  = isset( $pack['max_validity_days'] ) ? (int) $pack['max_validity_days'] : 0;
+		$needs_val = ! empty( $pack['requires_pack_value'] );
+		$price_val = isset( $pack['pack_price_value'] ) ? (string) $pack['pack_price_value'] : '';
+		$currency  = (string) ( $pack['currency'] ?? '' );
+
+		printf( '<h2>%s</h2>', esc_html__( 'Scan packs', 'oyster-woocommerce' ) );
+
+		echo '<p class="description">';
+		esc_html_e( 'A shopper pays once and gets several scans. They run the rest whenever they like, using the payment reference we email them. The whole pack is settled when it is bought, so a later scan costs you nothing more.', 'oyster-woocommerce' );
+		echo '</p>';
+
+		if ( empty( $pack['sellable'] ) ) {
+			printf(
+				'<div class="notice notice-warning inline"><p>%s</p></div>',
+				esc_html__( 'No pack is being offered to your shoppers yet. Fill in the fields below to start selling one.', 'oyster-woocommerce' )
+			);
+		}
+
+		printf( '<form method="post" action="%s">', esc_url( admin_url( 'admin-post.php' ) ) );
+		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( self::ACTION_PACK ) );
+		wp_nonce_field( self::NONCE_PACK );
+
+		echo '<table class="form-table" role="presentation"><tbody>';
+
+		echo '<tr><th scope="row"><label for="oyster-pack-size">' . esc_html__( 'Scans per pack', 'oyster-woocommerce' ) . '</label></th><td>';
+		printf(
+			'<input type="number" step="1" min="2" max="50" name="pack_size" id="oyster-pack-size" value="%s" class="small-text" />',
+			esc_attr( $size )
+		);
+		echo '</td></tr>';
+
+		echo '<tr><th scope="row"><label for="oyster-pack-validity">' . esc_html__( 'Usable for (days)', 'oyster-woocommerce' ) . '</label></th><td>';
+		printf(
+			'<input type="number" step="1" min="1" name="pack_validity_days" id="oyster-pack-validity" value="%s" class="small-text" />',
+			esc_attr( $validity )
+		);
+		echo '<p class="description">';
+		if ( $max_days > 0 ) {
+			printf(
+				/* translators: %d: the longest window this store may set, in days */
+				esc_html__( 'Up to %d days on your account. Anything longer is shortened to that.', 'oyster-woocommerce' ),
+				(int) $max_days
+			);
+		} else {
+			esc_html_e( 'Leave empty to use the default.', 'oyster-woocommerce' );
+		}
+		echo ' ';
+		esc_html_e( 'A pack stops working after this, so anything unused is lost. Leave your shoppers long enough to come back.', 'oyster-woocommerce' );
+		echo '</p>';
+		echo '</td></tr>';
+
+		if ( $needs_val ) {
+			echo '<tr><th scope="row"><label for="oyster-pack-price">' . esc_html__( 'Pack price', 'oyster-woocommerce' ) . '</label></th><td>';
+			printf(
+				'<input type="number" step="0.01" name="pack_price_value" id="oyster-pack-price" value="%s" class="regular-text" />',
+				esc_attr( $price_val )
+			);
+			echo '<p class="description">';
+			printf(
+				/* translators: %s: store currency code */
+				esc_html__( 'In %s. Your pricing option needs a figure of its own for packs. A percentage already scales with the pack, but a flat amount belongs to the offer and is charged once.', 'oyster-woocommerce' ),
+				esc_html( $currency )
+			);
+			echo '</p>';
+			echo '</td></tr>';
+		}
+
+		echo '</tbody></table>';
+
+		submit_button( __( 'Save pack', 'oyster-woocommerce' ) );
+		echo '</form>';
+	}
+
 	private function render_payment_methods(): void {
 		printf( '<h2>%s</h2>', esc_html__( 'Payment methods', 'oyster-woocommerce' ) );
 
@@ -378,6 +514,7 @@ final class Scan_Pricing_Screen {
 
 		$saved = array(
 			'saved'         => __( 'Scan pricing updated. Shoppers are quoted the new price from their next scan.', 'oyster-woocommerce' ),
+			'pack_saved'    => __( 'Scan pack updated. Shoppers are offered the new pack from their next scan.', 'oyster-woocommerce' ),
 			'methods_saved' => __( 'Payment methods updated. Shoppers see the new choice the next time one pays for a scan.', 'oyster-woocommerce' ),
 		);
 
@@ -395,6 +532,8 @@ final class Scan_Pricing_Screen {
 		$messages = array(
 			'invalid_mode'   => __( 'That pricing option is not one this store offers.', 'oyster-woocommerce' ),
 			'value_required' => __( 'Enter an amount for the pricing option you chose.', 'oyster-woocommerce' ),
+			'pack_size_invalid'     => __( 'A pack holds at least two scans; one scan is just a scan.', 'oyster-woocommerce' ),
+			'pack_validity_invalid' => __( 'Enter how many days a pack stays usable, or leave it empty for the default.', 'oyster-woocommerce' ),
 			'not_connected'  => __( 'Connect your store to Oyster before setting up scan payments.', 'oyster-woocommerce' ),
 			'failed'         => '' !== $detail
 				? $detail

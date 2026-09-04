@@ -30,6 +30,8 @@ final class Scan_Pricing {
 
 	public const CACHE_KEY = 'oyster_woocommerce_scan_pricing';
 
+	public const PACK_CACHE_KEY = 'oyster_woocommerce_scan_pack';
+
 	/**
 	 * How long a fetched price is reused. Short, because a merchant who has just
 	 * changed their rate should not be reading a stale cost while deciding what
@@ -111,13 +113,86 @@ final class Scan_Pricing {
 			return null;
 		}
 
-		$price = $pricing['customer_price'] ?? null;
+		return self::lowest_price( $pricing, $this->current_pack() );
+	}
 
-		return is_numeric( $price ) && (float) $price > 0 ? (float) $price : null;
+	/**
+	 * The cheapest thing the store sells, which is not always a single scan: a
+	 * pack can cost less when Oyster has discounted the pack rate, and flooring
+	 * at the single price would charge a shopper more than they were quoted.
+	 *
+	 * @param array<string, mixed>      $pricing
+	 * @param array<string, mixed>|null $pack
+	 */
+	public static function lowest_price( array $pricing, ?array $pack ): ?float {
+		$prices = array( self::positive_price( $pricing['customer_price'] ?? null ) );
+
+		if ( null !== $pack && ! empty( $pack['enabled'] ) && ! empty( $pack['sellable'] ) ) {
+			$prices[] = self::positive_price( $pack['pack_price'] ?? null );
+		}
+
+		$prices = array_filter( $prices, static fn ( ?float $price ): bool => null !== $price );
+
+		return array() === $prices ? null : min( $prices );
+	}
+
+	private static function positive_price( mixed $value ): ?float {
+		return is_numeric( $value ) && (float) $value > 0 ? (float) $value : null;
 	}
 
 	public function forget(): void {
 		delete_transient( self::CACHE_KEY );
+		delete_transient( self::PACK_CACHE_KEY );
+	}
+
+	/**
+	 * The store's scan pack, or null when it cannot be read.
+	 *
+	 * Cached apart from the single-scan price: same screen, different resources.
+	 *
+	 * @return array<string, mixed>|null
+	 */
+	public function current_pack( bool $fresh = false ): ?array {
+		if ( ! $fresh ) {
+			$cached = get_transient( self::PACK_CACHE_KEY );
+			if ( is_array( $cached ) ) {
+				return $cached;
+			}
+		}
+
+		$bearer = $this->connection->bearer();
+		if ( null === $bearer ) {
+			return null;
+		}
+
+		try {
+			$response = $this->client->get_scan_pack( $bearer );
+		} catch ( Api_Exception $e ) {
+			$this->access_denied = $e->denies_access();
+
+			return null;
+		}
+
+		$this->access_denied = false;
+
+		$data = isset( $response['data'] ) && is_array( $response['data'] ) ? $response['data'] : null;
+
+		if ( null !== $data ) {
+			set_transient( self::PACK_CACHE_KEY, $data, self::CACHE_TTL );
+		}
+
+		return $data;
+	}
+
+	public function update_pack( int $size, ?int $validity_days, ?float $pack_price_value ): void {
+		$bearer = $this->connection->bearer();
+
+		if ( null === $bearer ) {
+			throw new Api_Exception( 0, null, __( 'This store is not connected to Oyster.', 'oyster-woocommerce' ) );
+		}
+
+		$this->client->update_scan_pack( $bearer, $size, $validity_days, $pack_price_value );
+		$this->forget();
 	}
 
 	public function update( string $mode, ?float $value ): void {
