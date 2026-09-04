@@ -194,8 +194,13 @@ final class Scan_Pricing_Screen {
 			return;
 		}
 
-		$this->render_summary( $pricing );
-		$this->render_form( $pricing );
+		// Absent means offered: a store on an older Oyster release still sells
+		// single scans, and hiding their pricing would leave them unable to change it.
+		if ( false !== ( $pricing['single_scan_offered'] ?? true ) ) {
+			$this->render_summary( $pricing );
+			$this->render_form( $pricing );
+		}
+
 		$this->render_pack_form();
 		$this->render_payment_methods();
 
