@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.15.0
+Stable tag: 0.15.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,16 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.15.1 =
+* The Scan payments screen now says which price each field sets. The cost, shopper
+  price and margin at the top are for a **single scan**, and the amount field says
+  so — your pricing option applies to packs as well, which the screen never
+  mentioned.
+* Prices changed on your Oyster dashboard now show here straight away. The screen
+  was serving a cached copy for up to five minutes and only refreshed it when you
+  saved something in WordPress, so the two could disagree with nothing saying why.
+* Trimmed the helper text on that screen to what tells you how to use a control.
 
 = 0.15.0 =
 * **The floating launcher is now off until you turn it on.** If you never opened
