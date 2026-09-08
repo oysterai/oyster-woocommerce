@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Admin;
 
+use Oyster\Woo\Frontend\Scan_Page;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Onboarding;
 use Oyster\Woo\Support\Widget_Settings;
@@ -28,7 +29,8 @@ final class Setup_Guide {
 
 	public function __construct(
 		private Connection $connection,
-		private Catalog_Sync $sync
+		private Catalog_Sync $sync,
+		private Scan_Page $scan_page
 	) {}
 
 	public function register(): void {
@@ -146,7 +148,7 @@ final class Setup_Guide {
 		$widget_settings      = Widget_Settings::get();
 		$status               = $this->sync->status();
 		$synced               = ! empty( $status['last_synced_at'] );
-		$widget_on_storefront = ! empty( $widget_settings['float_enabled'] ) || $onboarding['widget_added'];
+		$widget_on_storefront = ! empty( $widget_settings['float_enabled'] ) || $this->scan_page->exists() || $onboarding['widget_added'];
 
 		return array(
 			array(
@@ -171,7 +173,7 @@ final class Setup_Guide {
 			),
 			array(
 				'title'       => __( 'Add the widget to your storefront', 'oyster-woocommerce' ),
-				'description' => __( 'The floating launcher is on by default; add the [oyster_scan] shortcode or the "Oyster Skin Scan" block instead if you want it placed inline.', 'oyster-woocommerce' ),
+				'description' => __( 'Turn on the floating launcher, create a scan page to share a link to, or place the "Oyster Skin Scan" block or the [oyster_scan] shortcode on a page of your own.', 'oyster-woocommerce' ),
 				'done'        => $widget_on_storefront,
 				'cta_label'   => __( 'Open widget settings', 'oyster-woocommerce' ),
 				'cta_url'     => admin_url( 'admin.php?page=' . Menu::WIDGET_SLUG ),
