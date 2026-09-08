@@ -84,11 +84,9 @@ final class Widget_Loader {
 	 */
 	private function config(): array {
 		$settings = Widget_Settings::get();
-		$color    = '' !== $settings['primary_color'] ? $settings['primary_color'] : $this->connection->primary_color();
 
-		return array(
+		$config = array(
 			'publicKey'    => $this->connection->public_key(),
-			'primaryColor' => $color,
 			'logoUrl'      => $this->connection->logo_url(),
 			'loaderUrl'    => $this->bundle_url(),
 			'app'          => 'woocommerce',
@@ -114,6 +112,19 @@ final class Widget_Loader {
 			// custom REST prefix keeps working.
 			'scanPaymentUrl' => wp_make_link_relative( rest_url( 'oyster-woocommerce/v1/scan-payment/create' ) ),
 		);
+
+		// Only when the merchant picked one. The widget treats a colour it is
+		// handed as the storefront deliberately overriding the vendor's own,
+		// and falls back to the colour saved on the Oyster dashboard only when
+		// the page says nothing at all. Sending one unconditionally — which is
+		// what a default here amounts to — is therefore the same as telling the
+		// widget to ignore the dashboard, so a merchant who set their colour
+		// there could never see it take effect.
+		if ( '' !== $settings['primary_color'] ) {
+			$config['primaryColor'] = $settings['primary_color'];
+		}
+
+		return $config;
 	}
 
 	/**
