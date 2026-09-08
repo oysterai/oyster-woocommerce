@@ -22,9 +22,8 @@ defined( 'ABSPATH' ) || exit;
  * Oyster — a price kept only in this database would show one figure in the
  * widget and charge another at checkout.
  *
- * Shared by the admin screen that edits it and the checkout that collects it, so
- * there is one definition of "what does a scan cost here" rather than two that
- * can disagree.
+ * Read-only. The merchant sets their price on the Oyster dashboard; this plugin only
+ * asks what it currently is, so the checkout charges the figure the widget quoted.
  */
 final class Scan_Pricing {
 
@@ -34,18 +33,10 @@ final class Scan_Pricing {
 
 	/**
 	 * How long a fetched price is reused. Short, because a merchant who has just
-	 * changed their rate should not be reading a stale cost while deciding what
-	 * to charge on top of it.
+	 * changed their price on the dashboard should not have this store charging the
+	 * old one for long.
 	 */
 	private const CACHE_TTL = 5 * MINUTE_IN_SECONDS;
-
-	/** @var array<string, string> */
-	public const MODES = array(
-		'passthrough'    => 'Charge what Oyster charges me',
-		'markup_percent' => 'Add a percentage',
-		'markup_amount'  => 'Add a fixed amount',
-		'fixed_amount'   => 'Set my own price',
-	);
 
 	/**
 	 * Whether the last read was refused rather than merely unavailable. See
@@ -184,25 +175,4 @@ final class Scan_Pricing {
 		return $data;
 	}
 
-	public function update_pack( int $size, ?int $validity_days, ?float $pack_price_value ): void {
-		$bearer = $this->connection->bearer();
-
-		if ( null === $bearer ) {
-			throw new Api_Exception( 0, null, __( 'This store is not connected to Oyster.', 'oyster-woocommerce' ) );
-		}
-
-		$this->client->update_scan_pack( $bearer, $size, $validity_days, $pack_price_value );
-		$this->forget();
-	}
-
-	public function update( string $mode, ?float $value ): void {
-		$bearer = $this->connection->bearer();
-
-		if ( null === $bearer ) {
-			throw new Api_Exception( 0, null, __( 'This store is not connected to Oyster.', 'oyster-woocommerce' ) );
-		}
-
-		$this->client->update_scan_pricing( $bearer, $mode, $value );
-		$this->forget();
-	}
 }

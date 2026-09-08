@@ -54,6 +54,17 @@ final class Dashboard_Link {
 	}
 
 	/**
+	 * Where the merchant sets what shoppers pay for a scan, and shapes their pack.
+	 *
+	 * Pricing is set there and only there. It used to be editable from wp-admin too,
+	 * which meant every change to how Oyster prices a scan had to be mirrored into
+	 * this plugin and released before a merchant could use it.
+	 */
+	public static function pricing_url(): string {
+		return self::url() . '/billing/invoices';
+	}
+
+	/**
 	 * Echoes a single link/button. Always opens in a new tab — merchants stay
 	 * on the WP admin screen they were on.
 	 */

@@ -35,7 +35,7 @@ final class Menu {
 		private Connect_Screen $connect,
 		private Widget_Settings_Screen $widget,
 		private Catalog_Screen $catalog,
-		private Scan_Pricing_Screen $pricing
+		private Scan_Payments_Screen $payments
 	) {}
 
 	public function register(): void {
@@ -83,14 +83,14 @@ final class Menu {
 
 		// Only relevant when this store takes the shopper's scan payment
 		// itself. The screen says so rather than the menu hiding it, so a
-		// merchant who was told they can set a price can find where.
+		// merchant looking for scan payments finds an answer either way.
 		add_submenu_page(
 			self::PARENT_SLUG,
 			__( 'Oyster — Scan payments', 'oyster-woocommerce' ),
 			__( 'Scan payments', 'oyster-woocommerce' ),
 			self::CAPABILITY,
 			self::PRICING_SLUG,
-			array( $this->pricing, 'render' )
+			array( $this->payments, 'render' )
 		);
 	}
 
