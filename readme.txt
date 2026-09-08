@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.15.1
+Stable tag: 0.16.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,20 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.16.0 =
+* **Scan pricing has moved to your Oyster dashboard.** What shoppers pay for a scan,
+  and how your scan pack is priced, are now set in one place instead of two. **Oyster
+  > Scan payments** links you straight there.
+* Nothing about your prices changes. Whatever you had set is what shoppers are
+  charged, and your checkout keeps collecting exactly as it did.
+* Why: pricing is held on your Oyster account, not in WordPress. Editing it from here
+  meant this plugin had to be updated and released before you could use anything new
+  we added to pricing, and an out-of-date plugin could describe options that had
+  already changed.
+* **Oyster > Scan payments** now does one job: choosing which of your checkout's
+  payment methods a shopper may pay for a scan with. That stays here, because it is
+  a fact about your checkout.
 
 = 0.15.1 =
 * The Scan payments screen now says which price each field sets. The cost, shopper
