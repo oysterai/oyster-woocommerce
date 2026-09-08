@@ -141,6 +141,49 @@ final class ScanPageTest extends WP_UnitTestCase {
 		$this->assertSame( array( 'About us' ), $titles );
 	}
 
+	/**
+	 * The navigation on a block theme, which is the default a store is likely
+	 * to be running. With no menu built, the Navigation block falls back to a
+	 * Page List, and a Page List is every published page — so a page nobody is
+	 * supposed to find lands in the site's own header.
+	 */
+	public function test_the_page_list_block_does_not_link_to_it(): void {
+		$id    = $this->scan_page->create();
+		$other = self::factory()->post->create(
+			array(
+				'post_type'   => 'page',
+				'post_title'  => 'Stockists',
+				'post_status' => 'publish',
+			)
+		);
+
+		$rendered = do_blocks( '<!-- wp:page-list /-->' );
+
+		$this->assertStringContainsString( $this->link_to( $other ), $rendered, 'precondition: the block lists pages at all' );
+		$this->assertStringNotContainsString( $this->link_to( $id ), $rendered );
+	}
+
+	public function test_it_is_left_out_of_page_lists(): void {
+		$id = $this->scan_page->create();
+
+		$this->assertNotContains( $id, wp_list_pluck( get_pages(), 'ID' ) );
+		$this->assertStringNotContainsString( $this->link_to( $id ), (string) wp_list_pages( array( 'echo' => 0 ) ) );
+	}
+
+	/**
+	 * The exclusion is a front-end one. An admin still has to be able to pick
+	 * the page as a parent, or set it as the front page.
+	 */
+	public function test_wp_admin_can_still_list_the_page(): void {
+		$id = $this->scan_page->create();
+
+		set_current_screen( 'edit-page' );
+
+		$this->assertContains( $id, wp_list_pluck( get_pages(), 'ID' ) );
+
+		set_current_screen( 'front' );
+	}
+
 	public function test_the_page_asks_search_engines_to_skip_it(): void {
 		$id = $this->scan_page->create();
 		$this->go_to( (string) get_permalink( $id ) );
@@ -207,6 +250,19 @@ final class ScanPageTest extends WP_UnitTestCase {
 
 		$this->go_to( home_url( '/?s=analysis' ) );
 		$this->assertContains( $id, wp_list_pluck( $GLOBALS['wp_query']->posts, 'ID' ) );
+
+		$this->assertContains( $id, wp_list_pluck( get_pages(), 'ID' ) );
+		$this->assertStringContainsString( $this->link_to( $id ), do_blocks( '<!-- wp:page-list /-->' ) );
+	}
+
+	/**
+	 * The href as it appears in rendered markup, closing quote included: a bare
+	 * permalink is a prefix of every page whose id starts with the same digits
+	 * (`?page_id=12` inside `?page_id=123`), which would make these assertions
+	 * pass or fail on unrelated posts.
+	 */
+	private function link_to( int $page_id ): string {
+		return 'href="' . get_permalink( $page_id ) . '"';
 	}
 
 	private function menu_that_auto_adds_pages(): int {

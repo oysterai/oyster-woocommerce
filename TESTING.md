@@ -168,11 +168,16 @@ Then the paths that matter more than the happy one:
    showing its link, **Edit page** and **Allow search to find it**.
 2. Open the link. Expect the same inline scan the block renders, and
    `<meta name="robots" content="noindex, follow">` in the page source.
-3. Confirm it is not in any menu. To test the case that matters, tick
-   "Automatically add new top-level pages to this menu" under **Appearance →
-   Menus** *before* creating the page, then check the menu afterwards: the
-   scan page must not be in it, and a page you publish yourself after it
-   must still be added.
+3. Confirm it is not in the site's navigation. Both cases are worth a
+   look, because they fail differently:
+   * **Block theme** (the default). With no menu built, the Navigation
+     block falls back to a Page List, which is every published page. The
+     scan page must not appear there, while the rest of your pages still
+     do.
+   * **Classic menu.** Tick "Automatically add new top-level pages to this
+     menu" under **Appearance → Menus** *before* creating the page. The
+     scan page must not be added, and a page you publish yourself
+     afterwards must still be.
 4. Search the storefront for "skin analysis". Expect the page not to come
    back. Open `/wp-sitemap-posts-page-1.xml` and confirm it isn't listed.
 5. Press **Allow search to find it**, then repeat step 4. Expect the page

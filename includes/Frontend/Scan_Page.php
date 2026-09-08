@@ -40,7 +40,7 @@ final class Scan_Page {
 	public function register(): void {
 		add_filter( 'wp_robots', array( $this, 'no_robots' ) );
 		add_filter( 'wp_sitemaps_posts_query_args', array( $this, 'exclude_from_sitemap' ), 10, 2 );
-		add_filter( 'wp_list_pages_excludes', array( $this, 'exclude_from_page_lists' ) );
+		add_filter( 'get_pages', array( $this, 'exclude_from_page_lists' ) );
 		add_action( 'pre_get_posts', array( $this, 'exclude_from_search' ) );
 	}
 
@@ -196,17 +196,33 @@ final class Scan_Page {
 	}
 
 	/**
-	 * @param array<int, int> $excluded
-	 * @return array<int, int>
+	 * Every automatic list of pages a visitor can be shown, which on a block
+	 * theme includes the site's own navigation: the Navigation block falls back
+	 * to a Page List when no menu has been built, and a Page List is every
+	 * published page. Filtering `get_pages` rather than
+	 * `wp_list_pages_excludes` is what reaches it — that hook only covers
+	 * `wp_list_pages()`, while both it and the Page List block read through
+	 * `get_pages()`.
+	 *
+	 * Front end only. In wp-admin the page has to stay listable, or it could
+	 * not be picked as a parent page or set as the front page.
+	 *
+	 * @param array<int, mixed> $pages
+	 * @return array<int, mixed>
 	 */
-	public function exclude_from_page_lists( array $excluded ): array {
-		if ( ! $this->is_unlisted() ) {
-			return $excluded;
+	public function exclude_from_page_lists( array $pages ): array {
+		if ( is_admin() || ! $this->is_unlisted() ) {
+			return $pages;
 		}
 
-		$excluded[] = $this->id();
+		$id = $this->id();
 
-		return $excluded;
+		return array_values(
+			array_filter(
+				$pages,
+				static fn( $page ) => ( is_object( $page ) ? (int) $page->ID : (int) $page ) !== $id
+			)
+		);
 	}
 
 	/**
