@@ -161,6 +161,26 @@ Then the paths that matter more than the happy one:
    local widget-core tunnel, you may still see `widget` until that
    release goes out.
 
+## 2b. Scan page
+
+1. On **Oyster → Widget**, use **Create scan page**. Expect a published
+   page at `/skin-analysis/` with the scan on it, and the card to switch to
+   showing its link, **Edit page** and **Allow search to find it**.
+2. Open the link. Expect the same inline scan the block renders, and
+   `<meta name="robots" content="noindex, follow">` in the page source.
+3. Confirm it is not in any menu. To test the case that matters, tick
+   "Automatically add new top-level pages to this menu" under **Appearance →
+   Menus** *before* creating the page, then check the menu afterwards: the
+   scan page must not be in it, and a page you publish yourself after it
+   must still be added.
+4. Search the storefront for "skin analysis". Expect the page not to come
+   back. Open `/wp-sitemap-posts-page-1.xml` and confirm it isn't listed.
+5. Press **Allow search to find it**, then repeat step 4. Expect the page
+   in both the search results and the sitemap, and the `noindex` meta tag
+   gone.
+6. Press **Create scan page** again after trashing the page. Expect a new
+   page rather than a link to the trashed one.
+
 ## 3. Catalog
 
 1. Go to **Oyster → Catalog**. On a fresh install, expect a warning notice
