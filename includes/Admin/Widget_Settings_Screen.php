@@ -183,7 +183,7 @@ final class Widget_Settings_Screen {
 		if ( ! $this->scan_page->exists() ) {
 			printf(
 				'<p class="description">%s</p>',
-				esc_html__( 'A page of its own with the scan on it, for sending people a link without putting the scan on your storefront. It is not added to your menus.', 'oyster-woocommerce' )
+				esc_html__( 'A page of its own with the scan on it, for sending people a link without putting the scan on your storefront. It stays out of your menus and out of search until you say otherwise.', 'oyster-woocommerce' )
 			);
 
 			$this->action_form(
@@ -209,8 +209,8 @@ final class Widget_Settings_Screen {
 			'<p class="description">%s</p>',
 			esc_html(
 				$unlisted
-					? __( "Only people with the link reach it: search engines and your site's search skip it.", 'oyster-woocommerce' )
-					: __( "Search engines and your site's search can find it.", 'oyster-woocommerce' )
+					? __( "Only people with the link reach it: search engines, your site's search and auto-generated menus all skip it.", 'oyster-woocommerce' )
+					: __( 'Treated like any other page, including by search engines and auto-generated menus. You can add it to a menu yourself either way.', 'oyster-woocommerce' )
 			)
 		);
 
@@ -226,8 +226,8 @@ final class Widget_Settings_Screen {
 			'oyster_woo_scan_page_visibility',
 			array( 'unlisted' => $unlisted ? '0' : '1' ),
 			$unlisted
-				? __( 'Allow search to find it', 'oyster-woocommerce' )
-				: __( 'Hide it from search', 'oyster-woocommerce' ),
+				? __( 'Make it discoverable', 'oyster-woocommerce' )
+				: __( 'Hide it again', 'oyster-woocommerce' ),
 			'button'
 		);
 		echo '</div>';
@@ -262,8 +262,8 @@ final class Widget_Settings_Screen {
 		$this->notify(
 			'success',
 			$unlisted
-				? __( 'The scan page is now hidden from search.', 'oyster-woocommerce' )
-				: __( 'The scan page can now be found in search.', 'oyster-woocommerce' )
+				? __( 'The scan page is hidden again.', 'oyster-woocommerce' )
+				: __( 'The scan page is now treated like any other page.', 'oyster-woocommerce' )
 		);
 
 		$this->redirect_back();

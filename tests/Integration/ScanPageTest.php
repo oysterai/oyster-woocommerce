@@ -163,6 +163,37 @@ final class ScanPageTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( $this->link_to( $id ), $rendered );
 	}
 
+	/**
+	 * Unlisted suppresses the automatic surfaces, not the merchant. Adding the
+	 * page to a menu is an explicit choice, and it has to survive: it is how a
+	 * merchant promotes the page without giving up the noindex.
+	 */
+	public function test_a_menu_the_merchant_builds_still_shows_it(): void {
+		$id      = $this->scan_page->create();
+		$menu_id = wp_create_nav_menu( 'Primary' );
+
+		wp_update_nav_menu_item(
+			$menu_id,
+			0,
+			array(
+				'menu-item-object-id' => $id,
+				'menu-item-object'    => 'page',
+				'menu-item-type'      => 'post_type',
+				'menu-item-status'    => 'publish',
+			)
+		);
+
+		$rendered = (string) wp_nav_menu(
+			array(
+				'menu' => $menu_id,
+				'echo' => false,
+			)
+		);
+
+		$this->assertTrue( $this->scan_page->is_unlisted(), 'precondition: it is still unlisted' );
+		$this->assertStringContainsString( $this->link_to( $id ), $rendered );
+	}
+
 	public function test_it_is_left_out_of_page_lists(): void {
 		$id = $this->scan_page->create();
 
