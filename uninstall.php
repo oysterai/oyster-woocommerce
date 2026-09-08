@@ -81,6 +81,9 @@ delete_option( 'oyster_woocommerce_scan_payment_methods' );
 // The hidden product scan orders are raised against is left in place: it may be
 // attached to real orders. Only the pointer to it goes.
 delete_option( 'oyster_woocommerce_scan_product_id' );
+// Same for the scan page: it is a page the merchant owns and may have linked
+// to elsewhere, so only this plugin's pointer to it is removed.
+delete_option( 'oyster_woocommerce_scan_page_id' );
 delete_transient( 'oyster_woocommerce_scan_pricing' );
 
 // Best-effort: drop any Action Scheduler jobs we own (catalog sync, added in P2).

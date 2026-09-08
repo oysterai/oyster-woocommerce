@@ -27,6 +27,7 @@ use Oyster\Woo\Checkout\Scan_Payment;
 use Oyster\Woo\Checkout\Scan_Payment_Controller;
 use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Compliance\Gdpr;
+use Oyster\Woo\Frontend\Scan_Page;
 use Oyster\Woo\Frontend\Widget_Loader;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Scan_Pricing;
@@ -102,6 +103,12 @@ final class Plugin {
 		// Storefront: inject the widget loader on every front-end request.
 		( new Widget_Loader( $this->connection ) )->register();
 
+		// Registered outside is_admin(): what keeps the scan page unlisted is
+		// robots, sitemap and search filters, all of which fire on storefront
+		// requests. Creating the page is an admin action on the Widget screen.
+		$scan_page = new Scan_Page();
+		$scan_page->register();
+
 		$catalog_sync = new Catalog_Sync( $this->connection, $this->client );
 		$catalog_sync->register();
 		( new Product_Hooks( $catalog_sync ) )->register();
@@ -124,9 +131,9 @@ final class Plugin {
 		( new Order_Attribution( $this->connection, $this->client ) )->register();
 
 		if ( is_admin() ) {
-			$setup_guide = new Setup_Guide( $this->connection, $catalog_sync );
+			$setup_guide = new Setup_Guide( $this->connection, $catalog_sync, $scan_page );
 			$connect     = new Connect_Screen( $this->connection, $this->client, $setup_guide );
-			$widget      = new Widget_Settings_Screen( $this->connection, $this->client );
+			$widget      = new Widget_Settings_Screen( $this->connection, $this->client, $scan_page );
 			$catalog     = new Catalog_Screen( $this->connection, $catalog_sync );
 			$payments    = new Scan_Payments_Screen( $this->connection, $scan_pricing );
 
