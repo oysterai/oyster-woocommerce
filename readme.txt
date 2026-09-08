@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.16.0
+Stable tag: 0.17.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -68,6 +68,24 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.17.0 =
+* **New: a scan page.** **Oyster → Widget** can now create a page with the scan on
+  it, so you can share a link to the scan without putting it on your storefront.
+  Useful for a soft launch, a campaign, or trying the scan on a live site before
+  showing it to every shopper.
+* The page starts unlisted: it stays out of your menus, out of search engines and
+  out of your site's own search until you press **Make it discoverable**. Adding
+  it to a menu yourself works at any time, whichever state it is in.
+* It is an ordinary WordPress page containing the "Oyster Skin Scan" block, so you
+  can edit it, write your own copy around the scan, and style it like any other
+  page. The floating launcher, the block and the `[oyster_scan]` shortcode are
+  unchanged, and nothing about an existing storefront changes until you create the
+  page yourself.
+* Fixed: a product whose image filename contains a space, square brackets or a
+  non-ASCII character no longer fails to sync. WordPress reports those links
+  unescaped, which makes them invalid URLs, and the product was being rejected
+  over the name of its picture.
 
 = 0.16.0 =
 * **Scan pricing has moved to your Oyster dashboard.** What shoppers pay for a scan,
