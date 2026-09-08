@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.17.0
+Stable tag: 0.17.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -68,6 +68,14 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.17.1 =
+* Fixed: the color you set on your Oyster dashboard now reaches the widget. The
+  plugin was sending a color of its own on every page, and the widget reads a
+  color coming from the page as the storefront deliberately overriding you, so
+  your dashboard setting never got a chance to apply. Leave **Primary color**
+  blank on **Oyster > Widget** to follow your dashboard, or set one there to
+  override it for this store only.
 
 = 0.17.0 =
 * **New: a scan page.** **Oyster → Widget** can now create a page with the scan on
