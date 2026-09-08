@@ -12,6 +12,7 @@ namespace Oyster\Woo\Sync;
 use Oyster\Woo\Catalog\Ingredients_Field;
 use Oyster\Woo\Catalog\Size_Volume_Field;
 use Oyster\Woo\Catalog\Skin_Type_Attribute;
+use Oyster\Woo\Support\Image_Url;
 use WC_Product;
 use WC_Product_Variation;
 
@@ -143,7 +144,15 @@ final class Product_Mapper {
 		}
 
 		$url = wp_get_attachment_image_url( (int) $image_id, 'full' );
-		return is_string( $url ) && '' !== $url ? $url : null;
+		if ( ! is_string( $url ) || '' === $url ) {
+			return null;
+		}
+
+		// WordPress will hand back a link with characters a URL cannot carry
+		// unescaped, straight out of the filename it was uploaded under.
+		$url = Image_Url::encode( $url );
+
+		return '' !== $url ? $url : null;
 	}
 
 	/**
