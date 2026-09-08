@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace Oyster\Woo;
 
 use Oyster\Woo\Admin\Catalog_Screen;
-use Oyster\Woo\Admin\Scan_Pricing_Screen;
+use Oyster\Woo\Admin\Scan_Payments_Screen;
 use Oyster\Woo\Admin\Connect_Screen;
 use Oyster\Woo\Admin\Menu;
 use Oyster\Woo\Admin\Setup_Guide;
@@ -128,15 +128,15 @@ final class Plugin {
 			$connect     = new Connect_Screen( $this->connection, $this->client, $setup_guide );
 			$widget      = new Widget_Settings_Screen( $this->connection, $this->client );
 			$catalog     = new Catalog_Screen( $this->connection, $catalog_sync );
-			$pricing     = new Scan_Pricing_Screen( $this->connection, $scan_pricing );
+			$payments    = new Scan_Payments_Screen( $this->connection, $scan_pricing );
 
 			$setup_guide->register();
 			$connect->register();
 			$widget->register();
 			$catalog->register();
-			$pricing->register();
+			$payments->register();
 
-			( new Menu( $connect, $widget, $catalog, $pricing ) )->register();
+			( new Menu( $connect, $widget, $catalog, $payments ) )->register();
 			( new Sync_Status_Column() )->register();
 
 			// Product-editor additions Oyster's recommendations rely on: an

@@ -77,33 +77,6 @@ final class Client {
 	}
 
 	/**
-	 * Set what shoppers pay for a scan.
-	 *
-	 * Changes what a shopper is charged, never whether they are charged — that
-	 * stays a billing setting on the Oyster account. A store covering its
-	 * shoppers' first few scans still covers them.
-	 *
-	 * @param string     $mode  One of passthrough, markup_percent, markup_amount, fixed_amount.
-	 * @param float|null $value The amount or percentage the mode applies; null for passthrough.
-	 *
-	 * @return array<string, mixed>
-	 * @throws Api_Exception
-	 */
-	public function update_scan_pricing( string $bearer, string $mode, ?float $value ): array {
-		return $this->request(
-			'PATCH',
-			'/api/v1/vendors/billing/scan-retail-price',
-			array(
-				'bearer' => $bearer,
-				'body'   => array(
-					'mode'  => $mode,
-					'value' => $value,
-				),
-			)
-		);
-	}
-
-	/**
 	 * The store's scan pack: several scans sold on one payment.
 	 *
 	 * @return array<string, mixed>
@@ -111,31 +84,6 @@ final class Client {
 	 */
 	public function get_scan_pack( string $bearer ): array {
 		return $this->request( 'GET', '/api/v1/vendors/billing/scan-pack', array( 'bearer' => $bearer ) );
-	}
-
-	/**
-	 * Shape the store's scan pack. Whether packs may be sold is not settable here.
-	 *
-	 * @param int        $size             Scans in one pack.
-	 * @param int|null   $validity_days    How long it stays redeemable; null for the default.
-	 * @param float|null $pack_price_value The pack figure, for pricing modes that take one.
-	 *
-	 * @return array<string, mixed>
-	 * @throws Api_Exception
-	 */
-	public function update_scan_pack( string $bearer, int $size, ?int $validity_days, ?float $pack_price_value ): array {
-		return $this->request(
-			'PATCH',
-			'/api/v1/vendors/billing/scan-pack',
-			array(
-				'bearer' => $bearer,
-				'body'   => array(
-					'size'             => $size,
-					'validity_days'    => $validity_days,
-					'pack_price_value' => $pack_price_value,
-				),
-			)
-		);
 	}
 
 	/**
