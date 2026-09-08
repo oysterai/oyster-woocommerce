@@ -128,11 +128,10 @@ final class Widget_Settings_Screen {
 	public function field_primary_color(): void {
 		$value = (string) Widget_Settings::get()['primary_color'];
 		printf(
-			'<input type="text" name="%s[primary_color]" value="%s" class="oyster-color-field regular-text" placeholder="%s" pattern="^#([A-Fa-f0-9]{6})$"> <span class="description">%s</span>',
+			'<input type="text" name="%s[primary_color]" value="%s" class="oyster-color-field regular-text" pattern="^#([A-Fa-f0-9]{6})$"> <span class="description">%s</span>',
 			esc_attr( Widget_Settings::OPTION_KEY ),
 			esc_attr( $value ),
-			esc_attr( $this->connection->primary_color() ),
-			esc_html__( 'Leave blank to use your Oyster-configured color.', 'oyster-woocommerce' )
+			esc_html__( 'Leave blank to use the color from your Oyster dashboard.', 'oyster-woocommerce' )
 		);
 	}
 

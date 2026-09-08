@@ -82,6 +82,12 @@ https://oysterskin.com/terms for terms of service.
   page. The floating launcher, the block and the `[oyster_scan]` shortcode are
   unchanged, and nothing about an existing storefront changes until you create the
   page yourself.
+* Fixed: the color you set on your Oyster dashboard now reaches the widget. The
+  plugin was sending a color of its own on every page, and the widget reads a
+  color from the page as the storefront deliberately overriding you, so your
+  dashboard setting never got a chance to apply. Leave **Primary color** blank on
+  **Oyster > Widget** to follow your dashboard, or set one there to override it
+  for this store only.
 * Fixed: a product whose image filename contains a space, square brackets or a
   non-ASCII character no longer fails to sync. WordPress reports those links
   unescaped, which makes them invalid URLs, and the product was being rejected
