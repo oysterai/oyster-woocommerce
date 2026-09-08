@@ -23,6 +23,9 @@ Features:
 * Connect your store to an Oyster vendor account.
 * Floating skin-scan launcher on your storefront, with configurable branding.
 * Inline scan via the "Oyster Skin Scan" block or the `[oyster_scan]` shortcode.
+* Standalone scan page: create a page with the scan on it from **Oyster → Widget**, then
+  share the link. It isn't added to your menus, and it stays out of search engines and
+  your site's own search until you choose otherwise.
 * Automatic catalog sync — published simple and variable products sync to Oyster
   whenever you save them, plus a one-click full import/re-sync under **Oyster → Catalog**.
 * Richer product data for better recommendations — an **Oyster ingredients** field on
