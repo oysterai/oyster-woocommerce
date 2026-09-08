@@ -5,7 +5,8 @@
  * `window.OysterWooConfig` because it runs server-side and already holds the
  * vendor's public key. This script just:
  *
- *   1. Reads the injected config (publicKey, primaryColor, logoUrl, loaderUrl).
+ *   1. Reads the injected config (publicKey, loaderUrl, and primaryColor only
+ *      if the merchant set one).
  *   2. Finds each anchor a block/launcher/shortcode emitted.
  *   3. Loads vendor-widget-web's UMD bundle and calls createScanWidget().
  *
@@ -208,11 +209,16 @@
         var options = {
           mode: mode,
           publicKey: cfg.publicKey,
-          primaryColor: anchor.dataset.primaryColor || cfg.primaryColor || '#0e1e3a',
           callback: widgetCallback,
           onCollectPayment: collectScanPayment,
           app: 'woocommerce',
         }
+
+        // Left unset unless the merchant chose a colour. The widget applies
+        // the vendor's dashboard colour only for options the host omits, so a
+        // default here would silently outrank it on every page.
+        var primaryColor = anchor.dataset.primaryColor || cfg.primaryColor
+        if (primaryColor) options.primaryColor = primaryColor
 
         if (mode === 'inline') {
           options.container = anchor
