@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.17.1
+Stable tag: 0.18.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,9 +23,10 @@ Features:
 * Connect your store to an Oyster vendor account.
 * Floating skin-scan launcher on your storefront, with configurable branding.
 * Inline scan via the "Oyster Skin Scan" block or the `[oyster_scan]` shortcode.
-* Standalone scan page: create a page with the scan on it from **Oyster → Widget**, then
-  share the link. It isn't added to your menus, and it stays out of search engines and
-  your site's own search until you choose otherwise.
+* Standalone scan page: create a ready-made landing page from **Oyster → Widget**, with a
+  headline, a three-step explainer, the scan itself and an FAQ, all editable like any other
+  page. It isn't added to your menus, and it stays out of search engines and your site's own
+  search until you choose otherwise.
 * Automatic catalog sync — published simple and variable products sync to Oyster
   whenever you save them, plus a one-click full import/re-sync under **Oyster → Catalog**.
 * Richer product data for better recommendations — an **Oyster ingredients** field on
@@ -68,6 +69,20 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.18.0 =
+* **The scan page is now a landing page.** Creating one from **Oyster > Widget** gives you
+  a headline, an explainer of how the scan works, a section on what the report covers, the
+  scan itself, an FAQ and a closing call to action. Every part of it is ordinary blocks, so
+  you can rewrite the copy, drop a section or add your own in the editor.
+* It is built to run the full width of the screen rather than sit in the narrow column a
+  blog post gets. On a classic theme the page uses a template that keeps your header and
+  footer and drops the sidebar; you can switch it back to your theme's own template from
+  **Page Attributes** at any time.
+* The page takes its colour from your widget colour, so the buttons, highlights and tinted
+  sections match the scan rather than sitting next to it.
+* Pages you created before this update keep the content they already have. To get the new
+  layout, delete the old page and create it again from **Oyster > Widget**.
 
 = 0.17.1 =
 * Fixed: the color you set on your Oyster dashboard now reaches the widget. The
