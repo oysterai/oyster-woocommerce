@@ -81,6 +81,14 @@ https://oysterskin.com/terms for terms of service.
   Updating is all that is needed; there is nothing to change on the page.
 * A scan page created by 0.18.0 has its **Page Attributes > Template** setting
   tidied back to your theme's default the next time you open wp-admin.
+* The scan page's hero opens on the headline now: the small "AI-powered skin
+  analysis" label above it is gone. A page you already created keeps the label,
+  since a page's content is yours once it exists; delete that block in the editor
+  to match.
+* The scan now gets the full width of the page on a phone. It was sitting inside
+  the section's padding and a bordered card, which together cost it about a sixth
+  of a 390px screen: width a camera framing a face can use better than a frame
+  can.
 
 = 0.18.0 =
 * **The scan page is now a landing page.** Creating one from **Oyster > Widget** gives you

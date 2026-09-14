@@ -70,8 +70,7 @@ final class Scan_Page_Content {
 	private static function hero( string $accent ): string {
 		return self::band(
 			'oyster-scan-hero oyster-scan-band--tint',
-			self::eyebrow( __( 'AI-powered skin analysis', 'oyster-woocommerce' ), 'oyster-scan-pill' )
-			. self::split_heading(
+			self::split_heading(
 				__( 'Understand your skin', 'oyster-woocommerce' ),
 				__( 'before you buy', 'oyster-woocommerce' ),
 				$accent
