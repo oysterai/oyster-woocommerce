@@ -293,6 +293,30 @@
 	text-align: initial;
 }
 
+/*
+ * The scan is a camera framing a face, so it wants width far more than it wants
+ * a frame. On a phone the band's padding and the card's own were taking about
+ * 66px off a 390px screen before the theme's container had taken its share, so
+ * below this width the scan gets the full width available and only the copy
+ * around it keeps the inset.
+ */
+@media (max-width: 640px) {
+	.oyster-scan-widget {
+		padding-inline: 0;
+	}
+
+	.oyster-scan-widget > :not([data-oyster-widget]) {
+		padding-inline: 1.25rem;
+	}
+
+	.oyster-scan-widget [data-oyster-widget] {
+		border: 0;
+		border-radius: 0;
+		margin-top: 1.75rem;
+		padding: 0;
+	}
+}
+
 /* FAQ --------------------------------------------------------------------- */
 
 .oyster-scan-faq-list {
