@@ -17,6 +17,8 @@ use WP_UnitTestCase;
  */
 final class ScanLandingPageTest extends WP_UnitTestCase {
 
+	private const ACCENT = '#2f6b5e';
+
 	private Scan_Page $scan_page;
 
 	public function set_up(): void {
@@ -49,29 +51,88 @@ final class ScanLandingPageTest extends WP_UnitTestCase {
 	 * to belong to a block.
 	 */
 	public function test_nothing_sits_outside_a_block(): void {
-		foreach ( parse_blocks( Scan_Page_Content::blocks() ) as $block ) {
+		foreach ( parse_blocks( Scan_Page_Content::blocks( self::ACCENT ) ) as $block ) {
 			if ( null === $block['blockName'] ) {
 				$this->assertSame( '', trim( (string) $block['innerHTML'] ), 'stray markup between blocks' );
 			}
 		}
 	}
 
-	public function test_the_page_is_four_sections(): void {
+	public function test_every_section_is_a_full_width_band(): void {
 		$top_level = array_values(
 			array_filter(
-				parse_blocks( Scan_Page_Content::blocks() ),
+				parse_blocks( Scan_Page_Content::blocks( self::ACCENT ) ),
 				static fn( $block ) => null !== $block['blockName']
 			)
 		);
 
+		$this->assertCount( 6, $top_level );
+
+		foreach ( $top_level as $section ) {
+			$this->assertSame( 'core/group', $section['blockName'] );
+			$this->assertSame( 'full', $section['attrs']['align'] ?? '', 'a section that is not full width leaves the page a narrow strip' );
+		}
+	}
+
+	/**
+	 * The headline is in the content so it can be styled, coloured and moved.
+	 * More than one would mean the theme's title is being printed as well.
+	 */
+	public function test_there_is_exactly_one_headline(): void {
+		$this->assertSame( 1, substr_count( Scan_Page_Content::blocks( self::ACCENT ), '<h1' ) );
+	}
+
+	public function test_the_headline_is_set_in_the_merchants_colour(): void {
+		$this->assertStringContainsString( 'color:' . self::ACCENT, Scan_Page_Content::blocks( self::ACCENT ) );
+	}
+
+	/**
+	 * A block theme prints the page title from its own template, above the hero
+	 * that already carries it.
+	 */
+	public function test_the_themes_own_title_is_suppressed_on_this_page(): void {
+		$id = $this->scan_page->create();
+		$this->go_to( (string) get_permalink( $id ) );
+		$GLOBALS['wp_query']->the_post();
+
 		$this->assertSame(
-			array( 'core/group', 'core/group', 'core/group', 'core/group' ),
-			wp_list_pluck( $top_level, 'blockName' )
+			'',
+			$this->template()->hide_duplicate_title( '<h1>AI skin analysis</h1>', array( 'blockName' => 'core/post-title' ) )
 		);
+
+		wp_reset_postdata();
+	}
+
+	public function test_another_page_keeps_its_title(): void {
+		$this->scan_page->create();
+		$other = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish' ) );
+
+		$this->go_to( (string) get_permalink( $other ) );
+		$GLOBALS['wp_query']->the_post();
+
+		$this->assertSame(
+			'<h1>About us</h1>',
+			$this->template()->hide_duplicate_title( '<h1>About us</h1>', array( 'blockName' => 'core/post-title' ) )
+		);
+
+		wp_reset_postdata();
+	}
+
+	public function test_other_blocks_are_never_touched(): void {
+		$id = $this->scan_page->create();
+		$this->go_to( (string) get_permalink( $id ) );
+		$GLOBALS['wp_query']->the_post();
+
+		$this->assertSame(
+			'<p>copy</p>',
+			$this->template()->hide_duplicate_title( '<p>copy</p>', array( 'blockName' => 'core/paragraph' ) )
+		);
+
+		wp_reset_postdata();
 	}
 
 	public function test_it_is_built_from_blocks_a_merchant_can_edit(): void {
-		$names = $this->block_names( Scan_Page_Content::blocks() );
+		$names = $this->block_names( Scan_Page_Content::blocks( self::ACCENT ) );
 
 		foreach ( array( 'core/heading', 'core/paragraph', 'core/buttons', 'core/columns', 'core/details', 'oyster/skin-scan' ) as $expected ) {
 			$this->assertContains( $expected, $names );
@@ -79,7 +140,7 @@ final class ScanLandingPageTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_scan_block_appears_exactly_once(): void {
-		$names = $this->block_names( Scan_Page_Content::blocks() );
+		$names = $this->block_names( Scan_Page_Content::blocks( self::ACCENT ) );
 
 		$this->assertSame( 1, count( array_keys( $names, 'oyster/skin-scan', true ) ) );
 	}
@@ -95,7 +156,7 @@ final class ScanLandingPageTest extends WP_UnitTestCase {
 	 * leaves a visitor pressing a button that does nothing.
 	 */
 	public function test_every_call_to_action_points_at_the_scan(): void {
-		$content = Scan_Page_Content::blocks();
+		$content = Scan_Page_Content::blocks( self::ACCENT );
 
 		preg_match_all( '/<a class="wp-block-button__link[^"]*" href="([^"]+)"/', $content, $matches );
 
@@ -109,7 +170,7 @@ final class ScanLandingPageTest extends WP_UnitTestCase {
 	public function test_the_scan_carries_the_id_those_links_expect(): void {
 		$this->assertStringContainsString(
 			'id="' . Scan_Page_Content::WIDGET_ANCHOR . '"',
-			Scan_Page_Content::blocks()
+			Scan_Page_Content::blocks( self::ACCENT )
 		);
 	}
 
@@ -125,7 +186,8 @@ final class ScanLandingPageTest extends WP_UnitTestCase {
 		$rendered = apply_filters( 'the_content', (string) get_post( $id )->post_content );
 
 		$this->assertStringContainsString( 'data-oyster-widget="inline"', $rendered );
-		$this->assertStringContainsString( 'Three steps to a routine made for you', $rendered );
+		$this->assertStringContainsString( 'How it works', $rendered );
+		$this->assertStringContainsString( 'What you will find out', $rendered );
 		$this->assertStringContainsString( '<details', $rendered );
 		$this->assertStringContainsString( 'oyster-scan-section', $rendered );
 	}

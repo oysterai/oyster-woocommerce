@@ -1,46 +1,46 @@
 /*
  * The scan page's design.
  *
- * Deliberately neutral: the widget carries the vendor's own colour, and the
- * buttons and body text inherit whatever the merchant's theme already sets, so
- * this file only supplies layout, rhythm and the few surfaces a theme has no
- * opinion about. Sections are rounded panels rather than full-bleed bands,
- * which need no viewport arithmetic and so cannot introduce a horizontal
- * scrollbar in a theme whose container this file has never seen.
+ * Colour comes from one token, --oyster-accent, set inline from the vendor's
+ * own widget colour when the page renders. Every tint, disc and button below is
+ * mixed from it, so the page reads as the merchant's rather than as this
+ * plugin's, whatever colour they use.
+ *
+ * Sections are full-width bands with a constrained column inside. The band is
+ * what keeps a wide screen from showing a narrow strip of text down the middle;
+ * the column is what keeps the text readable once it is there.
  */
 
-.oyster-scan-page {
-	box-sizing: border-box;
-	width: 100%;
-	max-width: 1080px;
-	margin: 0 auto;
-	padding: 0 1.25rem;
-}
-
-/*
- * The tokens live on the sections rather than on the page wrapper, because the
- * wrapper is the classic-theme template's and a block theme renders these same
- * sections without it. Custom properties inherit, and everything styled below
- * sits inside a section.
- */
 .oyster-scan-section {
-	--oyster-panel: #f6f5f2;
+	--oyster-accent: #0e1e3a;
+	--oyster-ink: #15130f;
 	--oyster-muted: #6b6b6b;
-	--oyster-line: rgba(0, 0, 0, 0.12);
-	--oyster-radius: 20px;
+	--oyster-card: #ffffff;
+	--oyster-tint: #f5f4f1;
+	--oyster-disc: #ecebe6;
+	--oyster-line: rgba(0, 0, 0, 0.08);
+	--oyster-radius: 18px;
 
-	margin: clamp(2.5rem, 7vw, 4.5rem) auto;
+	box-sizing: border-box;
+	padding: clamp(3.5rem, 8vw, 6.5rem) clamp(1.25rem, 5vw, 3rem);
+	text-align: center;
 }
 
-@supports (color: color-mix(in srgb, currentColor 50%, transparent)) {
+@supports (color: color-mix(in srgb, red 50%, white)) {
 	.oyster-scan-section {
-		--oyster-muted: color-mix(in srgb, currentColor 62%, transparent);
-		--oyster-line: color-mix(in srgb, currentColor 14%, transparent);
+		--oyster-tint: color-mix(in srgb, var(--oyster-accent) 9%, #fbfaf8);
+		--oyster-disc: color-mix(in srgb, var(--oyster-accent) 16%, #ffffff);
+		--oyster-line: color-mix(in srgb, var(--oyster-accent) 15%, transparent);
 	}
 }
 
 .oyster-scan-section * {
 	box-sizing: border-box;
+}
+
+.oyster-scan-section > * {
+	margin-inline: auto;
+	max-width: 1120px;
 }
 
 .oyster-scan-section > :first-child {
@@ -51,148 +51,264 @@
 	margin-bottom: 0;
 }
 
+/* Full-bleed inside this plugin's own template, which has no column of its own. */
+.oyster-scan-page {
+	width: 100%;
+}
+
+.oyster-scan-page .alignfull {
+	max-width: none;
+	width: 100%;
+}
+
+.oyster-scan-band--tint {
+	background: var(--oyster-tint);
+}
+
+/* Type -------------------------------------------------------------------- */
+
+.oyster-scan-eyebrow {
+	color: var(--oyster-accent);
+	font-size: 0.78rem;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	margin: 0 auto 1rem;
+	text-transform: uppercase;
+}
+
+.oyster-scan-pill {
+	background: var(--oyster-card);
+	border: 1px solid var(--oyster-line);
+	border-radius: 999px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	display: inline-block;
+	margin-bottom: 1.5rem;
+	padding: 0.5rem 1.1rem;
+	width: auto;
+}
+
+.oyster-scan-title {
+	font-size: clamp(2.4rem, 5.5vw, 4.25rem);
+	letter-spacing: -0.03em;
+	line-height: 1.02;
+	margin: 0 auto 1.25rem;
+	max-width: 18ch;
+}
+
+.oyster-scan-section h2 {
+	font-size: clamp(1.75rem, 3.4vw, 2.85rem);
+	letter-spacing: -0.02em;
+	line-height: 1.1;
+	margin: 0 auto 0.75rem;
+	max-width: 26ch;
+}
+
+.oyster-scan-section h3 {
+	font-size: 1.08rem;
+	letter-spacing: -0.01em;
+	margin: 0 0 0.5rem;
+}
+
 .oyster-scan-lede {
 	color: var(--oyster-muted);
-	font-size: clamp(1.05rem, 1.6vw, 1.2rem);
+	font-size: clamp(1.05rem, 1.5vw, 1.2rem);
 	line-height: 1.6;
-	max-width: 54ch;
+	margin: 0 auto;
+	max-width: 62ch;
 }
 
-/* Hero ------------------------------------------------------------------- */
-
-.oyster-scan-page-title {
-	font-size: clamp(2.25rem, 6vw, 4rem);
-	letter-spacing: -0.02em;
-	line-height: 1.05;
-	margin: clamp(2rem, 5vw, 3.5rem) 0 0.4em;
-}
+/* Hero -------------------------------------------------------------------- */
 
 .oyster-scan-hero {
-	margin-top: 0;
+	background: var(--oyster-tint);
+	padding-block: clamp(4rem, 10vw, 8rem);
+}
+
+@supports (color: color-mix(in srgb, red 50%, white)) {
+	.oyster-scan-hero {
+		background:
+			radial-gradient(70% 90% at 50% 0%, color-mix(in srgb, var(--oyster-accent) 16%, #fff) 0%, transparent 70%),
+			linear-gradient(180deg, color-mix(in srgb, var(--oyster-accent) 7%, #fff) 0%, color-mix(in srgb, var(--oyster-accent) 3%, #fff) 100%);
+	}
+}
+
+.oyster-scan-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem;
+	justify-content: center;
+	margin: 2rem auto 0;
+}
+
+.oyster-scan-chip {
+	background: var(--oyster-card);
+	border: 1px solid var(--oyster-line);
+	border-radius: 999px;
+	color: var(--oyster-ink);
+	font-size: 0.85rem;
+	margin: 0;
+	padding: 0.45rem 0.95rem;
+}
+
+.oyster-scan-chip::before {
+	content: "\2713";
+	color: var(--oyster-accent);
+	font-weight: 700;
+	margin-right: 0.4rem;
 }
 
 .oyster-scan-cta {
+	display: flex;
 	gap: 0.75rem;
-	margin-top: 2rem;
-}
-
-/*
- * Centring is scoped to this plugin's own template, which is the one case
- * where the headline above is ours to place. A block theme prints the title
- * itself, to its own alignment, and a centred column underneath a left-aligned
- * title reads as a mistake — so there, these sections follow the theme.
- */
-.oyster-scan-page .oyster-scan-page-title,
-.oyster-scan-page .oyster-scan-hero,
-.oyster-scan-page .oyster-scan-steps > h2,
-.oyster-scan-page .oyster-scan-widget {
-	text-align: center;
-}
-
-.oyster-scan-page .oyster-scan-hero .oyster-scan-lede,
-.oyster-scan-page .oyster-scan-widget .oyster-scan-lede {
-	margin-inline: auto;
-}
-
-.oyster-scan-page .oyster-scan-cta {
 	justify-content: center;
+	margin-top: 2.25rem;
 }
 
-/* Steps ------------------------------------------------------------------ */
-
-.oyster-scan-steps {
-	background: var(--oyster-panel);
-	border-radius: var(--oyster-radius);
-	padding: clamp(2rem, 5vw, 3.5rem) clamp(1.25rem, 4vw, 3rem);
+.oyster-scan-section .oyster-scan-cta .wp-block-button__link {
+	background-color: var(--oyster-accent);
+	border: 0;
+	border-radius: 999px;
+	color: #fff;
+	font-size: 1rem;
+	font-weight: 600;
+	padding: 0.95rem 2rem;
 }
 
-.oyster-scan-steps > h2 {
-	font-size: clamp(1.5rem, 3vw, 2.25rem);
-	line-height: 1.15;
-	margin-bottom: 2.5rem;
+.oyster-scan-section .oyster-scan-cta .wp-block-button__link:hover {
+	filter: brightness(1.12);
 }
 
-/* Overrides core's column widths so three steps wrap instead of squeezing. */
-.oyster-scan-step-grid {
+/* Cards ------------------------------------------------------------------- */
+
+.oyster-scan-grid {
 	display: flex;
 	flex-wrap: wrap;
-	gap: clamp(1.25rem, 3vw, 2rem);
-	margin-bottom: 0;
+	gap: clamp(1rem, 2vw, 1.5rem);
+	margin-top: clamp(2.25rem, 4vw, 3.25rem);
 }
 
-.oyster-scan-step-grid > .wp-block-column {
-	flex: 1 1 170px;
+.oyster-scan-grid--3 > .wp-block-column {
+	flex: 1 1 230px;
+}
+
+.oyster-scan-grid--2 > .wp-block-column {
+	flex: 1 1 calc(50% - 0.75rem);
+	max-width: 100%;
+}
+
+/* Two up is a pair of columns on a laptop and a pair of slivers on a phone. */
+@media (max-width: 640px) {
+	.oyster-scan-grid--2 > .wp-block-column {
+		flex-basis: 100%;
+	}
+}
+
+.oyster-scan-card {
+	background: var(--oyster-card);
+	border: 1px solid var(--oyster-line);
+	border-radius: var(--oyster-radius);
+	padding: clamp(1.5rem, 2.5vw, 2rem);
 	text-align: left;
 }
 
-.oyster-scan-step-number {
-	align-items: center;
-	border: 1px solid var(--oyster-line);
-	border-radius: 999px;
-	display: inline-flex;
-	font-size: 0.9rem;
-	font-weight: 600;
-	height: 2.25rem;
-	justify-content: center;
-	margin: 0 0 1rem;
-	width: 2.25rem;
+.oyster-scan-card::before {
+	background: var(--oyster-disc);
+	border-radius: 14px;
+	content: "";
+	display: block;
+	height: 44px;
+	margin-bottom: 1.1rem;
+	width: 44px;
+
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: 22px 22px;
 }
 
-.oyster-scan-step h3 {
-	font-size: 1.1rem;
-	margin: 0 0 0.4em;
-}
-
-.oyster-scan-step p:not(.oyster-scan-step-number) {
+.oyster-scan-card p {
 	color: var(--oyster-muted);
 	line-height: 1.6;
 	margin: 0;
 }
 
-.oyster-scan-steps .oyster-scan-cta {
-	margin-top: 2.5rem;
+.oyster-scan-step-label {
+	color: var(--oyster-accent) !important;
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	margin: 0 0 0.35rem !important;
+	text-transform: uppercase;
 }
 
-/* The scan --------------------------------------------------------------- */
+/*
+ * Icon discs. Inlined as data URIs rather than image files so the marks travel
+ * with the stylesheet, and each section gets its own set: the same mark in two
+ * places reads as a template rather than as a page about skin.
+ */
+.oyster-scan-card::before {
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: 22px 22px;
+}
+
+.oyster-scan-card--camera::before {
+	background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.5"/></svg>');
+}
+
+.oyster-scan-card--scan::before {
+	background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M4 12h16"/></svg>');
+}
+
+.oyster-scan-card--routine::before {
+	background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9z"/><path d="M9 11h6M9 15h4"/></svg>');
+}
+
+.oyster-scan-card--skin::before {
+	background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9 10h.01M15 10h.01"/><path d="M9 14.5c.9.8 1.9 1.2 3 1.2s2.1-.4 3-1.2"/></svg>');
+}
+
+.oyster-scan-card--concern::before {
+	background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.6" fill="%23333"/></svg>');
+}
+
+.oyster-scan-card--hydration::before {
+	background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5c3.2 3.6 5.5 6.3 5.5 9a5.5 5.5 0 0 1-11 0c0-2.7 2.3-5.4 5.5-9z"/></svg>');
+}
+
+.oyster-scan-card--match::before {
+	background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23333" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 11.5a1.5 1.5 0 0 1-1.5 1.4h-7A1.5 1.5 0 0 1 7 19.5z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>');
+}
+
+/* The scan ---------------------------------------------------------------- */
 
 .oyster-scan-widget {
-	scroll-margin-top: 2rem;
-}
-
-.oyster-scan-widget h2 {
-	font-size: clamp(1.5rem, 3vw, 2.25rem);
-	margin-bottom: 0.4em;
-}
-
-.oyster-scan-widget .oyster-scan-lede {
-	margin-bottom: 2rem;
+	scroll-margin-top: 1.5rem;
 }
 
 .oyster-scan-widget [data-oyster-widget] {
-	margin-inline: auto;
-	max-width: 760px;
+	background: var(--oyster-card);
+	border: 1px solid var(--oyster-line);
+	border-radius: var(--oyster-radius);
+	margin: clamp(2rem, 4vw, 3rem) auto 0;
+	max-width: 860px;
+	padding: clamp(0.75rem, 2vw, 1.5rem);
 	text-align: initial;
 }
 
-/* FAQ -------------------------------------------------------------------- */
+/* FAQ --------------------------------------------------------------------- */
 
-.oyster-scan-faq {
-	margin-bottom: clamp(3rem, 8vw, 5rem);
-	max-width: 760px;
-}
-
-.oyster-scan-faq h2 {
-	font-size: clamp(1.35rem, 2.5vw, 1.9rem);
-	margin-bottom: 1.5rem;
+.oyster-scan-faq-list {
+	margin-top: clamp(2rem, 4vw, 3rem);
+	max-width: 780px;
+	text-align: left;
 }
 
 .oyster-scan-faq .wp-block-details {
-	border-top: 1px solid var(--oyster-line);
-	padding: 1.1rem 0;
-}
-
-.oyster-scan-faq .wp-block-details:last-of-type {
-	border-bottom: 1px solid var(--oyster-line);
+	background: var(--oyster-card);
+	border: 1px solid var(--oyster-line);
+	border-radius: 14px;
+	margin-bottom: 0.65rem;
+	padding: 1.05rem 1.25rem;
 }
 
 .oyster-scan-faq summary {
@@ -208,13 +324,20 @@
 }
 
 .oyster-scan-faq summary::after {
+	align-items: center;
+	background: var(--oyster-disc);
+	border-radius: 999px;
+	color: var(--oyster-accent);
 	content: "+";
-	font-weight: 400;
-	line-height: 1;
+	display: flex;
+	font-weight: 600;
+	height: 22px;
+	justify-content: center;
 	position: absolute;
 	right: 0;
 	top: 50%;
 	transform: translateY(-50%);
+	width: 22px;
 }
 
 .oyster-scan-faq details[open] summary::after {
@@ -227,10 +350,17 @@
 	margin: 0.75rem 0 0;
 }
 
-@supports (color: color-mix(in srgb, currentColor 50%, transparent)) {
-	@media (prefers-color-scheme: dark) {
-		.oyster-scan-section {
-			--oyster-panel: color-mix(in srgb, currentColor 7%, transparent);
-		}
-	}
+/* Closing ----------------------------------------------------------------- */
+
+.oyster-scan-closing-card {
+	background: var(--oyster-tint);
+	border: 1px solid var(--oyster-line);
+	border-radius: 28px;
+	margin-inline: auto;
+	max-width: 720px;
+	padding: clamp(2.25rem, 5vw, 3.5rem) clamp(1.5rem, 4vw, 3rem);
+}
+
+.oyster-scan-closing-card h2 {
+	margin-bottom: 0.6rem;
 }

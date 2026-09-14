@@ -40,6 +40,32 @@ final class Scan_Page_Template {
 		add_filter( 'theme_page_templates', array( $this, 'offer_template' ) );
 		add_filter( 'template_include', array( $this, 'use_template' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_style' ) );
+		add_filter( 'render_block', array( $this, 'hide_duplicate_title' ), 10, 2 );
+	}
+
+	/**
+	 * A block theme's page template prints the title itself, and this page's
+	 * content opens with that same headline styled as the hero. Only one of
+	 * them can stay, and the one in the content is the one the merchant can
+	 * edit, colour and move.
+	 *
+	 * Scoped to this page and to the title of this page: a query loop on it
+	 * listing other posts is rendering their titles, not this one's.
+	 *
+	 * @param array<string, mixed> $block
+	 */
+	public function hide_duplicate_title( string $html, array $block ): string {
+		if ( 'core/post-title' !== ( $block['blockName'] ?? '' ) ) {
+			return $html;
+		}
+
+		$id = $this->scan_page->id();
+
+		if ( 0 === $id || ! is_page( $id ) || get_the_ID() !== $id ) {
+			return $html;
+		}
+
+		return '';
 	}
 
 	/**
@@ -90,6 +116,13 @@ final class Scan_Page_Template {
 			OYSTER_WOO_URL . 'assets/css/scan-page.css',
 			array(),
 			OYSTER_WOO_VERSION
+		);
+
+		// Every tint, disc and button on the page is mixed from this one value,
+		// so the page takes the merchant's colour rather than the plugin's.
+		wp_add_inline_style(
+			self::STYLE_HANDLE,
+			'.oyster-scan-section{--oyster-accent:' . esc_attr( Scan_Page_Content::accent() ) . ';}'
 		);
 	}
 

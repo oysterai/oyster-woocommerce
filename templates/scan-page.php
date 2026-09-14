@@ -4,8 +4,11 @@
  *
  * The theme's header and footer are kept, so the page still looks like the
  * merchant's shop. What it drops is the sidebar and the narrow blog column a
- * classic theme wraps a page in, neither of which belongs around a landing
- * page whose job is the scan.
+ * classic theme wraps a page in, neither of which belongs around a landing page
+ * whose sections are meant to run the full width of the screen.
+ *
+ * The title is not printed here. The page's own content opens with it, styled
+ * as the headline, so printing it again would show it twice.
  *
  * Classic themes only. A block theme lays its own pages out and has no sidebar
  * to shed, so Scan_Page_Template never routes one here.
@@ -24,9 +27,6 @@ get_header();
 	<?php
 	while ( have_posts() ) {
 		the_post();
-		?>
-		<h1 class="oyster-scan-page-title"><?php the_title(); ?></h1>
-		<?php
 		the_content();
 	}
 	?>

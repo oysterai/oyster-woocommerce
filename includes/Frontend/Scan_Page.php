@@ -151,7 +151,7 @@ final class Scan_Page {
 					'post_status'    => 'publish',
 					'post_title'     => __( 'AI skin analysis', 'oyster-woocommerce' ),
 					'post_name'      => self::SLUG,
-					'post_content'   => Scan_Page_Content::blocks(),
+					'post_content'   => Scan_Page_Content::blocks( Scan_Page_Content::accent() ),
 					'page_template'  => Scan_Page_Template::suits_active_theme() ? Scan_Page_Template::SLUG : '',
 					'comment_status' => 'closed',
 					'ping_status'    => 'closed',
