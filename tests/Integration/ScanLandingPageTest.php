@@ -6,7 +6,7 @@ namespace Oyster\Woo\Tests\Integration;
 
 use Oyster\Woo\Frontend\Scan_Page;
 use Oyster\Woo\Frontend\Scan_Page_Content;
-use Oyster\Woo\Frontend\Scan_Page_Template;
+use Oyster\Woo\Frontend\Scan_Page_Assets;
 use Oyster\Woo\Support\Connection;
 use WP_UnitTestCase;
 
@@ -75,60 +75,15 @@ final class ScanLandingPageTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The headline is in the content so it can be styled, coloured and moved.
-	 * More than one would mean the theme's title is being printed as well.
+	 * Every theme prints the page's own title above the content, so the hero
+	 * line is a heading under it. An h1 here would give the page two.
 	 */
-	public function test_there_is_exactly_one_headline(): void {
-		$this->assertSame( 1, substr_count( Scan_Page_Content::blocks( self::ACCENT ), '<h1' ) );
+	public function test_the_content_never_claims_the_page_heading(): void {
+		$this->assertSame( 0, substr_count( Scan_Page_Content::blocks( self::ACCENT ), '<h1' ) );
 	}
 
 	public function test_the_headline_is_set_in_the_merchants_colour(): void {
 		$this->assertStringContainsString( 'color:' . self::ACCENT, Scan_Page_Content::blocks( self::ACCENT ) );
-	}
-
-	/**
-	 * A block theme prints the page title from its own template, above the hero
-	 * that already carries it.
-	 */
-	public function test_the_themes_own_title_is_suppressed_on_this_page(): void {
-		$id = $this->scan_page->create();
-		$this->go_to( (string) get_permalink( $id ) );
-		$GLOBALS['wp_query']->the_post();
-
-		$this->assertSame(
-			'',
-			$this->template()->hide_duplicate_title( '<h1>AI skin analysis</h1>', array( 'blockName' => 'core/post-title' ) )
-		);
-
-		wp_reset_postdata();
-	}
-
-	public function test_another_page_keeps_its_title(): void {
-		$this->scan_page->create();
-		$other = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish' ) );
-
-		$this->go_to( (string) get_permalink( $other ) );
-		$GLOBALS['wp_query']->the_post();
-
-		$this->assertSame(
-			'<h1>About us</h1>',
-			$this->template()->hide_duplicate_title( '<h1>About us</h1>', array( 'blockName' => 'core/post-title' ) )
-		);
-
-		wp_reset_postdata();
-	}
-
-	public function test_other_blocks_are_never_touched(): void {
-		$id = $this->scan_page->create();
-		$this->go_to( (string) get_permalink( $id ) );
-		$GLOBALS['wp_query']->the_post();
-
-		$this->assertSame(
-			'<p>copy</p>',
-			$this->template()->hide_duplicate_title( '<p>copy</p>', array( 'blockName' => 'core/paragraph' ) )
-		);
-
-		wp_reset_postdata();
 	}
 
 	public function test_it_is_built_from_blocks_a_merchant_can_edit(): void {
@@ -196,7 +151,7 @@ final class ScanLandingPageTest extends WP_UnitTestCase {
 		$id = $this->scan_page->create();
 		$this->go_to( (string) get_permalink( $id ) );
 
-		$this->template()->enqueue_style();
+		$this->assets()->enqueue_style();
 
 		$this->assertTrue( wp_style_is( 'oyster-woo-scan-page', 'enqueued' ) );
 	}
@@ -207,7 +162,7 @@ final class ScanLandingPageTest extends WP_UnitTestCase {
 
 		$this->go_to( (string) get_permalink( $other ) );
 
-		$this->template()->enqueue_style();
+		$this->assets()->enqueue_style();
 
 		$this->assertFalse( wp_style_is( 'oyster-woo-scan-page', 'enqueued' ) );
 	}
@@ -218,57 +173,37 @@ final class ScanLandingPageTest extends WP_UnitTestCase {
 	 * -----------------------------------------------------------------------
 	 */
 
-	/**
-	 * The page asks for the template only where it makes sense, and what makes
-	 * sense is decided by the theme rather than assumed.
-	 */
-	public function test_the_page_is_created_with_the_layout_its_theme_can_use(): void {
-		$id = $this->scan_page->create();
-
-		$expected = Scan_Page_Template::suits_active_theme() ? Scan_Page_Template::SLUG : '';
-
-		$this->assertSame( $expected, get_page_template_slug( $id ) );
+	private function assets(): Scan_Page_Assets {
+		return new Scan_Page_Assets( $this->scan_page );
 	}
 
 	/**
-	 * A block theme builds its own header and footer out of blocks. Routing one
-	 * through a PHP template would call get_header(), find no header.php, and
-	 * fall through to WordPress' bare theme-compat markup instead of the
-	 * theme's own chrome.
+	 * A page made by the version that shipped a page template still names it.
+	 * WordPress falls back to the theme's own template once the file is gone,
+	 * so this is not what fixes the layout; it clears a stale value that would
+	 * otherwise have Page Attributes claim a template that does not exist.
 	 */
-	public function test_a_block_theme_is_never_routed_through_the_php_template(): void {
-		if ( ! wp_is_block_theme() ) {
-			$this->assertTrue( Scan_Page_Template::suits_active_theme() );
-			return;
-		}
-
+	public function test_the_retired_template_is_cleaned_off_the_page(): void {
 		$id = $this->scan_page->create();
-		update_post_meta( $id, '_wp_page_template', Scan_Page_Template::SLUG );
-		$this->go_to( (string) get_permalink( $id ) );
+		update_post_meta( $id, '_wp_page_template', 'oyster-scan-page.php' );
 
-		$this->assertSame( 'theme-template.php', $this->template()->use_template( 'theme-template.php' ) );
+		$this->assets()->forget_retired_template();
+
+		$this->assertSame( '', get_page_template_slug( $id ) );
 	}
 
-	public function test_another_page_keeps_its_own_template(): void {
-		$this->scan_page->create();
-		$other = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish' ) );
+	public function test_a_template_the_merchant_chose_is_left_alone(): void {
+		$id = $this->scan_page->create();
+		update_post_meta( $id, '_wp_page_template', 'full-width.php' );
 
-		$this->go_to( (string) get_permalink( $other ) );
+		$this->assets()->forget_retired_template();
 
-		$this->assertSame( 'theme-template.php', $this->template()->use_template( 'theme-template.php' ) );
+		$this->assertSame( 'full-width.php', get_page_template_slug( $id ) );
 	}
 
-	public function test_the_template_is_offered_only_where_it_fits(): void {
-		$offered = $this->template()->offer_template( array() );
-
-		$this->assertSame(
-			Scan_Page_Template::suits_active_theme(),
-			array_key_exists( Scan_Page_Template::SLUG, $offered )
-		);
-	}
-
-	private function template(): Scan_Page_Template {
-		return new Scan_Page_Template( $this->scan_page );
+	/** Nothing the plugin creates asks for a template of its own any more. */
+	public function test_a_new_page_uses_the_themes_own_template(): void {
+		$this->assertSame( '', get_page_template_slug( $this->scan_page->create() ) );
 	}
 
 	/**
