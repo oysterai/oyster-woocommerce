@@ -164,11 +164,23 @@ Then the paths that matter more than the happy one:
 ## 2b. Scan page
 
 1. On **Oyster → Widget**, use **Create scan page**. Expect a published
-   page at `/skin-analysis/` with the scan on it, and the card to switch to
-   showing its link, **Edit page** and **Allow search to find it**.
-2. Open the link. Expect the same inline scan the block renders, and
-   `<meta name="robots" content="noindex, follow">` in the page source.
-3. Confirm it is not in the site's navigation. Both cases are worth a
+   page at `/skin-analysis/` and the card to switch to showing its link,
+   **Edit page** and **Make it discoverable**.
+2. Open the link. Expect a landing page: title, intro and call to action,
+   a "Three steps" panel, the scan, and an FAQ. Press both call-to-action
+   buttons and expect the page to jump down to the scan. Check
+   `<meta name="robots" content="noindex, follow">` is in the page source.
+3. Open the page in the editor. Every section must load as normal blocks
+   with no "unexpected or invalid content" warning on any of them.
+4. Layout, on both theme kinds:
+   * **Classic theme.** The page must have no sidebar and run wider than a
+     blog post. **Page Attributes → Template** should read "Oyster scan
+     page", and switching it back to the theme's default must leave a
+     page that still works, just in the theme's own layout.
+   * **Block theme.** No template is assigned, the theme prints the title,
+     and the sections should read as one left-aligned column. There must
+     be exactly one copy of the page title on screen.
+5. Confirm it is not in the site's navigation. Both cases are worth a
    look, because they fail differently:
    * **Block theme** (the default). With no menu built, the Navigation
      block falls back to a Page List, which is every published page. The
@@ -178,12 +190,12 @@ Then the paths that matter more than the happy one:
      menu" under **Appearance → Menus** *before* creating the page. The
      scan page must not be added, and a page you publish yourself
      afterwards must still be.
-4. Search the storefront for "skin analysis". Expect the page not to come
+6. Search the storefront for "skin analysis". Expect the page not to come
    back. Open `/wp-sitemap-posts-page-1.xml` and confirm it isn't listed.
-5. Press **Allow search to find it**, then repeat step 4. Expect the page
-   in both the search results and the sitemap, and the `noindex` meta tag
+7. Press **Make it discoverable**, then repeat step 6. Expect the page in
+   both the search results and the sitemap, and the `noindex` meta tag
    gone.
-6. Press **Create scan page** again after trashing the page. Expect a new
+8. Press **Create scan page** again after trashing the page. Expect a new
    page rather than a link to the trashed one.
 
 ## 3. Catalog

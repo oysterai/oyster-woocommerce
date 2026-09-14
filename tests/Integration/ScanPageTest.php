@@ -74,7 +74,7 @@ final class ScanPageTest extends WP_UnitTestCase {
 			get_posts(
 				array(
 					'post_type'   => 'page',
-					'title'       => 'Skin analysis',
+					'title'       => 'AI skin analysis',
 					'post_status' => 'any',
 					'fields'      => 'ids',
 					'numberposts' => -1,
