@@ -28,6 +28,7 @@ use Oyster\Woo\Checkout\Scan_Payment_Controller;
 use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Compliance\Gdpr;
 use Oyster\Woo\Frontend\Scan_Page;
+use Oyster\Woo\Frontend\Scan_Page_Template;
 use Oyster\Woo\Frontend\Widget_Loader;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Scan_Pricing;
@@ -108,6 +109,7 @@ final class Plugin {
 		// requests. Creating the page is an admin action on the Widget screen.
 		$scan_page = new Scan_Page();
 		$scan_page->register();
+		( new Scan_Page_Template( $scan_page ) )->register();
 
 		$catalog_sync = new Catalog_Sync( $this->connection, $this->client );
 		$catalog_sync->register();

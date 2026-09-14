@@ -16,9 +16,10 @@ use WP_Query;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * A real WordPress page whose content is the "Oyster Skin Scan" block, created
- * on request from the Widget screen. Nothing renders it: it is the same block
- * a merchant can place by hand, on a page this plugin happens to have created.
+ * A real WordPress page carrying the "Oyster Skin Scan" block, created on
+ * request from the Widget screen. Nothing here renders the scan: it is the same
+ * block a merchant can place by hand, on a page this plugin happens to have
+ * created, inside the landing-page copy Scan_Page_Content lays out around it.
  *
  * It exists for the case the float launcher and an inline block on an existing
  * page both handle badly — putting the scan somewhere a merchant can send a
@@ -148,9 +149,10 @@ final class Scan_Page {
 				array(
 					'post_type'      => 'page',
 					'post_status'    => 'publish',
-					'post_title'     => __( 'Skin analysis', 'oyster-woocommerce' ),
+					'post_title'     => __( 'AI skin analysis', 'oyster-woocommerce' ),
 					'post_name'      => self::SLUG,
-					'post_content'   => '<!-- wp:oyster/skin-scan /-->',
+					'post_content'   => Scan_Page_Content::blocks( Scan_Page_Content::accent() ),
+					'page_template'  => Scan_Page_Template::suits_active_theme() ? Scan_Page_Template::SLUG : '',
 					'comment_status' => 'closed',
 					'ping_status'    => 'closed',
 				),
