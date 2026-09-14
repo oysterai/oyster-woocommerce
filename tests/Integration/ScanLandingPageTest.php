@@ -31,6 +31,10 @@ final class ScanLandingPageTest extends WP_UnitTestCase {
 		);
 
 		$this->scan_page = new Scan_Page();
+
+		// WordPress' style registry is a global that outlives a single test, so
+		// a handle enqueued by the last one is still enqueued for this one.
+		$GLOBALS['wp_styles'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 	}
 
 	/*
