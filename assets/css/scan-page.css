@@ -74,17 +74,6 @@
 	text-transform: uppercase;
 }
 
-.oyster-scan-pill {
-	background: var(--oyster-card);
-	border: 1px solid var(--oyster-line);
-	border-radius: 999px;
-	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-	display: inline-block;
-	margin-bottom: 1.5rem;
-	padding: 0.5rem 1.1rem;
-	width: auto;
-}
-
 .oyster-scan-section .oyster-scan-title {
 	font-size: clamp(2.1rem, 4.5vw, 3.4rem);
 	letter-spacing: -0.03em;
@@ -291,6 +280,30 @@
 	max-width: 860px;
 	padding: clamp(0.75rem, 2vw, 1.5rem);
 	text-align: initial;
+}
+
+/*
+ * The scan is a camera framing a face, so it wants width far more than it wants
+ * a frame. On a phone the band's padding and the card's own were taking about
+ * 66px off a 390px screen before the theme's container had taken its share, so
+ * below this width the scan gets the full width available and only the copy
+ * around it keeps the inset.
+ */
+@media (max-width: 640px) {
+	.oyster-scan-widget {
+		padding-inline: 0;
+	}
+
+	.oyster-scan-widget > :not([data-oyster-widget]) {
+		padding-inline: 1.25rem;
+	}
+
+	.oyster-scan-widget [data-oyster-widget] {
+		border: 0;
+		border-radius: 0;
+		margin-top: 1.75rem;
+		padding: 0;
+	}
 }
 
 /* FAQ --------------------------------------------------------------------- */
