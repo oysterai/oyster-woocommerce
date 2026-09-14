@@ -74,17 +74,6 @@
 	text-transform: uppercase;
 }
 
-.oyster-scan-pill {
-	background: var(--oyster-card);
-	border: 1px solid var(--oyster-line);
-	border-radius: 999px;
-	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-	display: inline-block;
-	margin-bottom: 1.5rem;
-	padding: 0.5rem 1.1rem;
-	width: auto;
-}
-
 .oyster-scan-section .oyster-scan-title {
 	font-size: clamp(2.1rem, 4.5vw, 3.4rem);
 	letter-spacing: -0.03em;
