@@ -24,6 +24,14 @@
 	box-sizing: border-box;
 	padding: clamp(3.5rem, 8vw, 6.5rem) clamp(1.25rem, 5vw, 3rem);
 	text-align: center;
+
+	/*
+	 * The section fills whatever container the theme gives the page, and never
+	 * tries to escape it. Breaking out to the viewport needs to know what the
+	 * theme has wrapped the page in, and guessing that is what put an earlier
+	 * version of this page in a 90px column.
+	 */
+	width: 100%;
 }
 
 @supports (color: color-mix(in srgb, red 50%, white)) {
@@ -49,16 +57,6 @@
 
 .oyster-scan-section > :last-child {
 	margin-bottom: 0;
-}
-
-/* Full-bleed inside this plugin's own template, which has no column of its own. */
-.oyster-scan-page {
-	width: 100%;
-}
-
-.oyster-scan-page .alignfull {
-	max-width: none;
-	width: 100%;
 }
 
 .oyster-scan-band--tint {
@@ -87,8 +85,8 @@
 	width: auto;
 }
 
-.oyster-scan-title {
-	font-size: clamp(2.4rem, 5.5vw, 4.25rem);
+.oyster-scan-section .oyster-scan-title {
+	font-size: clamp(2.1rem, 4.5vw, 3.4rem);
 	letter-spacing: -0.03em;
 	line-height: 1.02;
 	margin: 0 auto 1.25rem;

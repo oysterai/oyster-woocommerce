@@ -32,9 +32,15 @@ comment that references how another Oyster product/service works internally.
   - `Admin\` — wp-admin screens (`Connect_Screen`, `Widget_Settings_Screen`,
     `Catalog_Screen`, `Setup_Guide`, `Menu`, `Sync_Status_Column`).
   - `Frontend\` — `Widget_Loader`, which injects config and enqueues
-    `assets/js/oyster-loader.js` on the storefront, and `Scan_Page`, the
-    optional standalone page carrying the scan block (created from the
-    Widget screen, kept out of menus/search while it is marked unlisted).
+    `assets/js/oyster-loader.js` on the storefront; `Scan_Page`, the
+    optional standalone landing page carrying the scan block (created from
+    the Widget screen, kept out of menus/search while it is marked
+    unlisted); `Scan_Page_Content`, the blocks that page is created with;
+    and `Scan_Page_Assets`, its stylesheet and accent colour. **The plugin
+    does not ship a page template.** One that called `get_header()` shipped
+    once and broke on a theme whose header opens a CSS grid expecting its
+    own children; a plugin cannot know what a theme has left open, so the
+    scan page renders through the theme's own page template.
   - `Checkout\` — `Cart_Filler` (the one place Oyster product ids become
     cart lines), `Cart_Controller` (the widget's checkout-handoff REST
     route), `Email_Handoff` (the scan-result email's checkout CTA, a

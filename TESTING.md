@@ -172,14 +172,17 @@ Then the paths that matter more than the happy one:
    `<meta name="robots" content="noindex, follow">` is in the page source.
 3. Open the page in the editor. Every section must load as normal blocks
    with no "unexpected or invalid content" warning on any of them.
-4. Layout, on both theme kinds:
-   * **Classic theme.** The page must have no sidebar and run wider than a
-     blog post. **Page Attributes → Template** should read "Oyster scan
-     page", and switching it back to the theme's default must leave a
-     page that still works, just in the theme's own layout.
-   * **Block theme.** No template is assigned, the theme prints the title,
-     and the sections should read as one left-aligned column. There must
-     be exactly one copy of the page title on screen.
+4. Layout. The page uses the theme's own page template, so check it in a
+   theme with an opinionated layout (a commercial theme, or one with a
+   sidebar) as well as a default one:
+   * The sections must fill the width the theme gives the page. Text
+     wrapping one word per line means the page has landed in a container
+     it does not fit.
+   * **Page Attributes → Template** must read the theme's default. The
+     plugin no longer ships a template of its own.
+   * The page title appears once, from the theme, with the hero line
+     under it.
+   * Check for a horizontal scrollbar at desktop and phone widths.
 5. Confirm it is not in the site's navigation. Both cases are worth a
    look, because they fail differently:
    * **Block theme** (the default). With no menu built, the Navigation

@@ -312,12 +312,17 @@ final class Scan_Page_Content {
 	 * The headline, with its closing words in the vendor's colour. `mark` with
 	 * a transparent background is the markup the editor's own inline colour
 	 * control produces, so the merchant can recolour or clear it there.
+	 *
+	 * A heading rather than a title: every theme prints the page's own title
+	 * above the content, so this reads as the line under it. Claiming the h1
+	 * here would give the page two of them in any theme that prints one, which
+	 * is every theme.
 	 */
 	private static function split_heading( string $lead, string $accented, string $accent ): string {
 		$mark = '<mark style="background-color:rgba(0,0,0,0);color:' . esc_attr( $accent ) . '" class="has-inline-color">' . esc_html( $accented ) . '</mark>';
 
-		return '<!-- wp:heading {"level":1,"className":"oyster-scan-title"} -->' . "\n"
-			. '<h1 class="wp-block-heading oyster-scan-title">' . esc_html( $lead ) . ' ' . $mark . '</h1>' . "\n"
+		return '<!-- wp:heading {"className":"oyster-scan-title"} -->' . "\n"
+			. '<h2 class="wp-block-heading oyster-scan-title">' . esc_html( $lead ) . ' ' . $mark . '</h2>' . "\n"
 			. '<!-- /wp:heading -->' . "\n";
 	}
 
