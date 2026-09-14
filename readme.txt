@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.18.0
+Stable tag: 0.18.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,18 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.18.1 =
+* Fixed: on some themes the scan page rendered as a narrow column with every
+  word wrapped onto its own line. 0.18.0 gave the page a template of its own to
+  get it out of the theme's blog column, and a template like that cannot be made
+  safe: a theme is free to build its page layout as a grid that expects its own
+  markup inside it, and the page then lands in whatever space is left over.
+* The scan page now renders through your theme's own page template, like every
+  other page on your site, and its design fits the width your theme gives it.
+  Updating is all that is needed; there is nothing to change on the page.
+* A scan page created by 0.18.0 has its **Page Attributes > Template** setting
+  tidied back to your theme's default the next time you open wp-admin.
 
 = 0.18.0 =
 * **The scan page is now a landing page.** Creating one from **Oyster > Widget** gives you
