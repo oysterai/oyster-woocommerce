@@ -11,6 +11,7 @@ namespace Oyster\Woo\Admin;
 
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Dashboard_Link;
+use Oyster\Woo\Support\Scan_Confirmation_Health;
 use Oyster\Woo\Support\Scan_Payment_Methods;
 use Oyster\Woo\Support\Scan_Pricing;
 
@@ -48,6 +49,38 @@ final class Scan_Payments_Screen {
 
 	public function register(): void {
 		add_action( 'admin_post_' . self::ACTION_METHODS, array( $this, 'handle_save_methods' ) );
+		add_action( 'admin_notices', array( $this, 'render_confirmation_notice' ) );
+	}
+
+	/**
+	 * Shown on every admin screen, not just this one.
+	 *
+	 * A store that cannot report its scan payments takes money for scans the
+	 * shopper never receives, and there is nothing on the order to suggest it:
+	 * the order is paid and complete. A merchant who is not already looking at
+	 * this screen has no reason to come to it, so the warning has to travel.
+	 */
+	public function render_confirmation_notice(): void {
+		if ( ! current_user_can( Menu::CAPABILITY ) || ! Scan_Confirmation_Health::is_blocked() ) {
+			return;
+		}
+
+		$since = Scan_Confirmation_Health::blocked_since();
+
+		printf(
+			'<div class="notice notice-error"><p><strong>%s</strong></p><p>%s</p><p>%s</p></div>',
+			esc_html__( 'Oyster: scan payments are not reaching Oyster', 'oyster-woocommerce' ),
+			esc_html( Scan_Confirmation_Health::reason() ),
+			esc_html(
+				'' === $since
+					? __( 'Shoppers paying for a scan here will not receive it until this is fixed.', 'oyster-woocommerce' )
+					: sprintf(
+						/* translators: %s: date the problem started */
+						__( 'Failing since %s. Shoppers paying for a scan here will not receive it until this is fixed.', 'oyster-woocommerce' ),
+						$since
+					)
+			)
+		);
 	}
 
 	public function handle_save_methods(): void {

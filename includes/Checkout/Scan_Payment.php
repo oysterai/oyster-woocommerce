@@ -12,6 +12,7 @@ namespace Oyster\Woo\Checkout;
 use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Support\Scan_Confirmation_Health;
 use Oyster\Woo\Support\Scan_Payment_Methods;
 use Oyster\Woo\Support\Scan_Pricing;
 use WC_Order;
@@ -55,6 +56,24 @@ final class Scan_Payment {
 	/** Option holding the hidden product's id, so it is created only once. */
 	private const PRODUCT_OPTION = 'oyster_woocommerce_scan_product_id';
 
+	/** The last outcome Oyster was successfully told about. */
+	private const ORDER_META_REPORTED = '_oyster_scan_reported';
+
+	private const ORDER_META_ATTEMPTS = '_oyster_scan_confirm_attempts';
+
+	private const STATUS_SUCCESS = 'success';
+
+	public const RETRY_HOOK = 'oyster_woo_retry_scan_confirmation';
+
+	/**
+	 * Spread over most of a day rather than bunched into a few minutes: the
+	 * failures worth retrying are outages and rate limits, and both outlast a
+	 * flurry of attempts a minute apart.
+	 */
+	private const RETRY_DELAYS = array( 5 * MINUTE_IN_SECONDS, 30 * MINUTE_IN_SECONDS, 2 * HOUR_IN_SECONDS, 6 * HOUR_IN_SECONDS );
+
+	private const MAX_CONFIRM_ATTEMPTS = 5;
+
 	public function __construct(
 		private Connection $connection,
 		private Client $client,
@@ -80,6 +99,10 @@ final class Scan_Payment {
 		// gives up, with no idea their payment failed.
 		add_action( 'woocommerce_order_status_cancelled', array( $this, 'on_not_paid' ) );
 		add_action( 'woocommerce_order_status_failed', array( $this, 'on_not_paid' ) );
+
+		// Most orders never transition again after they are paid, so a failure
+		// left to "the next status change" is a failure left forever.
+		add_action( self::RETRY_HOOK, array( $this, 'retry_confirmation' ), 10, 2 );
 	}
 
 	/**
@@ -256,6 +279,16 @@ final class Scan_Payment {
 		$this->confirm( $order_id, 'failed' );
 	}
 
+	/**
+	 * Re-runs a confirmation that failed for a reason worth waiting out.
+	 *
+	 * @param int    $order_id Order to report again.
+	 * @param string $status   'success' or 'failed', as first reported.
+	 */
+	public function retry_confirmation( int $order_id, string $status ): void {
+		$this->confirm( $order_id, $status );
+	}
+
 	private function confirm( int $order_id, string $status ): void {
 		$order = wc_get_order( $order_id );
 		if ( ! $order instanceof WC_Order ) {
@@ -267,14 +300,29 @@ final class Scan_Payment {
 			return; // An ordinary store order, nothing to do with a scan.
 		}
 
-		// WooCommerce fires several of the hooks above for one payment, so
-		// without this a single order would confirm two or three times.
-		if ( '' !== (string) $order->get_meta( self::ORDER_META_CONFIRMED ) ) {
+		// Settled is the only state worth refusing to revisit: reporting one
+		// collection twice would mint a second billable scan from it.
+		//
+		// A FAILED payment is emphatically not final. WooCommerce lets a shopper
+		// pay a failed order, and treating the failure as the last word left them
+		// charged with no scan and no way for anyone to correct it.
+		if ( self::STATUS_SUCCESS === (string) $order->get_meta( self::ORDER_META_CONFIRMED ) ) {
+			return;
+		}
+
+		// WooCommerce fires several of the hooks above for one transition, and
+		// Oyster has no use for the same news twice.
+		if ( $status === (string) $order->get_meta( self::ORDER_META_REPORTED ) ) {
 			return;
 		}
 
 		$bearer = $this->connection->bearer();
 		if ( null === $bearer ) {
+			$this->block_and_note(
+				$order,
+				__( 'Could not tell Oyster about this scan payment: this store is not connected to Oyster.', 'oyster-woocommerce' )
+			);
+
 			return;
 		}
 
@@ -290,28 +338,95 @@ final class Scan_Payment {
 				)
 			);
 		} catch ( Api_Exception $e ) {
-			// Left unmarked so a later status transition on the same order tries
-			// again. The shopper has paid, so silently giving up would leave them
-			// without the scan they bought.
-			$order->add_order_note(
-				sprintf(
-					/* translators: %s: error detail */
-					__( 'Could not tell Oyster this scan payment settled: %s', 'oyster-woocommerce' ),
-					$e->user_message()
-				)
-			);
-			$order->save();
+			$this->handle_confirmation_failure( $order, $order_id, $status, $e );
 
 			return;
 		}
 
-		$order->update_meta_data( self::ORDER_META_CONFIRMED, $status );
+		Scan_Confirmation_Health::clear();
+
+		$order->delete_meta_data( self::ORDER_META_ATTEMPTS );
+		$order->update_meta_data( self::ORDER_META_REPORTED, $status );
+		if ( self::STATUS_SUCCESS === $status ) {
+			$order->update_meta_data( self::ORDER_META_CONFIRMED, $status );
+		}
 		$order->add_order_note(
-			'success' === $status
+			self::STATUS_SUCCESS === $status
 				? __( 'Oyster was told this scan payment settled. The shopper\'s scan is unblocked.', 'oyster-woocommerce' )
 				: __( 'Oyster was told this scan payment did not complete.', 'oyster-woocommerce' )
 		);
 		$order->save();
+	}
+
+	/**
+	 * A refused credential and a timeout look the same at the call site and want
+	 * opposite treatment: one is over until somebody reconnects the store, the
+	 * other is usually gone by the next attempt. Retrying the first forever hides
+	 * it; giving up on the second loses a scan the shopper paid for.
+	 */
+	private function handle_confirmation_failure( WC_Order $order, int $order_id, string $status, Api_Exception $e ): void {
+		$detail = sprintf(
+			/* translators: %s: error detail */
+			__( 'Could not tell Oyster about this scan payment: %s', 'oyster-woocommerce' ),
+			$e->user_message()
+		);
+
+		if ( $e->denies_access() ) {
+			$this->block_and_note(
+				$order,
+				$detail . ' ' . __( 'Reconnect the store on the Oyster screen to fix this.', 'oyster-woocommerce' )
+			);
+
+			return;
+		}
+
+		$attempts = (int) $order->get_meta( self::ORDER_META_ATTEMPTS ) + 1;
+		$order->update_meta_data( self::ORDER_META_ATTEMPTS, $attempts );
+
+		if ( $attempts >= self::MAX_CONFIRM_ATTEMPTS ) {
+			$order->add_order_note(
+				$detail . ' ' . sprintf(
+					/* translators: %d: number of attempts */
+					__( 'Gave up after %d attempts. Contact Oyster support with this order number.', 'oyster-woocommerce' ),
+					$attempts
+				)
+			);
+			$order->save();
+			self::log( sprintf( 'Scan confirmation abandoned for order %d after %d attempts', $order_id, $attempts ) );
+
+			return;
+		}
+
+		wp_schedule_single_event(
+			time() + self::RETRY_DELAYS[ $attempts - 1 ],
+			self::RETRY_HOOK,
+			array( $order_id, $status )
+		);
+
+		$order->add_order_note(
+			$detail . ' ' . sprintf(
+				/* translators: %d: attempt number */
+				__( 'Will try again (attempt %d).', 'oyster-woocommerce' ),
+				$attempts
+			)
+		);
+		$order->save();
+		self::log( sprintf( 'Scan confirmation failed for order %d, retrying (attempt %d)', $order_id, $attempts ) );
+	}
+
+	private function block_and_note( WC_Order $order, string $message ): void {
+		Scan_Confirmation_Health::block( $message );
+
+		$order->add_order_note( $message );
+		$order->save();
+
+		self::log( sprintf( 'Scan confirmation blocked on order %d: %s', $order->get_id(), $message ) );
+	}
+
+	private static function log( string $message ): void {
+		if ( function_exists( 'wc_get_logger' ) ) {
+			wc_get_logger()->warning( $message, array( 'source' => 'oyster-woocommerce' ) );
+		}
 	}
 
 	/**
