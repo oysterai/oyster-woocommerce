@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.18.1
+Stable tag: 0.18.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,33 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.18.2 =
+* Fixed: sales driven by a scan were not being attributed on most stores. If
+  your store uses the newer block checkout, or your shoppers pay by cash on
+  delivery, bank transfer or cheque, those orders never reached your Oyster
+  dashboard at all. Nothing looked wrong along the way: the recommended
+  products went into the cart, the order was placed and paid normally, and the
+  attribution was lost between the two. Both causes are fixed. Attribution now
+  works on the block checkout as well as the classic one, and on every payment
+  method including the offline ones.
+* Orders that were placed before you update cannot be attributed
+  retrospectively, because the scan they came from was never recorded on them.
+  Attribution applies from the update onwards.
+* Paid orders are now reported to Oyster in the background rather than while
+  the shopper is placing the order. Nobody waits on that request at checkout
+  any more, and a report that does not get through is retried instead of
+  abandoned.
+* Fixed: a scan payment this store could not report to Oyster could leave a
+  shopper charged with no scan and no sign of it, on an order that looked paid
+  and complete. Anything that cannot be reported now leaves an order note and
+  a log entry, a payment that failed can still be settled if the shopper pays
+  the order afterwards, and the one problem that does not clear up on its own
+  raises a notice in wp-admin until it does.
+* Fixed: connecting a store to an Oyster account that already has one now
+  reads as the instruction it is, rather than being prefixed as an error. The
+  refusal is deliberate: it stops a new store taking over and leaving the
+  first one with a credential that no longer works.
 
 = 0.18.1 =
 * Fixed: on some themes the scan page rendered as a narrow column with every
