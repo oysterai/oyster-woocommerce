@@ -137,6 +137,13 @@ final class Connect_Screen {
 				// not distinguish these, so neither can we.
 				$this->redirect_back( 'error', __( 'That code was not accepted. Request a new one and try again.', 'oyster-woocommerce' ) );
 			}
+			if ( 409 === $e->status() ) {
+				// Another store already holds this Oyster account. Shown as Oyster
+				// worded it, because it names the store in the way and what to do
+				// about it, and prefixing that with "Oyster returned an error"
+				// turns an instruction into a fault report.
+				$this->redirect_back( 'error', $e->user_message() );
+			}
 			$this->redirect_back( 'error', $this->transport_message( $e ) );
 		}
 
