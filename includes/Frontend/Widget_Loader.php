@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Frontend;
 
+use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Checkout\Scan_Payment;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Url_Guard;
@@ -90,36 +91,29 @@ final class Widget_Loader {
 			'logoUrl'      => $this->connection->logo_url(),
 			'loaderUrl'    => $this->bundle_url(),
 			'app'          => 'woocommerce',
-			// Fallback destination if the checkout handoff (cart/add) fails —
-			// see oyster-loader.js's wooCheckoutHandoff catch handler. Better
-			// than stranding the shopper on the widget with no way forward.
+			// Fallback destination if the checkout handoff fails, rather than
+			// stranding the shopper on the widget with no way forward.
 			'cartUrl'      => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : '',
-			// Where the loader raises a scan-payment order, for vendors set up to
-			// take those payments through this store. Always present: whether it
-			// gets used is Oyster's decision at scan time, not something the
-			// storefront should try to predict.
+			// Named and timed in PHP because the checkout has to read it back, and
+			// a name the two halves disagreed about would fail silently.
+			'scanCookie'   => array(
+				'name' => Order_Attribution::COOKIE_SCAN_BATCH,
+				'days' => Order_Attribution::COOKIE_DAYS,
+			),
+			// Always present: whether it gets used is Oyster's decision at scan
+			// time, not something the storefront should try to predict.
 			//
-			// Root-relative, NOT the absolute URL rest_url() returns. That one is
-			// built from the site's stored home URL, which routinely differs from
-			// the host the shopper is actually on — `127.0.0.1` vs `localhost`, or
-			// www vs bare. The browser treats those as different origins, so the
-			// POST becomes cross-origin, gets a preflight, and WordPress's
-			// canonical redirect answers that preflight with a 302 — which
-			// browsers refuse outright. Relative keeps it same-origin whatever
-			// host the page was served from.
-			//
-			// Still built from rest_url() rather than hard-coded, so a site with a
-			// custom REST prefix keeps working.
+			// Root-relative, not the absolute URL rest_url() returns: that is built
+			// from the stored home URL, which routinely differs from the host the
+			// shopper is on. The POST then becomes cross-origin and WordPress's
+			// canonical redirect answers the preflight with a 302, which browsers
+			// refuse. Still via rest_url() so a custom REST prefix keeps working.
 			'scanPaymentUrl' => wp_make_link_relative( rest_url( 'oyster-woocommerce/v1/scan-payment/create' ) ),
 		);
 
-		// Only when the merchant picked one. The widget treats a colour it is
-		// handed as the storefront deliberately overriding the vendor's own,
-		// and falls back to the colour saved on the Oyster dashboard only when
-		// the page says nothing at all. Sending one unconditionally — which is
-		// what a default here amounts to — is therefore the same as telling the
-		// widget to ignore the dashboard, so a merchant who set their colour
-		// there could never see it take effect.
+		// The widget falls back to the colour saved on the Oyster dashboard only
+		// when the page says nothing, so sending one unconditionally would stop a
+		// merchant's dashboard colour ever taking effect.
 		if ( '' !== $settings['primary_color'] ) {
 			$config['primaryColor'] = $settings['primary_color'];
 		}

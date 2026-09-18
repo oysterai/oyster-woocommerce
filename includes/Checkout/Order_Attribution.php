@@ -13,6 +13,7 @@ use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Sync\Catalog_Sync;
+use Oyster\Woo\Sync\Sync_State;
 use WC_Order;
 
 defined( 'ABSPATH' ) || exit;
@@ -21,30 +22,33 @@ defined( 'ABSPATH' ) || exit;
  * Two hand-offs:
  *
  *   1. Cart -> order: Cart_Filler stamps `oyster_attribution` into the cart item
- *      data it passes to `WC()->cart->add_to_cart()`. WooCommerce round-trips
- *      plain array cart-item data through the session automatically, so no
- *      `woocommerce_get_cart_item_from_session` filter is needed here. At
- *      checkout, `woocommerce_checkout_create_order_line_item` reads the first
- *      cart item carrying attribution ("first item wins" for a cart that mixes
- *      recommended and unrelated products) and stamps it onto order meta.
- *   2. Order -> Oyster: the order reaching a paid state queues a job that
- *      reports it for tracking-only attribution. Guarded by an
- *      `_oyster_order_recorded` meta flag so the several hooks one transition
- *      fires don't report the same order twice.
+ *      data, which WooCommerce round-trips through the session on its own. At
+ *      checkout the first cart item carrying it wins, and the scan cookie stands
+ *      in when no line carries one.
+ *   2. Order -> Oyster: a paid order queues a report, guarded by
+ *      `_oyster_order_recorded` so the several hooks one transition fires do not
+ *      report it twice. An order holding nothing this store has synced cannot be
+ *      attributed by any route, so it is not sent.
  */
 final class Order_Attribution {
 
 	/**
-	 * Public: these three identify the scan a purchase is attributed to and
-	 * are the only personal-data-adjacent fields this plugin adds to an
-	 * order, so Compliance\Gdpr references them directly rather than
-	 * duplicating the string literals.
+	 * Order meta this plugin adds. Public so Compliance\Gdpr can reference them
+	 * rather than repeat the literals.
 	 */
 	public const META_BATCH_ID = '_oyster_batch_id';
 
 	public const META_ROUTINE_ID = '_oyster_routine_id';
 
 	public const META_ATTRIBUTION_ID = '_oyster_widget_attribution_id';
+
+	public const META_BATCH_FROM_COOKIE = '_oyster_batch_from_cookie';
+
+	/** Named in PHP, not JavaScript: the checkout has to read what the storefront wrote. */
+	public const COOKIE_SCAN_BATCH = 'oyster_scan_batch';
+
+	/** Matches the window Oyster uses when matching a shopper to a past scan. */
+	public const COOKIE_DAYS = 90;
 
 	public const HOOK_REPORT_ORDER = 'oyster_woo_report_order';
 
@@ -56,19 +60,14 @@ final class Order_Attribution {
 	) {}
 
 	public function register(): void {
-		// Per line item, not `woocommerce_checkout_create_order`: that hook
-		// fires only in WC_Checkout::create_order(), the classic shortcode
-		// checkout. The Store API behind the block checkout builds its order
-		// directly and never fires it, so a block-checkout store stamped
-		// nothing and every order went unattributed. Both checkouts do run
-		// create_order_line_items(), which is where this fires.
+		// Not `woocommerce_checkout_create_order`: that fires only in the classic
+		// shortcode checkout, never in the Store API behind the block checkout.
+		// Both run create_order_line_items().
 		add_action( 'woocommerce_checkout_create_order_line_item', array( $this, 'stamp_order_meta' ), 10, 4 );
 
-		// Every route to "the shopper has paid", matching Scan_Payment.
-		// payment_complete alone misses every offline gateway: cash on
-		// delivery, bank transfer and cheque move the order straight to
-		// processing/on-hold without ever firing it, as does an admin marking
-		// an order paid by hand.
+		// payment_complete alone misses every offline gateway: cash on delivery,
+		// bank transfer and cheque go straight to processing/on-hold, as does an
+		// admin marking an order paid by hand.
 		add_action( 'woocommerce_payment_complete', array( $this, 'on_paid' ) );
 		add_action( 'woocommerce_order_status_processing', array( $this, 'on_paid' ) );
 		add_action( 'woocommerce_order_status_completed', array( $this, 'on_paid' ) );
@@ -77,18 +76,12 @@ final class Order_Attribution {
 	}
 
 	/**
-	 * Fires once per line item as WooCommerce builds the order from the cart —
-	 * copies whichever cart item carries `oyster_attribution` onto the order as
-	 * its own meta, so it survives independently of the cart.
-	 *
 	 * The Store API rebuilds line items whenever the cart hash changes, so this
-	 * runs repeatedly over a draft order's life. Writing only when the order has
-	 * no batch id yet keeps "first attributed item wins" and stops a later item
-	 * from overwriting the first.
+	 * runs repeatedly over a draft order and every branch below has to be repeatable.
 	 *
-	 * Deliberately order meta, not item meta: Compliance\Gdpr finds and erases
-	 * these through `$order->get_meta()` and a `META_BATCH_ID EXISTS` order
-	 * query, both of which go blind if the stamp moves onto the item.
+	 * Order meta, not item meta: Compliance\Gdpr finds and erases these through
+	 * `$order->get_meta()` and a `META_BATCH_ID EXISTS` query, both of which go
+	 * blind if the stamp moves onto the item.
 	 *
 	 * @param mixed                $item          Order line item being built.
 	 * @param string               $cart_item_key Cart item key it came from.
@@ -100,16 +93,34 @@ final class Order_Attribution {
 			return;
 		}
 
-		if ( $order->get_meta( self::META_BATCH_ID ) ) {
-			return;
-		}
-
 		$attribution = is_array( $values ) ? ( $values['oyster_attribution'] ?? null ) : null;
-		if ( ! is_array( $attribution ) || empty( $attribution['batch_id'] ) ) {
+		$batch_id    = is_array( $attribution ) ? (string) ( $attribution['batch_id'] ?? '' ) : '';
+
+		if ( '' !== $batch_id ) {
+			$this->stamp_from_cart( $order, $batch_id, is_array( $attribution ) ? $attribution : array() );
 			return;
 		}
 
-		$order->update_meta_data( self::META_BATCH_ID, (string) $attribution['batch_id'] );
+		$this->stamp_from_cookie( $order );
+	}
+
+	/**
+	 * A cart stamp outranks a cookie stamp already on the order, whichever line it
+	 * arrives on. Among cart stamps the first still wins.
+	 *
+	 * @param array<string, mixed> $attribution
+	 */
+	private function stamp_from_cart( WC_Order $order, string $batch_id, array $attribution ): void {
+		$already_stamped  = (string) $order->get_meta( self::META_BATCH_ID );
+		$stamped_by_guess = 'yes' === $order->get_meta( self::META_BATCH_FROM_COOKIE );
+
+		if ( '' !== $already_stamped && ! $stamped_by_guess ) {
+			return;
+		}
+
+		$order->delete_meta_data( self::META_BATCH_FROM_COOKIE );
+		$order->update_meta_data( self::META_BATCH_ID, $batch_id );
+
 		if ( ! empty( $attribution['routine_id'] ) ) {
 			$order->update_meta_data( self::META_ROUTINE_ID, (string) $attribution['routine_id'] );
 		}
@@ -119,17 +130,45 @@ final class Order_Attribution {
 	}
 
 	/**
-	 * The order reached a paid state. Queues the report rather than making it
-	 * here: this runs inside the shopper's checkout request, and the API call
-	 * blocks for up to 15 seconds.
+	 * The marker rides along because a browser having scanned is not proof this
+	 * order acted on it: Oyster credits a cookie-borne batch only when the order
+	 * also contains something that scan recommended.
 	 */
-	public function on_paid( int $order_id ): void {
-		$order = wc_get_order( $order_id );
-		if ( ! $order instanceof WC_Order ) {
+	private function stamp_from_cookie( WC_Order $order ): void {
+		if ( $order->get_meta( self::META_BATCH_ID ) ) {
 			return;
 		}
 
-		if ( ! $order->get_meta( self::META_BATCH_ID ) ) {
+		$batch_id = $this->cookie_batch_id();
+		if ( null === $batch_id ) {
+			return;
+		}
+
+		$order->update_meta_data( self::META_BATCH_ID, $batch_id );
+		$order->update_meta_data( self::META_BATCH_FROM_COOKIE, 'yes' );
+	}
+
+	/**
+	 * Read as an untrusted hint, never as an identity: whoever holds the cookie can
+	 * edit it, and a batch id is an opaque token that says nothing to this store
+	 * about the person behind it.
+	 */
+	private function cookie_batch_id(): ?string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading a first-party cookie, not acting on a form submission.
+		$raw = $_COOKIE[ self::COOKIE_SCAN_BATCH ] ?? null;
+		if ( ! is_string( $raw ) || '' === $raw ) {
+			return null;
+		}
+
+		$batch_id = sanitize_text_field( wp_unslash( $raw ) );
+
+		return preg_match( '/^[A-Za-z0-9_-]{1,64}$/', $batch_id ) ? $batch_id : null;
+	}
+
+	/** Queued rather than sent here: this runs inside the shopper's checkout request. */
+	public function on_paid( int $order_id ): void {
+		$order = wc_get_order( $order_id );
+		if ( ! $order instanceof WC_Order ) {
 			return;
 		}
 
@@ -137,14 +176,37 @@ final class Order_Attribution {
 			return;
 		}
 
+		if ( ! $this->is_reportable( $order ) ) {
+			return;
+		}
+
 		$this->enqueue_report( $order_id );
 	}
 
 	/**
-	 * Reports the order to Oyster for tracking-only attribution. Runs from the
-	 * queue, so it re-reads the order and re-checks the guards rather than
-	 * trusting what was true when it was scheduled.
+	 * A stamped order names its scan. An unstamped one is only recognisable through
+	 * a product Oyster recommended, so an order of nothing this store has synced
+	 * stays here.
 	 */
+	private function is_reportable( WC_Order $order ): bool {
+		if ( $order->get_meta( self::META_BATCH_ID ) ) {
+			return true;
+		}
+
+		foreach ( $order->get_items() as $item ) {
+			if ( ! $item instanceof \WC_Order_Item_Product ) {
+				continue;
+			}
+
+			if ( Sync_State::is_synced( (int) $item->get_product_id() ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/** Runs from the queue, so it re-reads the order and re-checks the guards. */
 	public function report_paid_order( int $order_id ): void {
 		$bearer = $this->connection->bearer();
 		if ( ! $bearer ) {
@@ -156,17 +218,16 @@ final class Order_Attribution {
 			return;
 		}
 
-		$batch_id = $order->get_meta( self::META_BATCH_ID );
-		if ( ! $batch_id ) {
-			return;
-		}
-
 		if ( 'yes' === $order->get_meta( self::META_RECORDED ) ) {
 			return;
 		}
 
+		if ( ! $this->is_reportable( $order ) ) {
+			return;
+		}
+
 		try {
-			$this->client->record_order( $bearer, $this->build_payload( $order, (string) $batch_id ) );
+			$this->client->record_order( $bearer, $this->build_payload( $order ) );
 		} catch ( Api_Exception $e ) {
 			// Left un-flagged so a later paid-status transition, or an Action
 			// Scheduler retry, can still succeed.
@@ -179,9 +240,8 @@ final class Order_Attribution {
 	}
 
 	/**
-	 * One transition fires several of the hooks above, so check for an already
-	 * queued job as well as the recorded flag — the flag is only set once the
-	 * report succeeds, which is after all of them have run.
+	 * One transition fires several of the hooks above, and the recorded flag is only
+	 * set once the report succeeds, after all of them have run.
 	 */
 	private function enqueue_report( int $order_id ): void {
 		$args = array( 'order_id' => $order_id );
@@ -200,10 +260,8 @@ final class Order_Attribution {
 		as_enqueue_async_action( self::HOOK_REPORT_ORDER, $args, Catalog_Sync::ACTION_GROUP );
 	}
 
-	/**
-	 * @return array<string, mixed>
-	 */
-	private function build_payload( WC_Order $order, string $batch_id ): array {
+	/** @return array<string, mixed> */
+	private function build_payload( WC_Order $order ): array {
 		$line_items = array();
 		foreach ( $order->get_items() as $item ) {
 			if ( ! $item instanceof \WC_Order_Item_Product ) {
@@ -222,15 +280,20 @@ final class Order_Attribution {
 			);
 		}
 
-		$routine_id = $order->get_meta( self::META_ROUTINE_ID );
+		$batch_id       = (string) $order->get_meta( self::META_BATCH_ID );
+		$routine_id     = $order->get_meta( self::META_ROUTINE_ID );
 		$attribution_id = $order->get_meta( self::META_ATTRIBUTION_ID );
-		$placed_at = $order->get_date_created();
+		$placed_at      = $order->get_date_created();
+
+		// Absent means the batch came from the cart, so a false would say nothing.
+		$from_cookie = 'yes' === $order->get_meta( self::META_BATCH_FROM_COOKIE ) ? true : null;
 
 		return array_filter(
 			array(
 				'woocommerce_order_id'     => (string) $order->get_id(),
 				'woocommerce_order_number' => $order->get_order_number(),
-				'oyster_batch_id'          => $batch_id,
+				'oyster_batch_id'          => '' !== $batch_id ? $batch_id : null,
+				'batch_from_cookie'        => $from_cookie,
 				'oyster_routine_id'        => $routine_id ?: null,
 				'widget_attribution_id'    => $attribution_id ?: null,
 				'currency'                 => $order->get_currency(),
