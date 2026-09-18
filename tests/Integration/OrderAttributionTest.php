@@ -17,21 +17,9 @@ use WP_UnitTestCase;
  *
  * Both halves shipped broken and neither was caught, because both failures are
  * invisible from inside the plugin: the cart was stamped correctly, the order
- * was created correctly, and the attribution simply evaporated in between.
- *
- *   - Stamping hung off `woocommerce_checkout_create_order`, which only the
- *     classic shortcode checkout fires. The Store API behind the block checkout
- *     builds its order without it, so those stores stamped nothing at all.
- *   - Reporting hung off `woocommerce_payment_complete`, which no offline
- *     gateway fires — cash on delivery and bank transfer move an order straight
- *     to processing instead.
- *
- * So these tests go through WooCommerce's own order-building call rather than a
- * double, and cover a gateway that never reports payment.
- *
- * The rest cover attribution reaching orders the shopper never started in the
- * widget: a scan remembered on their browser, and reporting a paid order that
- * carries no stamp at all so Oyster can try to recognise the shopper itself.
+ * was created correctly, and the attribution evaporated in between. So these
+ * tests go through WooCommerce's own order-building call rather than a double,
+ * and cover a gateway that never reports payment.
  */
 final class OrderAttributionTest extends WP_UnitTestCase {
 
@@ -98,11 +86,6 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		$this->assertSame( '', (string) $order->get_meta( Order_Attribution::META_BATCH_ID ) );
 	}
 
-	/**
-	 * A cart that mixes a recommended product with something the shopper found
-	 * on their own is attributed to the scan, not to whichever line WooCommerce
-	 * happened to build last.
-	 */
 	public function test_the_first_attributed_item_wins(): void {
 		$this->add_to_cart( $this->product(), $this->attribution() );
 		$this->add_to_cart( $this->product( 'Unrelated' ), $this->attribution( 'a-later-batch' ) );
@@ -112,12 +95,7 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		$this->assertSame( self::BATCH, $order->get_meta( Order_Attribution::META_BATCH_ID ) );
 	}
 
-	/**
-	 * The Store API throws away and rebuilds an order's line items every time
-	 * the cart hash changes, so this hook runs repeatedly over one draft order's
-	 * life. Re-stamping on each pass would let a late edit rewrite the scan the
-	 * purchase is credited to.
-	 */
+	/** The Store API rebuilds line items every time the cart hash changes. */
 	public function test_rebuilding_the_line_items_does_not_move_the_stamp(): void {
 		$this->add_to_cart( $this->product(), $this->attribution() );
 		$order = $this->build_order();
@@ -130,11 +108,7 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		$this->assertSame( self::BATCH, $order->get_meta( Order_Attribution::META_BATCH_ID ) );
 	}
 
-	/**
-	 * The offline-gateway case. Cash on delivery never calls payment_complete —
-	 * it moves the order to processing itself — so an order paid that way used
-	 * to be stamped and then never reported to anyone.
-	 */
+	/** Cash on delivery moves the order to processing itself. */
 	public function test_an_order_that_never_fires_payment_complete_is_still_queued(): void {
 		$order = $this->paid_order_via_offline_gateway();
 
@@ -145,9 +119,8 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * One status change fires several of the hooks the plugin listens on, and
-	 * the recorded flag is only set once the report succeeds — so the queue
-	 * itself has to be what stops the same order being reported twice.
+	 * One status change fires several of the hooks the plugin listens on, and the
+	 * recorded flag is only set once the report succeeds.
 	 */
 	public function test_a_second_paid_transition_does_not_queue_a_duplicate(): void {
 		$order = $this->paid_order_via_offline_gateway();
@@ -184,11 +157,7 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		$this->assertSame( 'yes', $order->get_meta( Order_Attribution::META_BATCH_FROM_COOKIE ) );
 	}
 
-	/**
-	 * The cookie only says this browser scanned at some point. A cart built from
-	 * the scan itself says the shopper acted on it, so it has to win even when
-	 * the weaker claim got there first.
-	 */
+	/** The weaker claim has to lose even when it got there first. */
 	public function test_a_cart_stamp_overrides_a_cookie_already_on_the_order(): void {
 		$this->remember_scan( 'an-older-scan' );
 		$this->add_to_cart( $this->product( 'Unrelated' ) );
@@ -229,12 +198,7 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 	 * -----------------------------------------------------------------------
 	 */
 
-	/**
-	 * The shopper scanned, closed the widget, and bought through the store's own
-	 * pages on another device, so nothing on the order names the scan. Oyster is
-	 * the only side that can tell whether this order belongs to one of its
-	 * shoppers, which it cannot do for an order it never sees.
-	 */
+	/** Oyster is the only side that can tell whether an unstamped order is one of its own. */
 	public function test_an_unstamped_order_containing_a_synced_product_is_queued(): void {
 		$product = $this->product();
 		Sync_State::mark_synced( $product->get_id(), 'oyster-123', time() );
@@ -244,12 +208,7 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		$this->assertNotEmpty( $this->queued_report_for( $order->get_id() ) );
 	}
 
-	/**
-	 * The counterpart, and the reason the store is not simply told to send
-	 * everything: an order of products Oyster has never seen cannot be
-	 * attributed by any route, so sending it would only hand over a shopper's
-	 * basket for nothing.
-	 */
+	/** The reason the store is not simply told to send everything. */
 	public function test_an_unstamped_order_of_products_oyster_does_not_know_is_not_queued(): void {
 		$order = $this->paid_order_containing( $this->product( 'Never synced' ) );
 
@@ -312,11 +271,7 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		return $order;
 	}
 
-	/**
-	 * Write the cookie the storefront loader sets when a scan finishes. $_COOKIE
-	 * is what the checkout reads, and in a request that never had headers it is
-	 * the only place to put it.
-	 */
+	/** $_COOKIE is what the checkout reads, and a request with no headers has nowhere else. */
 	private function remember_scan( string $batch = self::BATCH ): void {
 		$_COOKIE[ Order_Attribution::COOKIE_SCAN_BATCH ] = $batch;
 	}

@@ -1,19 +1,11 @@
 /**
  * Storefront loader for the Oyster widget on WooCommerce.
  *
- * Config isn't fetched client-side — the PHP plugin injects it inline as
- * `window.OysterWooConfig` because it runs server-side and already holds the
- * vendor's public key. This script just:
- *
- *   1. Reads the injected config (publicKey, loaderUrl, and primaryColor only
- *      if the merchant set one).
- *   2. Finds each anchor a block/launcher/shortcode emitted.
- *   3. Loads vendor-widget-web's UMD bundle and calls createScanWidget().
- *   4. Writes a first-party cookie when a scan finishes, so a purchase made
- *      later through the store's own pages can still be traced back to it.
+ * Config is injected inline as `window.OysterWooConfig` rather than fetched:
+ * the PHP side runs server-side and already holds the vendor's public key.
  *
  * Failure paths console.warn for self-diagnosis but never render fallback UI on
- * the storefront — a half-set-up install must not leak errors to shoppers.
+ * the storefront, so a half-set-up install cannot leak errors to shoppers.
  */
 (function () {
   var DEFAULT_WIDGET_BUNDLE =
@@ -24,11 +16,9 @@
   }
 
   /**
-   * Last resort when the checkout handoff can't complete (network error,
-   * non-2xx from /cart/add, or a malformed response) — sends the shopper to
-   * a real page instead of leaving them stuck watching the widget with no
-   * feedback and no way forward. `?oyster_checkout_error=1` lets
-   * Cart_Controller surface an actual WooCommerce notice on arrival.
+   * Last resort when the checkout handoff cannot complete: a shopper left
+   * watching the widget gets no feedback and no way forward. The query flag is
+   * what lets Cart_Controller surface a real WooCommerce notice on arrival.
    */
   function redirectToFallback() {
     var base = config().cartUrl || '/'
@@ -54,9 +44,8 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(body),
-      // The plugin's cart-add endpoint mutates the visitor's own WooCommerce
-      // cart session — the session cookie must ride along, and it must
-      // survive into the checkout-page request the redirect below triggers.
+      // The cart session cookie has to ride along and survive into the
+      // checkout-page request the redirect triggers.
       credentials: 'same-origin',
     }).then(function (res) {
       if (!res.ok) throw new Error(url + ' -> ' + res.status)
@@ -65,21 +54,9 @@
   }
 
   /**
-   * Handles the widget's `checkout` event payload (CheckoutPayload):
-   *   {
-   *     total_quantity, total_amount, currency,
-   *     checkout_items: [{
-   *       product_id (Oyster id), product_name, quantity, sku,
-   *       skin_analysis_batch_id, product_usage_routine_id, ...
-   *     }],
-   *     user?: { id?, email?, ... }
-   *   }
-   *
-   * This never resolves Oyster ids or calls Oyster's API directly from the
-   * browser — that would require exposing the vendor bearer client-side.
-   * Instead the whole handoff (resolve + add to cart + attribution) happens
-   * server-side in the plugin's own `/cart/add` REST route; this function
-   * just builds that request and follows the redirect it returns.
+   * Nothing is resolved against Oyster from the browser: that would mean
+   * exposing the vendor bearer client-side. The whole handoff happens in the
+   * plugin's own `/cart/add` route, and this only follows the redirect.
    */
   function wooCheckoutHandoff(payload) {
     console.debug('[oyster] checkout handoff', payload)
@@ -105,9 +82,7 @@
       return
     }
 
-    // Attribution fields all live on the per-item record — the first item is
-    // authoritative for a cart that happens to mix recommended + unrelated
-    // products.
+    // First item wins for a cart mixing recommended and unrelated products.
     var firstItem = items[0] || {}
     var batchId = firstItem.skin_analysis_batch_id || null
     var routineId = firstItem.product_usage_routine_id || null
@@ -130,8 +105,7 @@
         if (result && result.redirect) {
           window.location.href = result.redirect
         } else {
-          // 2xx with no redirect shouldn't happen, but don't strand the
-          // shopper on a silently-broken widget if it does.
+          // Shouldn't happen, but don't strand the shopper if it does.
           console.warn('[oyster] cart/add succeeded but returned no redirect')
           redirectToFallback()
         }
@@ -143,14 +117,9 @@
   }
 
   /**
-   * Remember that this browser ran a scan, so a shopper who closes the widget
-   * and buys through the store's own pages can still be connected to it at
-   * checkout. First-party, same-site, and holds nothing but the opaque batch
-   * id the widget is already working with.
-   *
-   * PHP owns the name and lifetime (OysterWooConfig.scanCookie) because the
-   * checkout is what reads this back. Nothing is written if the config is
-   * missing, which is what an older plugin version looks like from here.
+   * Holds nothing but the opaque batch id the widget is already working with.
+   * PHP owns the name and lifetime because the checkout is what reads it back,
+   * so a missing config (an older plugin) writes nothing.
    */
   function rememberScan(batchId) {
     var cookie = config().scanCookie
@@ -175,9 +144,8 @@
 
     if (message.event === 'scanCompleted') {
       var scan = message.data || {}
-      // Both spellings: the published type says batch_id and that is what the
-      // widget sends, but the pair have drifted apart before and a missed
-      // cookie here is invisible until attribution is quietly short.
+      // Both spellings: the two have drifted apart before, and a missed cookie
+      // is invisible until attribution is quietly short.
       rememberScan(scan.batch_id || scan.batchId || null)
       return
     }
@@ -187,15 +155,11 @@
   }
 
   /**
-   * Collect a scan payment through this store's checkout.
+   * Only ever called for vendors set up to take scan payments themselves.
    *
-   * Only ever called for vendors set up to take scan payments themselves; for
-   * everyone else the widget opens Oyster's checkout and this never runs.
-   *
-   * Raises a pending order server-side and sends the shopper to pay for it. What
-   * we return here only moves the widget's UI along — the scan is unblocked when
-   * the order actually reaches a paid state and the plugin says so from PHP, with
-   * a credential that never touches this page.
+   * What is returned here only moves the widget's UI along: the scan is
+   * unblocked when the order reaches a paid state and PHP says so, with a
+   * credential that never touches this page.
    */
   function collectScanPayment(request) {
     var cfg = config()
@@ -223,9 +187,7 @@
       .catch(function (err) {
         console.error('[oyster] scan payment could not be started', err)
 
-        // Answer rather than going quiet: a shopper left waiting on a silent
-        // handler sits through the widget's full timeout before being told
-        // anything went wrong.
+        // A silent handler leaves the shopper through the widget's full timeout.
         return { status: 'failed', reason: 'Could not start the payment.' }
       })
   }
@@ -254,9 +216,8 @@
           app: 'woocommerce',
         }
 
-        // Left unset unless the merchant chose a colour. The widget applies
-        // the vendor's dashboard colour only for options the host omits, so a
-        // default here would silently outrank it on every page.
+        // The widget applies the vendor's dashboard colour only for options the
+        // host omits, so a default here would silently outrank it everywhere.
         var primaryColor = anchor.dataset.primaryColor || cfg.primaryColor
         if (primaryColor) options.primaryColor = primaryColor
 

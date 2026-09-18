@@ -15,20 +15,13 @@ use WC_Order;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The plugin's connection settings (business name, public key, primary
- * color, ...) are store *configuration*, not a data subject's personal data
- * — they aren't in scope for WordPress's personal-data export/erase tools.
- * The only personal-data-adjacent fields this plugin adds anywhere are the
- * order-meta keys Order_Attribution stamps onto a WooCommerce order (batch id,
- * routine id, widget attribution id, and whether the batch id was remembered
- * on the shopper's browser) — WooCommerce's own order data is already covered
- * by its own privacy handling, so this class only needs to surface/remove the
- * extra fields we bolted on.
+ * Scope is the order meta Order_Attribution stamps, and nothing else: the
+ * plugin's connection settings are store configuration rather than a data
+ * subject's personal data, and WooCommerce covers its own order data.
  *
- * Registered via WordPress core's own privacy-tools hooks (Tools > Export/
- * Erase Personal Data), not any WooCommerce-specific extension point — core
- * hooks are stable public API, and both `wp_privacy_personal_data_exporters`
- * and `_erasers` fire from admin-ajax.php requests, which are `is_admin()`.
+ * Registered on WordPress core's privacy-tools hooks rather than any
+ * WooCommerce extension point: core hooks are stable public API, and both fire
+ * from admin-ajax.php requests, which are `is_admin()`.
  */
 final class Gdpr {
 
