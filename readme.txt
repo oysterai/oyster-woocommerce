@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.18.2
+Stable tag: 0.19.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,21 +41,38 @@ Features:
 
 == Privacy ==
 
-This plugin adds a small amount of information to a WooCommerce order when it's attributed
-to an Oyster skin scan: a batch id, a routine id, and a widget attribution id (all opaque
-identifiers, not personal data on their own). These are included in WordPress's built-in
-**Tools → Export Personal Data** and **Tools → Erase Personal Data** requests alongside the
-rest of that order's data. Your Oyster vendor connection settings (business name, widget
-keys, storefront URL) are store configuration, not customer data, and aren't part of these
-requests.
+**Added to orders.** When an order is attributed to an Oyster skin scan, the plugin stores
+a batch id, a routine id, and a widget attribution id on it (all opaque identifiers, not
+personal data on their own), plus a note when the scan was matched from the shopper's
+browser rather than from a checkout they started in the widget. These are included in
+WordPress's built-in **Tools → Export Personal Data** and **Tools → Erase Personal Data**
+requests alongside the rest of that order's data.
+
+**Cookie.** When a shopper completes a scan, the plugin stores the scan's batch id in a
+first-party cookie named `oyster_scan_batch` for 90 days. It holds nothing but that opaque
+id, is never sent to any third party by the browser, and exists so a shopper who scans and
+then buys through your normal store pages is still credited to the scan. If you run a
+consent banner, this is the cookie to list. Shoppers who block or clear it simply aren't
+matched that way.
+
+**Sent to Oyster.** Once an order is paid, the plugin sends it to Oyster so the purchase can
+be attributed: the order id and number, its line items, totals and currency, the billing
+email, and any scan identifiers above. Orders containing none of the products you have synced
+to Oyster are not sent at all. Oyster uses the email only to look up a shopper who has
+already scanned with you; it does not create an account from it, and an order it cannot
+attribute is discarded.
+
+**Not customer data.** Your Oyster vendor connection settings (business name, widget keys,
+storefront URL) are store configuration and aren't part of export or erase requests.
 
 == External services ==
 
 This plugin connects to Oyster's API (https://api.oysterskin.com) to authenticate your
-vendor account and load your widget configuration, and loads the Oyster widget bundle
-from https://widget-lib.oysterskin.com on your storefront. Your Oyster account
-credentials are used only to obtain an access token, which is stored encrypted on your
-site. See https://oysterskin.com/privacy for Oyster's privacy policy and
+vendor account, load your widget configuration, sync the products you choose, and report
+paid orders for attribution (see **Privacy** above for exactly what an order sends). It
+loads the Oyster widget bundle from https://widget-lib.oysterskin.com on your storefront.
+Your Oyster account credentials are used only to obtain an access token, which is stored
+encrypted on your site. See https://oysterskin.com/privacy for Oyster's privacy policy and
 https://oysterskin.com/terms for terms of service.
 
 == Installation ==
@@ -69,6 +86,39 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.19.0 =
+* **Sales that came from a scan now count even when the shopper did not check
+  out from the widget.** Attribution only ever credited someone who pressed
+  Checkout inside the scan itself. A shopper who scanned, closed the widget,
+  and then bought a recommended product through your normal store pages
+  counted as nobody, which is most of them. Those purchases are now credited
+  to the scan that recommended them.
+* Two things make that work. When a scan finishes, the plugin remembers it in
+  a first-party cookie on that shopper's browser, and an order placed later
+  from the same browser is matched back to it. Separately, every paid order
+  containing a product you have synced to Oyster is now reported, so a shopper
+  Oyster already recognises can be credited even from a different device.
+* A purchase is only ever credited when the order contains something that scan
+  recommended. Knowing that a browser scanned is not the same as knowing the
+  purchase came from it, and Oyster makes that judgement rather than the
+  plugin assuming it. Orders made up entirely of products you have not synced
+  are still never sent, since nothing in them could be attributed.
+* Attribution applies to orders placed from the update onwards. An order
+  already in your store cannot be credited retrospectively, because nothing
+  recorded the scan against it at the time.
+* **If you run a consent banner, there is a new cookie to list:**
+  `oyster_scan_batch`, first-party, 90 days. It holds one opaque scan id and
+  nothing else. A shopper who blocks or clears it is simply not matched that
+  way, and nothing else about your store changes.
+* The **Privacy** and **External services** sections of this readme now set out
+  exactly what a paid order sends to Oyster and what the cookie holds. Paid
+  orders were already being reported before this release without being
+  described there, so that is a gap in the disclosure being closed, not a
+  change in what the plugin does.
+* Fixed: uninstalling the plugin left two of its own settings behind in the
+  database, the catalog sync filter and the setup guide's progress. Both are
+  removed on uninstall now.
 
 = 0.18.2 =
 * Fixed: sales driven by a scan were not being attributed on most stores. If

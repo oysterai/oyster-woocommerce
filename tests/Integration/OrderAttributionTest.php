@@ -6,6 +6,7 @@ namespace Oyster\Woo\Tests\Integration;
 
 use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Sync\Catalog_Sync;
+use Oyster\Woo\Sync\Sync_State;
 use WC_Order;
 use WC_Product_Simple;
 use WP_UnitTestCase;
@@ -16,17 +17,9 @@ use WP_UnitTestCase;
  *
  * Both halves shipped broken and neither was caught, because both failures are
  * invisible from inside the plugin: the cart was stamped correctly, the order
- * was created correctly, and the attribution simply evaporated in between.
- *
- *   - Stamping hung off `woocommerce_checkout_create_order`, which only the
- *     classic shortcode checkout fires. The Store API behind the block checkout
- *     builds its order without it, so those stores stamped nothing at all.
- *   - Reporting hung off `woocommerce_payment_complete`, which no offline
- *     gateway fires — cash on delivery and bank transfer move an order straight
- *     to processing instead.
- *
- * So these tests go through WooCommerce's own order-building call rather than a
- * double, and cover a gateway that never reports payment.
+ * was created correctly, and the attribution evaporated in between. So these
+ * tests go through WooCommerce's own order-building call rather than a double,
+ * and cover a gateway that never reports payment.
  */
 final class OrderAttributionTest extends WP_UnitTestCase {
 
@@ -50,6 +43,8 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		if ( WC()->cart ) {
 			WC()->cart->empty_cart();
 		}
+
+		unset( $_COOKIE[ Order_Attribution::COOKIE_SCAN_BATCH ] );
 
 		parent::tear_down();
 	}
@@ -91,11 +86,6 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		$this->assertSame( '', (string) $order->get_meta( Order_Attribution::META_BATCH_ID ) );
 	}
 
-	/**
-	 * A cart that mixes a recommended product with something the shopper found
-	 * on their own is attributed to the scan, not to whichever line WooCommerce
-	 * happened to build last.
-	 */
 	public function test_the_first_attributed_item_wins(): void {
 		$this->add_to_cart( $this->product(), $this->attribution() );
 		$this->add_to_cart( $this->product( 'Unrelated' ), $this->attribution( 'a-later-batch' ) );
@@ -105,12 +95,7 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		$this->assertSame( self::BATCH, $order->get_meta( Order_Attribution::META_BATCH_ID ) );
 	}
 
-	/**
-	 * The Store API throws away and rebuilds an order's line items every time
-	 * the cart hash changes, so this hook runs repeatedly over one draft order's
-	 * life. Re-stamping on each pass would let a late edit rewrite the scan the
-	 * purchase is credited to.
-	 */
+	/** The Store API rebuilds line items every time the cart hash changes. */
 	public function test_rebuilding_the_line_items_does_not_move_the_stamp(): void {
 		$this->add_to_cart( $this->product(), $this->attribution() );
 		$order = $this->build_order();
@@ -123,11 +108,7 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		$this->assertSame( self::BATCH, $order->get_meta( Order_Attribution::META_BATCH_ID ) );
 	}
 
-	/**
-	 * The offline-gateway case. Cash on delivery never calls payment_complete —
-	 * it moves the order to processing itself — so an order paid that way used
-	 * to be stamped and then never reported to anyone.
-	 */
+	/** Cash on delivery moves the order to processing itself. */
 	public function test_an_order_that_never_fires_payment_complete_is_still_queued(): void {
 		$order = $this->paid_order_via_offline_gateway();
 
@@ -138,9 +119,8 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * One status change fires several of the hooks the plugin listens on, and
-	 * the recorded flag is only set once the report succeeds — so the queue
-	 * itself has to be what stops the same order being reported twice.
+	 * One status change fires several of the hooks the plugin listens on, and the
+	 * recorded flag is only set once the report succeeds.
 	 */
 	public function test_a_second_paid_transition_does_not_queue_a_duplicate(): void {
 		$order = $this->paid_order_via_offline_gateway();
@@ -156,6 +136,89 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 	public function test_an_unattributed_order_is_never_queued(): void {
 		$order = wc_create_order();
 		$order->set_payment_method( 'cod' );
+		$order->update_status( 'processing' );
+
+		$this->assertSame( array(), $this->queued_report_for( $order->get_id() ) );
+	}
+
+	/*
+	 * -----------------------------------------------------------------------
+	 * A scan remembered on the shopper's browser
+	 * -----------------------------------------------------------------------
+	 */
+
+	public function test_an_unstamped_cart_falls_back_to_the_scan_cookie(): void {
+		$this->remember_scan();
+		$this->add_to_cart( $this->product() );
+
+		$order = $this->build_order();
+
+		$this->assertSame( self::BATCH, $order->get_meta( Order_Attribution::META_BATCH_ID ) );
+		$this->assertSame( 'yes', $order->get_meta( Order_Attribution::META_BATCH_FROM_COOKIE ) );
+	}
+
+	/** The weaker claim has to lose even when it got there first. */
+	public function test_a_cart_stamp_overrides_a_cookie_already_on_the_order(): void {
+		$this->remember_scan( 'an-older-scan' );
+		$this->add_to_cart( $this->product( 'Unrelated' ) );
+		$this->add_to_cart( $this->product(), $this->attribution() );
+
+		$order = $this->build_order();
+
+		$this->assertSame( self::BATCH, $order->get_meta( Order_Attribution::META_BATCH_ID ) );
+		$this->assertSame(
+			'',
+			$order->get_meta( Order_Attribution::META_BATCH_FROM_COOKIE ),
+			'the marker must go with the guess it described'
+		);
+	}
+
+	public function test_a_cookie_never_overrides_a_cart_stamp(): void {
+		$this->remember_scan( 'an-older-scan' );
+		$this->add_to_cart( $this->product(), $this->attribution() );
+		$this->add_to_cart( $this->product( 'Unrelated' ) );
+
+		$order = $this->build_order();
+
+		$this->assertSame( self::BATCH, $order->get_meta( Order_Attribution::META_BATCH_ID ) );
+	}
+
+	public function test_a_malformed_cookie_is_not_stamped(): void {
+		$this->remember_scan( 'not a batch id<script>' );
+		$this->add_to_cart( $this->product() );
+
+		$order = $this->build_order();
+
+		$this->assertSame( '', $order->get_meta( Order_Attribution::META_BATCH_ID ) );
+	}
+
+	/*
+	 * -----------------------------------------------------------------------
+	 * Reporting an order that carries no stamp
+	 * -----------------------------------------------------------------------
+	 */
+
+	/** Oyster is the only side that can tell whether an unstamped order is one of its own. */
+	public function test_an_unstamped_order_containing_a_synced_product_is_queued(): void {
+		$product = $this->product();
+		Sync_State::mark_synced( $product->get_id(), 'oyster-123', time() );
+
+		$order = $this->paid_order_containing( $product );
+
+		$this->assertNotEmpty( $this->queued_report_for( $order->get_id() ) );
+	}
+
+	/** The reason the store is not simply told to send everything. */
+	public function test_an_unstamped_order_of_products_oyster_does_not_know_is_not_queued(): void {
+		$order = $this->paid_order_containing( $this->product( 'Never synced' ) );
+
+		$this->assertSame( array(), $this->queued_report_for( $order->get_id() ) );
+	}
+
+	public function test_an_order_with_no_items_at_all_is_not_queued(): void {
+		$order = wc_create_order();
+		$order->set_payment_method( 'cod' );
+		$order->save();
 		$order->update_status( 'processing' );
 
 		$this->assertSame( array(), $this->queued_report_for( $order->get_id() ) );
@@ -204,6 +267,23 @@ final class OrderAttributionTest extends WP_UnitTestCase {
 		$order = wc_create_order();
 		WC()->checkout->create_order_line_items( $order, WC()->cart );
 		$order->save();
+
+		return $order;
+	}
+
+	/** $_COOKIE is what the checkout reads, and a request with no headers has nowhere else. */
+	private function remember_scan( string $batch = self::BATCH ): void {
+		$_COOKIE[ Order_Attribution::COOKIE_SCAN_BATCH ] = $batch;
+	}
+
+	private function paid_order_containing( WC_Product_Simple $product ): WC_Order {
+		$this->add_to_cart( $product );
+
+		$order = $this->build_order();
+		$order->set_payment_method( 'cod' );
+		$order->save();
+
+		$order->update_status( 'processing' );
 
 		return $order;
 	}
