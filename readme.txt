@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.18.2
+Stable tag: 0.19.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -86,6 +86,39 @@ https://oysterskin.com/terms for terms of service.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
 == Changelog ==
+
+= 0.19.0 =
+* **Sales that came from a scan now count even when the shopper did not check
+  out from the widget.** Attribution only ever credited someone who pressed
+  Checkout inside the scan itself. A shopper who scanned, closed the widget,
+  and then bought a recommended product through your normal store pages
+  counted as nobody, which is most of them. Those purchases are now credited
+  to the scan that recommended them.
+* Two things make that work. When a scan finishes, the plugin remembers it in
+  a first-party cookie on that shopper's browser, and an order placed later
+  from the same browser is matched back to it. Separately, every paid order
+  containing a product you have synced to Oyster is now reported, so a shopper
+  Oyster already recognises can be credited even from a different device.
+* A purchase is only ever credited when the order contains something that scan
+  recommended. Knowing that a browser scanned is not the same as knowing the
+  purchase came from it, and Oyster makes that judgement rather than the
+  plugin assuming it. Orders made up entirely of products you have not synced
+  are still never sent, since nothing in them could be attributed.
+* Attribution applies to orders placed from the update onwards. An order
+  already in your store cannot be credited retrospectively, because nothing
+  recorded the scan against it at the time.
+* **If you run a consent banner, there is a new cookie to list:**
+  `oyster_scan_batch`, first-party, 90 days. It holds one opaque scan id and
+  nothing else. A shopper who blocks or clears it is simply not matched that
+  way, and nothing else about your store changes.
+* The **Privacy** and **External services** sections of this readme now set out
+  exactly what a paid order sends to Oyster and what the cookie holds. Paid
+  orders were already being reported before this release without being
+  described there, so that is a gap in the disclosure being closed, not a
+  change in what the plugin does.
+* Fixed: uninstalling the plugin left two of its own settings behind in the
+  database, the catalog sync filter and the setup guide's progress. Both are
+  removed on uninstall now.
 
 = 0.18.2 =
 * Fixed: sales driven by a scan were not being attributed on most stores. If
