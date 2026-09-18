@@ -9,6 +9,8 @@
  *      if the merchant set one).
  *   2. Finds each anchor a block/launcher/shortcode emitted.
  *   3. Loads vendor-widget-web's UMD bundle and calls createScanWidget().
+ *   4. Writes a first-party cookie when a scan finishes, so a purchase made
+ *      later through the store's own pages can still be traced back to it.
  *
  * Failure paths console.warn for self-diagnosis but never render fallback UI on
  * the storefront — a half-set-up install must not leak errors to shoppers.
@@ -140,9 +142,47 @@
       })
   }
 
+  /**
+   * Remember that this browser ran a scan, so a shopper who closes the widget
+   * and buys through the store's own pages can still be connected to it at
+   * checkout. First-party, same-site, and holds nothing but the opaque batch
+   * id the widget is already working with.
+   *
+   * PHP owns the name and lifetime (OysterWooConfig.scanCookie) because the
+   * checkout is what reads this back. Nothing is written if the config is
+   * missing, which is what an older plugin version looks like from here.
+   */
+  function rememberScan(batchId) {
+    var cookie = config().scanCookie
+    if (!cookie || !cookie.name || !batchId) return
+
+    var maxAge = (cookie.days || 90) * 24 * 60 * 60
+    var secure = window.location.protocol === 'https:' ? '; Secure' : ''
+
+    document.cookie =
+      encodeURIComponent(cookie.name) +
+      '=' +
+      encodeURIComponent(batchId) +
+      '; Max-Age=' +
+      maxAge +
+      '; Path=/; SameSite=Lax' +
+      secure
+  }
+
   function widgetCallback(message) {
     console.debug('[oyster] widget callback', message)
-    if (!message || message.event !== 'checkout') return
+    if (!message) return
+
+    if (message.event === 'scanCompleted') {
+      var scan = message.data || {}
+      // Both spellings: the published type says batch_id and that is what the
+      // widget sends, but the pair have drifted apart before and a missed
+      // cookie here is invisible until attribution is quietly short.
+      rememberScan(scan.batch_id || scan.batchId || null)
+      return
+    }
+
+    if (message.event !== 'checkout') return
     wooCheckoutHandoff(message.data || {})
   }
 

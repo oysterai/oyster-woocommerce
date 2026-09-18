@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Oyster\Woo\Frontend;
 
+use Oyster\Woo\Checkout\Order_Attribution;
 use Oyster\Woo\Checkout\Scan_Payment;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Url_Guard;
@@ -94,6 +95,13 @@ final class Widget_Loader {
 			// see oyster-loader.js's wooCheckoutHandoff catch handler. Better
 			// than stranding the shopper on the widget with no way forward.
 			'cartUrl'      => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : '',
+			// The cookie the loader writes when a scan finishes. Named and timed
+			// in PHP because the checkout is what has to read it back, and a name
+			// the two halves disagreed about would fail silently.
+			'scanCookie'   => array(
+				'name' => Order_Attribution::COOKIE_SCAN_BATCH,
+				'days' => Order_Attribution::COOKIE_DAYS,
+			),
 			// Where the loader raises a scan-payment order, for vendors set up to
 			// take those payments through this store. Always present: whether it
 			// gets used is Oyster's decision at scan time, not something the

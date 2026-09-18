@@ -19,10 +19,11 @@ defined( 'ABSPATH' ) || exit;
  * color, ...) are store *configuration*, not a data subject's personal data
  * — they aren't in scope for WordPress's personal-data export/erase tools.
  * The only personal-data-adjacent fields this plugin adds anywhere are the
- * three order-meta keys Order_Attribution stamps onto a WooCommerce order
- * (batch id, routine id, widget attribution id) — WooCommerce's own order
- * data is already covered by its own privacy handling, so this class only
- * needs to surface/remove the extra fields we bolted on.
+ * order-meta keys Order_Attribution stamps onto a WooCommerce order (batch id,
+ * routine id, widget attribution id, and whether the batch id was remembered
+ * on the shopper's browser) — WooCommerce's own order data is already covered
+ * by its own privacy handling, so this class only needs to surface/remove the
+ * extra fields we bolted on.
  *
  * Registered via WordPress core's own privacy-tools hooks (Tools > Export/
  * Erase Personal Data), not any WooCommerce-specific extension point — core
@@ -105,6 +106,13 @@ final class Gdpr {
 				);
 			}
 
+			if ( 'yes' === $order->get_meta( Order_Attribution::META_BATCH_FROM_COOKIE ) ) {
+				$fields[] = array(
+					'name'  => __( 'How the scan was matched', 'oyster-woocommerce' ),
+					'value' => __( 'From a scan remembered on this browser, rather than a checkout started from the scan.', 'oyster-woocommerce' ),
+				);
+			}
+
 			$data[] = array(
 				'group_id'    => 'oyster-woocommerce-orders',
 				'group_label' => __( 'Oyster skincare scan attribution', 'oyster-woocommerce' ),
@@ -133,6 +141,7 @@ final class Gdpr {
 					Order_Attribution::META_BATCH_ID,
 					Order_Attribution::META_ROUTINE_ID,
 					Order_Attribution::META_ATTRIBUTION_ID,
+					Order_Attribution::META_BATCH_FROM_COOKIE,
 				) as $meta_key
 			) {
 				if ( $order->get_meta( $meta_key ) ) {
