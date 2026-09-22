@@ -79,15 +79,12 @@ function meets_requirements(): bool {
 		add_action(
 			'admin_notices',
 			static function (): void {
-				printf(
-					'<div class="notice notice-error"><p>%s</p></div>',
-					esc_html(
-						sprintf(
-							/* translators: 1: required PHP version, 2: current PHP version */
-							__( 'Oyster for WooCommerce requires PHP %1$s or newer. You are running %2$s.', 'oyster-woocommerce' ),
-							OYSTER_WOO_MIN_PHP,
-							PHP_VERSION
-						)
+				requirement_notice(
+					sprintf(
+						/* translators: 1: required PHP version, 2: current PHP version */
+						__( 'Oyster for WooCommerce requires PHP %1$s or newer. You are running %2$s.', 'oyster-woocommerce' ),
+						OYSTER_WOO_MIN_PHP,
+						PHP_VERSION
 					)
 				);
 			}
@@ -100,9 +97,8 @@ function meets_requirements(): bool {
 		add_action(
 			'admin_notices',
 			static function (): void {
-				printf(
-					'<div class="notice notice-error"><p>%s</p></div>',
-					esc_html__( 'Oyster for WooCommerce requires WooCommerce to be installed and active.', 'oyster-woocommerce' )
+				requirement_notice(
+					__( 'Oyster for WooCommerce requires WooCommerce to be installed and active.', 'oyster-woocommerce' )
 				);
 			}
 		);
@@ -111,6 +107,18 @@ function meets_requirements(): bool {
 	}
 
 	return true;
+}
+
+/**
+ * Shown only to someone who could act on it. A subscriber cannot install or activate
+ * a plugin, so this would be noise on every screen with no way to clear it.
+ */
+function requirement_notice( string $message ): void {
+	if ( ! current_user_can( 'activate_plugins' ) ) {
+		return;
+	}
+
+	printf( '<div class="notice notice-error"><p>%s</p></div>', esc_html( $message ) );
 }
 
 /*
