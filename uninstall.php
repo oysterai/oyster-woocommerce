@@ -76,6 +76,7 @@ $oyster_woo_retire_credential = static function (): void {
 $oyster_woo_retire_credential();
 
 delete_option( 'oyster_woocommerce_connection' );
+delete_option( 'oyster_woocommerce_webhook' );
 delete_option( 'oyster_woocommerce_widget_settings' );
 delete_option( 'oyster_woocommerce_scan_payment_methods' );
 delete_option( 'oyster_woocommerce_catalog_filter' );
@@ -87,6 +88,12 @@ delete_option( 'oyster_woocommerce_scan_product_id' );
 // to elsewhere, so only this plugin's pointer to it is removed.
 delete_option( 'oyster_woocommerce_scan_page_id' );
 delete_transient( 'oyster_woocommerce_scan_pricing' );
+
+// Webhook delivery-dedupe markers. Normally swept as they expire, so this only
+// catches whatever was still inside the window at uninstall.
+// `global` is required: WordPress includes this file from inside a function.
+global $wpdb;
+$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'oyster_woo_seen_%'" );
 
 // Best-effort: drop any Action Scheduler jobs we own (catalog sync, added in P2).
 if ( function_exists( 'as_unschedule_all_actions' ) ) {

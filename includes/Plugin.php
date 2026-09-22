@@ -35,6 +35,9 @@ use Oyster\Woo\Support\Scan_Pricing;
 use Oyster\Woo\Support\Self_Updater;
 use Oyster\Woo\Sync\Catalog_Sync;
 use Oyster\Woo\Sync\Product_Hooks;
+use Oyster\Woo\Webhooks\Receiver;
+use Oyster\Woo\Webhooks\Registrar;
+use Oyster\Woo\Webhooks\Webhook_Secret;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -132,9 +135,14 @@ final class Plugin {
 		( new Email_Handoff( $this->connection, $cart_filler ) )->register();
 		( new Order_Attribution( $this->connection, $this->client ) )->register();
 
+		// Not admin-gated: the callback arrives as a REST request with no user.
+		$webhook_secret = new Webhook_Secret();
+		( new Receiver( $webhook_secret ) )->register();
+		$webhook_registrar = new Registrar( $this->connection, $this->client, $webhook_secret );
+
 		if ( is_admin() ) {
 			$setup_guide = new Setup_Guide( $this->connection, $catalog_sync, $scan_page );
-			$connect     = new Connect_Screen( $this->connection, $this->client, $setup_guide );
+			$connect     = new Connect_Screen( $this->connection, $this->client, $setup_guide, $webhook_registrar, $webhook_secret );
 			$widget      = new Widget_Settings_Screen( $this->connection, $this->client, $scan_page );
 			$catalog     = new Catalog_Screen( $this->connection, $catalog_sync );
 			$payments    = new Scan_Payments_Screen( $this->connection, $scan_pricing );

@@ -13,6 +13,8 @@ use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Dashboard_Link;
+use Oyster\Woo\Webhooks\Registrar;
+use Oyster\Woo\Webhooks\Webhook_Secret;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -34,7 +36,9 @@ final class Connect_Screen {
 	public function __construct(
 		private Connection $connection,
 		private Client $client,
-		private Setup_Guide $setup_guide
+		private Setup_Guide $setup_guide,
+		private Registrar $webhook_registrar,
+		private Webhook_Secret $webhook_secret
 	) {}
 
 	/**
@@ -190,6 +194,11 @@ final class Connect_Screen {
 			)
 		);
 
+		// After save(), so the registrar can authenticate with the credential it
+		// just stored. Non-fatal by design: a store that cannot receive callbacks
+		// is still a working store.
+		$this->webhook_registrar->register_endpoint();
+
 		$this->forget_pending();
 		$this->redirect_back( 'connected' );
 	}
@@ -238,6 +247,9 @@ final class Connect_Screen {
 			}
 		}
 
+		// Before clear(), which drops the credential this needs to authenticate.
+		$this->webhook_registrar->unregister_endpoint();
+
 		$this->connection->clear();
 		$this->forget_pending();
 		$this->redirect_back( 'disconnected' );
@@ -270,6 +282,41 @@ final class Connect_Screen {
 		echo '</div>';
 	}
 
+	/**
+	 * Whether scan events are reaching this site.
+	 *
+	 * Worth its own line because a WordPress site that is not reachable from the
+	 * internet fails silently here: registration succeeds, nothing ever arrives,
+	 * and there is otherwise no signal at all.
+	 */
+	private function render_webhook_status(): void {
+		if ( ! $this->webhook_secret->is_registered() ) {
+			printf(
+				'<p class="description">%s</p>',
+				esc_html__( 'Scan events are not set up for this store. Reconnect to enable them.', 'oyster-woocommerce' )
+			);
+
+			return;
+		}
+
+		$last = $this->webhook_secret->last_event_at();
+
+		if ( $last > 0 ) {
+			printf(
+				'<p class="description">%s %s</p>',
+				esc_html__( 'Last scan event received', 'oyster-woocommerce' ),
+				esc_html( human_time_diff( $last ) . ' ' . __( 'ago', 'oyster-woocommerce' ) )
+			);
+
+			return;
+		}
+
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Scan events are set up. None received yet — they arrive after a customer completes a scan.', 'oyster-woocommerce' )
+		);
+	}
+
 	private function render_connected(): void {
 		$name         = $this->connection->business_name();
 		$has_widget   = '' !== $this->connection->public_key();
@@ -299,6 +346,8 @@ final class Connect_Screen {
 				esc_html__( 'Your vendor account has no widget public key yet. Finish widget setup in your Oyster dashboard, then reconnect to pull it in.', 'oyster-woocommerce' )
 			);
 		}
+
+		$this->render_webhook_status();
 
 		echo '<p style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;">';
 
