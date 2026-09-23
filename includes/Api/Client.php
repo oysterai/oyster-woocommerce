@@ -282,6 +282,45 @@ final class Client {
 		);
 	}
 
+	/**
+	 * Register this store's callback URL and get back its signing secret.
+	 *
+	 * The secret is returned once and never readable again, so the caller must
+	 * persist what comes back. Re-registering the same alias replaces the
+	 * endpoint rather than adding a second one.
+	 *
+	 * @param string[] $events
+	 * @return array<string, mixed> Envelope: { data: { id, alias, url, events, secret } }.
+	 * @throws Api_Exception
+	 */
+	public function register_webhook_endpoint( string $bearer, string $alias, string $url, array $events ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/developers/webhook-endpoints',
+			array(
+				'bearer' => $bearer,
+				'body'   => array(
+					'alias'       => $alias,
+					'url'         => $url,
+					'events'      => array_values( $events ),
+					'description' => 'WooCommerce plugin on ' . wp_parse_url( home_url(), PHP_URL_HOST ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function delete_webhook_endpoint( string $bearer, int $endpoint_id ): array {
+		return $this->request(
+			'DELETE',
+			'/api/v1/developers/webhook-endpoints/' . $endpoint_id,
+			array( 'bearer' => $bearer )
+		);
+	}
+
 	/*
 	 * -----------------------------------------------------------------------
 	 * Transport
