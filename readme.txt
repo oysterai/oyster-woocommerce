@@ -75,6 +75,17 @@ Your Oyster account credentials are used only to obtain an access token, which i
 encrypted on your site. See https://oysterskin.com/privacy for Oyster's privacy policy and
 https://oysterskin.com/terms for terms of service.
 
+== For developers ==
+
+A companion plugin can read this store's Oyster data without asking the merchant
+for a second API key. The call is made with this store's own credential, which
+never leaves this plugin:
+
+`$result = apply_filters( 'oyster_woocommerce_api_get', null, '/skin/delivery/' . $batch_id );`
+
+Returns the decoded response body, or a `WP_Error` carrying the HTTP status when
+the store is not connected or the request fails.
+
 == Installation ==
 
 1. Install and activate WooCommerce.
