@@ -104,6 +104,8 @@ final class Plugin {
 
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 
+		( new \Oyster\Woo\Api\Companion_Access( $this->connection, $this->client ) )->register();
+
 		// Storefront: inject the widget loader on every front-end request.
 		( new Widget_Loader( $this->connection ) )->register();
 
