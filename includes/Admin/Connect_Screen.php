@@ -14,6 +14,7 @@ use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Dashboard_Link;
 use Oyster\Woo\Webhooks\Registrar;
+use Oyster\Woo\Webhooks\Receiver;
 use Oyster\Woo\Webhooks\Webhook_Secret;
 
 defined( 'ABSPATH' ) || exit;
@@ -307,13 +308,39 @@ final class Connect_Screen {
 				esc_html__( 'Last scan event received', 'oyster-woocommerce' ),
 				esc_html( human_time_diff( $last ) . ' ' . __( 'ago', 'oyster-woocommerce' ) )
 			);
+		} else {
+			printf(
+				'<p class="description">%s</p>',
+				esc_html__( 'Scan events are set up. None received yet — they arrive after a customer completes a scan.', 'oyster-woocommerce' )
+			);
+		}
 
+		$this->render_webhook_address();
+	}
+
+	/**
+	 * Nobody types this address, so it is shown only to be checked against: when events
+	 * stop, it is the first thing worth looking at and the only thing worth quoting to
+	 * support.
+	 */
+	private function render_webhook_address(): void {
+		$registered = $this->webhook_secret->registered_url();
+		$current    = Receiver::url();
+
+		printf(
+			'<p class="description"><code style="user-select:all;">%s</code></p>',
+			esc_html( '' !== $registered ? $registered : $current )
+		);
+
+		if ( '' === $registered || $registered === $current ) {
 			return;
 		}
 
 		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Scan events are set up. None received yet — they arrive after a customer completes a scan.', 'oyster-woocommerce' )
+			'<p class="description" style="color:#b32d2e;">%s <code style="user-select:all;">%s</code> %s</p>',
+			esc_html__( 'This site now answers at', 'oyster-woocommerce' ),
+			esc_html( $current ),
+			esc_html__( 'so events are going to the wrong address. Reconnect to update it.', 'oyster-woocommerce' )
 		);
 	}
 

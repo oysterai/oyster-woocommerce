@@ -42,11 +42,23 @@ final class Webhook_Secret {
 		return (string) ( $this->raw()['last_event'] ?? '' );
 	}
 
-	public function save( int $endpoint_id, string $secret ): void {
+	/**
+	 * The address registered with Oyster, which is not always the one this site would
+	 * produce today: a store that changes domain or scheme keeps the old one on
+	 * Oyster's side and stops receiving, with nothing local to say so.
+	 *
+	 * Empty for stores registered before this was recorded.
+	 */
+	public function registered_url(): string {
+		return (string) ( $this->raw()['url'] ?? '' );
+	}
+
+	public function save( int $endpoint_id, string $secret, string $url = '' ): void {
 		$this->write(
 			array(
 				'endpoint_id'   => $endpoint_id,
 				'secret_enc'    => Crypto::encrypt( $secret ),
+				'url'           => $url,
 				'registered_at' => time(),
 			) + $this->raw()
 		);
