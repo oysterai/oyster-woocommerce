@@ -103,6 +103,23 @@ Show the code only where a developer needs the exact hook or filter name.
 Both repos are public. Never name another Oyster repo, a PR or issue number in
 one, or the internal classes, tables or endpoints of anything outside this repo.
 
+## A version number is spent once
+
+Publishing a release permanently protects its tag. Deleting the release does
+**not** free the tag name: pushing it again is refused with
+
+```
+Cannot create ref due to creations being restricted.
+```
+
+and publishing a draft on it fails the same way. Any other tag name still
+pushes fine, so this is specific to tags that have carried a published release.
+
+So a release published wrong cannot be corrected in place, and cannot be redone
+under the same version. **Bump the patch version and cut a new one.** If the
+broken version never really shipped, rename its changelog entry to the new
+number rather than adding an empty one.
+
 ## Traps that have actually bitten
 
 - **`.gitignore` swallowing the vendored library's own `vendor/`.** An

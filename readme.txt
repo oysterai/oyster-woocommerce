@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.20.0
+Stable tag: 0.20.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -124,7 +124,7 @@ Connect screen shows when the last event arrived.
 
 == Changelog ==
 
-= 0.20.0 =
+= 0.20.1 =
 * **Other plugins can now react when a customer finishes a scan.** The plugin
   fires two WordPress actions, `oyster_woocommerce_scan_completed` and
   `oyster_woocommerce_recommendations_ready`, so a developer can send an email,
