@@ -67,15 +67,17 @@ final class CompanionAccessTest extends WP_UnitTestCase {
 	public function test_it_reads_the_api_as_this_store(): void {
 		$this->connect();
 
-		$result = apply_filters( Companion_Access::FILTER, null, '/skin/delivery/abc' );
+		$result = apply_filters( Companion_Access::FILTER, null, '/api/v1/skin/delivery/abc' );
 
 		$this->assertSame( array( 'ok' => true ), $result['data'] );
-		$this->assertStringContainsString( '/skin/delivery/abc', $this->requests[0]['url'] );
+		// The path is passed through whole. The base URL is the host only, so a caller
+		// omitting the version prefix gets a 404 from the API rather than an error here.
+		$this->assertStringEndsWith( '/api/v1/skin/delivery/abc', $this->requests[0]['url'] );
 		$this->assertSame( 'Bearer a-test-bearer', $this->requests[0]['auth'] );
 	}
 
 	public function test_it_refuses_before_the_store_is_connected(): void {
-		$result = apply_filters( Companion_Access::FILTER, null, '/skin/delivery/abc' );
+		$result = apply_filters( Companion_Access::FILTER, null, '/api/v1/skin/delivery/abc' );
 
 		$this->assertWPError( $result );
 		$this->assertSame( 'oyster_woocommerce_not_connected', $result->get_error_code() );
@@ -87,7 +89,7 @@ final class CompanionAccessTest extends WP_UnitTestCase {
 		$this->status = 429;
 		$this->body   = '{"message":"Too many requests"}';
 
-		$result = apply_filters( Companion_Access::FILTER, null, '/skin/delivery/abc' );
+		$result = apply_filters( Companion_Access::FILTER, null, '/api/v1/skin/delivery/abc' );
 
 		$this->assertWPError( $result );
 		$this->assertSame( 429, $result->get_error_data()['status'] );
