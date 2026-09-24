@@ -68,7 +68,7 @@ final class Registrar {
 			return false;
 		}
 
-		$this->secret->save( $id, $secret );
+		$this->secret->save( $id, $secret, Receiver::url() );
 
 		return true;
 	}
