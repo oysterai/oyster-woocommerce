@@ -67,8 +67,17 @@ Never run `gh release create` without attaching the zip in the same command.
 
    ```bash
    gh release create v<version> --draft --target main \
-     --title "<version> — <headline>" --notes "..." \
+     --title "v<version>" --notes "..." \
      dist/<slug>-<version>.zip
+   ```
+
+   Attach the stable-named copy too, which is what permanent download links
+   point at (`.../releases/latest/download/<slug>.zip`). The workflow builds it
+   with `cp`; doing this by hand means doing that as well:
+
+   ```bash
+   cp dist/<slug>-<version>.zip dist/<slug>.zip
+   gh release upload v<version> dist/<slug>.zip
    ```
 
 6. **Check the draft before publishing.**
@@ -84,6 +93,9 @@ Never run `gh release create` without attaching the zip in the same command.
 7. **Publish.** That is what reaches merchants.
 
 ## Release notes
+
+**The title is the tag and nothing else: `v1.2.3`.** No headline, no summary, no
+dash. That belongs in the notes.
 
 Written for a merchant, not a changelog reader. Lead with what they can now do.
 Show the code only where a developer needs the exact hook or filter name.
