@@ -3,7 +3,7 @@
  * Plugin Name:       Oyster for WooCommerce
  * Plugin URI:        https://oysterskin.com/woocommerce
  * Description:       Add Oyster's AI face-scan skincare concierge to your WooCommerce store. Shoppers scan their skin, get personalized product recommendations from your catalog, and check out natively — with every order attributed back to the scan.
- * Version:           0.19.0
+ * Version:           0.20.0
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Oyster Skin
@@ -31,7 +31,7 @@ defined( 'ABSPATH' ) || exit;
  * Constants
  * ---------------------------------------------------------------------------
  */
-define( 'OYSTER_WOO_VERSION', '0.19.0' );
+define( 'OYSTER_WOO_VERSION', '0.20.0' );
 define( 'OYSTER_WOO_FILE', __FILE__ );
 define( 'OYSTER_WOO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OYSTER_WOO_URL', plugin_dir_url( __FILE__ ) );
@@ -79,15 +79,12 @@ function meets_requirements(): bool {
 		add_action(
 			'admin_notices',
 			static function (): void {
-				printf(
-					'<div class="notice notice-error"><p>%s</p></div>',
-					esc_html(
-						sprintf(
-							/* translators: 1: required PHP version, 2: current PHP version */
-							__( 'Oyster for WooCommerce requires PHP %1$s or newer. You are running %2$s.', 'oyster-woocommerce' ),
-							OYSTER_WOO_MIN_PHP,
-							PHP_VERSION
-						)
+				requirement_notice(
+					sprintf(
+						/* translators: 1: required PHP version, 2: current PHP version */
+						__( 'Oyster for WooCommerce requires PHP %1$s or newer. You are running %2$s.', 'oyster-woocommerce' ),
+						OYSTER_WOO_MIN_PHP,
+						PHP_VERSION
 					)
 				);
 			}
@@ -100,9 +97,8 @@ function meets_requirements(): bool {
 		add_action(
 			'admin_notices',
 			static function (): void {
-				printf(
-					'<div class="notice notice-error"><p>%s</p></div>',
-					esc_html__( 'Oyster for WooCommerce requires WooCommerce to be installed and active.', 'oyster-woocommerce' )
+				requirement_notice(
+					__( 'Oyster for WooCommerce requires WooCommerce to be installed and active.', 'oyster-woocommerce' )
 				);
 			}
 		);
@@ -111,6 +107,18 @@ function meets_requirements(): bool {
 	}
 
 	return true;
+}
+
+/**
+ * Shown only to someone who could act on it. A subscriber cannot install or activate
+ * a plugin, so this would be noise on every screen with no way to clear it.
+ */
+function requirement_notice( string $message ): void {
+	if ( ! current_user_can( 'activate_plugins' ) ) {
+		return;
+	}
+
+	printf( '<div class="notice notice-error"><p>%s</p></div>', esc_html( $message ) );
 }
 
 /*

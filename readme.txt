@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.19.0
+Stable tag: 0.20.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,17 @@ Your Oyster account credentials are used only to obtain an access token, which i
 encrypted on your site. See https://oysterskin.com/privacy for Oyster's privacy policy and
 https://oysterskin.com/terms for terms of service.
 
+== For developers ==
+
+A companion plugin can read this store's Oyster data without asking the merchant
+for a second API key. The call is made with this store's own credential, which
+never leaves this plugin:
+
+`$result = apply_filters( 'oyster_woocommerce_api_get', null, '/api/v1/skin/delivery/' . $batch_id );`
+
+Returns the decoded response body, or a `WP_Error` carrying the HTTP status when
+the store is not connected or the request fails.
+
 == Installation ==
 
 1. Install and activate WooCommerce.
@@ -85,7 +96,59 @@ https://oysterskin.com/terms for terms of service.
 5. Configure the launcher under **Oyster → Widget**.
 6. Run your first catalog sync under **Oyster → Catalog**.
 
+== For developers ==
+
+Two actions fire when Oyster reports on a scan at this store.
+
+`oyster_woocommerce_scan_completed` runs when a scan has finished analysing.
+`oyster_woocommerce_recommendations_ready` runs when that scan's product routine
+is ready. Both receive the scan's batch ID and the full event array:
+
+`add_action( 'oyster_woocommerce_scan_completed', function ( $batch_id, $event ) {`
+`    // $event['data'] carries batch_id, vendor_id and channel.`
+`}, 10, 2 );`
+
+Neither action carries the skin analysis itself. That is deliberate: a customer's
+results are not copied into your site's logs or passed to anything you hook up
+later. To read the detail, call Oyster's API with this store's own connection,
+using the batch ID.
+
+These arrive as server-to-server requests, so they fire whether or not the
+shopper still has your site open. A repeated delivery only fires the action once,
+but write your handler so a duplicate would be harmless anyway.
+
+Nothing to configure: the callback is registered when you connect and removed
+when you disconnect. Your site does need to be reachable over HTTPS from the
+internet, which a local or password-protected staging site usually is not. The
+Connect screen shows when the last event arrived.
+
 == Changelog ==
+
+= 0.20.0 =
+* **Other plugins can now react when a customer finishes a scan.** The plugin
+  fires two WordPress actions, `oyster_woocommerce_scan_completed` and
+  `oyster_woocommerce_recommendations_ready`, so a developer can send an email,
+  tag a customer, add a note to an order, or trigger anything else at the
+  moment a scan lands and at the moment its product routine is ready.
+* Both actions receive the scan's batch ID and the full event. They deliberately
+  do not carry the skin analysis itself, so a customer's results are not copied
+  into your site's logs; a plugin that needs the detail fetches it from Oyster
+  using this store's own connection.
+* Events arrive as signed server-to-server requests, so they still fire when the
+  shopper has closed their browser. Each one is verified before anything runs,
+  and a repeated delivery only fires once.
+* Set up automatically when you connect, and removed when you disconnect. There
+  is nothing to paste. The Connect screen shows when the last event arrived, and
+  the address events are delivered to, so you can tell whether your site is
+  reachable and whether it is still the right address. If your store has moved
+  domain since you connected, the screen now says so instead of quietly
+  receiving nothing.
+* **A companion plugin can read this store's Oyster data without a second API
+  key.** The `oyster_woocommerce_api_get` filter makes the request using the
+  credential this plugin already holds, so nothing else on your site handles it
+  and access ends when you disconnect. See **For developers** above.
+* A requirements warning is now shown only to users who can actually install a
+  plugin, rather than to everyone who opens wp-admin.
 
 = 0.19.0 =
 * **Sales that came from a scan now count even when the shopper did not check

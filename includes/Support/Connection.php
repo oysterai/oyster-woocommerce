@@ -24,11 +24,6 @@ final class Connection {
 
 	public const DEFAULT_PRIMARY_COLOR = '#0e1e3a';
 
-	/**
-	 * @var array<string, mixed>|null In-request cache of the raw option.
-	 */
-	private ?array $cache = null;
-
 	public function is_connected(): bool {
 		return null !== $this->bearer() && $this->vendor_id() > 0;
 	}
@@ -135,19 +130,15 @@ final class Connection {
 	 */
 	public function clear(): void {
 		delete_option( self::OPTION_KEY );
-		$this->cache = null;
 	}
 
 	/**
 	 * @return array<string, mixed>
 	 */
 	private function raw(): array {
-		if ( null === $this->cache ) {
-			$stored      = get_option( self::OPTION_KEY, array() );
-			$this->cache = is_array( $stored ) ? $stored : array();
-		}
+		$stored = get_option( self::OPTION_KEY, array() );
 
-		return $this->cache;
+		return is_array( $stored ) ? $stored : array();
 	}
 
 	/**
@@ -155,6 +146,5 @@ final class Connection {
 	 */
 	private function write( array $record ): void {
 		update_option( self::OPTION_KEY, $record );
-		$this->cache = $record;
 	}
 }
