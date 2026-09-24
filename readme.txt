@@ -138,8 +138,17 @@ Connect screen shows when the last event arrived.
   shopper has closed their browser. Each one is verified before anything runs,
   and a repeated delivery only fires once.
 * Set up automatically when you connect, and removed when you disconnect. There
-  is nothing to paste. The Connect screen shows when the last event arrived, so
-  you can tell whether your site is reachable.
+  is nothing to paste. The Connect screen shows when the last event arrived, and
+  the address events are delivered to, so you can tell whether your site is
+  reachable and whether it is still the right address. If your store has moved
+  domain since you connected, the screen now says so instead of quietly
+  receiving nothing.
+* **A companion plugin can read this store's Oyster data without a second API
+  key.** The `oyster_woocommerce_api_get` filter makes the request using the
+  credential this plugin already holds, so nothing else on your site handles it
+  and access ends when you disconnect. See **For developers** above.
+* A requirements warning is now shown only to users who can actually install a
+  plugin, rather than to everyone who opens wp-admin.
 
 = 0.19.0 =
 * **Sales that came from a scan now count even when the shopper did not check
