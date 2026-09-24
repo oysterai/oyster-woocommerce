@@ -81,7 +81,7 @@ A companion plugin can read this store's Oyster data without asking the merchant
 for a second API key. The call is made with this store's own credential, which
 never leaves this plugin:
 
-`$result = apply_filters( 'oyster_woocommerce_api_get', null, '/skin/delivery/' . $batch_id );`
+`$result = apply_filters( 'oyster_woocommerce_api_get', null, '/api/v1/skin/delivery/' . $batch_id );`
 
 Returns the decoded response body, or a `WP_Error` carrying the HTTP status when
 the store is not connected or the request fails.
