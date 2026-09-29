@@ -25,6 +25,8 @@ final class Registrar {
 	/** Stable per store, so reconnecting replaces the endpoint instead of stacking up. */
 	private const ALIAS = 'woocommerce';
 
+	private const RETRY_LOCK = 'oyster_woo_webhook_retry';
+
 	private const EVENTS = array( 'scan.completed', 'recommendation.ready' );
 
 	public function __construct(
@@ -39,6 +41,31 @@ final class Registrar {
 	 * cannot receive callbacks is still a working store, and failing the connect
 	 * over it would leave the merchant unable to finish.
 	 */
+	/**
+	 * Register the callback for a store that connected without one.
+	 *
+	 * Registration only ever ran at connect, so a store that connected before this
+	 * existed, or one whose registration was refused, has no destination and receives
+	 * nothing. Neither state announces itself: the store works, scans run, and the only
+	 * sign is the Connect screen saying events are not set up.
+	 *
+	 * Backed off to once an hour so a persistent refusal costs one call, not one per
+	 * admin page load.
+	 */
+	public function ensure_registered(): void {
+		if ( ! $this->connection->is_connected() || $this->secret->is_registered() ) {
+			return;
+		}
+
+		if ( get_transient( self::RETRY_LOCK ) ) {
+			return;
+		}
+
+		set_transient( self::RETRY_LOCK, time(), HOUR_IN_SECONDS );
+
+		$this->register_endpoint();
+	}
+
 	public function register_endpoint(): bool {
 		$bearer = $this->connection->bearer();
 		if ( null === $bearer ) {

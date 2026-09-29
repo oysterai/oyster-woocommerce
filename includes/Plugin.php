@@ -142,7 +142,12 @@ final class Plugin {
 		( new Receiver( $webhook_secret ) )->register();
 		$webhook_registrar = new Registrar( $this->connection, $this->client, $webhook_secret );
 
+		// Outside the is_admin() block below only so the wiring is reachable to a test;
+		// admin_init does not fire on a storefront request either way.
+		add_action( 'admin_init', array( $webhook_registrar, 'ensure_registered' ) );
+
 		if ( is_admin() ) {
+
 			$setup_guide = new Setup_Guide( $this->connection, $catalog_sync, $scan_page );
 			$connect     = new Connect_Screen( $this->connection, $this->client, $setup_guide, $webhook_registrar, $webhook_secret );
 			$widget      = new Widget_Settings_Screen( $this->connection, $this->client, $scan_page );
