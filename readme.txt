@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.20.1
+Stable tag: 0.20.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,14 @@ internet, which a local or password-protected staging site usually is not. The
 Connect screen shows when the last event arrived.
 
 == Changelog ==
+
+= 0.20.2 =
+* **Scan events now set themselves up on stores that were already connected.** The
+  callback that tells this plugin a scan has finished was only ever created at the
+  moment a store connected, so a store connected before that feature existed never
+  got one and quietly received nothing. There was no sign of it beyond a line on the
+  Oyster → Connect screen, and the only way out was disconnecting and reconnecting.
+  The plugin now sets it up on its own, with nothing for you to do.
 
 = 0.20.1 =
 * **Other plugins can now react when a customer finishes a scan.** The plugin
