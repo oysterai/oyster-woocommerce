@@ -70,6 +70,8 @@ final class Widget_Settings_Screen {
 		$this->add_field( 'message_body', __( 'Message body', 'oyster-woocommerce' ), array( $this, 'field_message_body' ) );
 		$this->add_field( 'display_logo', __( 'Show Oyster logo', 'oyster-woocommerce' ), array( $this, 'field_display_logo' ) );
 		$this->add_field( 'auto_open', __( 'Auto-open on load', 'oyster-woocommerce' ), array( $this, 'field_auto_open' ) );
+		$this->add_field( 'launcher_corner', __( 'Position', 'oyster-woocommerce' ), array( $this, 'field_launcher_corner' ) );
+		$this->add_field( 'launcher_offset', __( 'Distance from the edges', 'oyster-woocommerce' ), array( $this, 'field_launcher_offset' ) );
 	}
 
 	public function render(): void {
@@ -161,6 +163,49 @@ final class Widget_Settings_Screen {
 	public function field_auto_open(): void {
 		$value = Widget_Settings::get()['auto_open'];
 		$this->checkbox( 'auto_open', (bool) $value, __( 'Open the scan automatically when the page loads', 'oyster-woocommerce' ) );
+	}
+
+	public function field_launcher_corner(): void {
+		$value = (string) Widget_Settings::get()['launcher_corner'];
+
+		printf( '<select name="%s[launcher_corner]">', esc_attr( Widget_Settings::OPTION_KEY ) );
+		foreach ( Widget_Settings::corners() as $corner => $label ) {
+			printf(
+				'<option value="%s" %s>%s</option>',
+				esc_attr( $corner ),
+				selected( $value, $corner, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</select>';
+
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Move the launcher if something else on your storefront already sits in its corner.', 'oyster-woocommerce' )
+		);
+	}
+
+	public function field_launcher_offset(): void {
+		$settings = Widget_Settings::get();
+
+		foreach ( array(
+			'launcher_offset_x' => __( 'Left/right', 'oyster-woocommerce' ),
+			'launcher_offset_y' => __( 'Top/bottom', 'oyster-woocommerce' ),
+		) as $key => $label ) {
+			printf(
+				'<label style="margin-right:16px;">%s <input type="number" name="%s[%s]" value="%s" min="0" max="%d" step="1" style="width:6em;"> px</label>',
+				esc_html( $label ),
+				esc_attr( Widget_Settings::OPTION_KEY ),
+				esc_attr( $key ),
+				esc_attr( (string) $settings[ $key ] ),
+				(int) Widget_Settings::OFFSET_MAX
+			);
+		}
+
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Leave blank to use the spacing from your Oyster dashboard.', 'oyster-woocommerce' )
+		);
 	}
 
 	/*
