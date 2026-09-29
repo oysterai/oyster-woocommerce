@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.20.2
+Stable tag: 0.21.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,19 @@ internet, which a local or password-protected staging site usually is not. The
 Connect screen shows when the last event arrived.
 
 == Changelog ==
+
+= 0.21.0 =
+* **You can now choose where the floating launcher sits.** It has always been in the
+  bottom-right corner of your storefront. If your theme already uses that corner for a
+  chat bubble, a cookie banner or a back-to-top button, the two sat on top of each
+  other and there was nothing you could do about it. Under **Oyster > Widget** you can
+  now pick any of the four corners and set how far the launcher sits from each of that
+  corner's edges.
+* Leave the fields blank and nothing changes: the position saved in your Oyster
+  dashboard applies, the same way the Primary color field already works. It works
+  field by field, so setting only a corner still takes the spacing from your dashboard.
+* The launcher stays on screen whatever you enter, so a large number moves it as far
+  as the space allows rather than off the edge of the page.
 
 = 0.20.2 =
 * **Scan events now set themselves up on stores that were already connected.** The
