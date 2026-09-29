@@ -192,6 +192,25 @@
       })
   }
 
+  /**
+   * Only the parts the merchant actually set. A blank field is not a 0: the
+   * widget reads a missing offset as "keep your own margin", which is narrower
+   * on a phone, and a 0 as a launcher pinned flush to the corner.
+   */
+  function launcherPosition(anchor) {
+    var position = {}
+
+    if (anchor.dataset.launcherCorner) position.corner = anchor.dataset.launcherCorner
+
+    var x = parseInt(anchor.dataset.launcherOffsetX, 10)
+    if (!isNaN(x)) position.offsetX = x
+
+    var y = parseInt(anchor.dataset.launcherOffsetY, 10)
+    if (!isNaN(y)) position.offsetY = y
+
+    return position
+  }
+
   function bootAnchor(anchor) {
     var cfg = config()
     if (!cfg.publicKey) {
@@ -230,6 +249,12 @@
           options.displayLogo = anchor.dataset.displayLogo === 'true'
           options.introMessage = anchor.dataset.introMessage || ''
           options.messageBody = anchor.dataset.messageBody || ''
+
+          // Left off entirely when the merchant set no part of it, so the
+          // position saved in the dashboard applies. What is here wins over
+          // that, field by field.
+          var position = launcherPosition(anchor)
+          if (Object.keys(position).length) options.launcherPosition = position
         }
 
         window.OysterskinWidget.createScanWidget(options)

@@ -142,12 +142,32 @@ final class Widget_Loader {
 		wp_enqueue_script( self::HANDLE );
 
 		printf(
-			'<div data-oyster-widget="launcher" data-mode="float" data-intro-message="%s" data-message-body="%s" data-display-logo="%s" data-auto-open="%s"></div>',
+			'<div data-oyster-widget="launcher" data-mode="float" data-intro-message="%s" data-message-body="%s" data-display-logo="%s" data-auto-open="%s"%s></div>',
 			esc_attr( (string) $settings['intro_message'] ),
 			esc_attr( (string) $settings['message_body'] ),
 			esc_attr( $settings['display_logo'] ? 'true' : 'false' ),
-			esc_attr( $this->auto_open( $settings ) ? 'true' : 'false' )
+			esc_attr( $this->auto_open( $settings ) ? 'true' : 'false' ),
+			$this->launcher_position_attributes() // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts below.
 		);
+	}
+
+	/**
+	 * Only what the merchant actually set. An attribute carrying an empty value
+	 * would read to the widget as a chosen position, and the point of leaving a
+	 * field blank is to let the position from the dashboard apply.
+	 */
+	private function launcher_position_attributes(): string {
+		$attributes = '';
+
+		foreach ( Widget_Settings::launcher_position() as $axis => $value ) {
+			$attributes .= sprintf(
+				' data-launcher-%s="%s"',
+				esc_attr( 'corner' === $axis ? 'corner' : 'offset-' . $axis ),
+				esc_attr( $value )
+			);
+		}
+
+		return $attributes;
 	}
 
 	/**
