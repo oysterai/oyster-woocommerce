@@ -88,6 +88,44 @@ final class WidgetSettingsTest extends TestCase {
 		$this->assertStringNotContainsString( '<b>', $result['message_body'] );
 	}
 
+	/**
+	 * Blank means "use the stacking order from the dashboard", so it has to
+	 * survive sanitising rather than becoming a number the merchant never typed.
+	 */
+	public function test_a_blank_layer_stays_blank(): void {
+		$this->assertSame( '', Widget_Settings::defaults()['z_index'], 'precondition: blank is the default' );
+
+		foreach ( array( '', '   ', 'top', null, array( 1 ) ) as $input ) {
+			$this->assertSame( '', Widget_Settings::sanitize( array( 'z_index' => $input ) )['z_index'] );
+		}
+	}
+
+	public function test_a_chosen_layer_is_kept(): void {
+		$this->assertSame( '9000', Widget_Settings::sanitize( array( 'z_index' => '9000' ) )['z_index'] );
+		$this->assertSame( '9001', Widget_Settings::sanitize( array( 'z_index' => '9000.7' ) )['z_index'] );
+	}
+
+	/**
+	 * Unlike the offsets, a 0 is not a meaningful answer here: the launcher sits
+	 * one layer below the panel, so 0 collapses the two onto the same layer.
+	 */
+	public function test_a_layer_below_the_floor_is_raised_to_it(): void {
+		foreach ( array( '0', '-1', '-9000' ) as $input ) {
+			$this->assertSame(
+				(string) Widget_Settings::Z_INDEX_MIN,
+				Widget_Settings::sanitize( array( 'z_index' => $input ) )['z_index'],
+				$input . ' must not reach the storefront'
+			);
+		}
+	}
+
+	public function test_a_layer_past_the_top_of_the_css_range_is_capped(): void {
+		$this->assertSame(
+			(string) Widget_Settings::Z_INDEX_MAX,
+			Widget_Settings::sanitize( array( 'z_index' => '99999999999' ) )['z_index']
+		);
+	}
+
 	/** Every declared key is always present, so readers never have to null-check. */
 	public function test_the_returned_shape_is_complete(): void {
 		$result = Widget_Settings::sanitize( array( 'intro_message' => 'x' ) );
