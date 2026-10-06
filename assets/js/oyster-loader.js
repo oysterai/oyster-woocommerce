@@ -240,6 +240,10 @@
         var primaryColor = anchor.dataset.primaryColor || cfg.primaryColor
         if (primaryColor) options.primaryColor = primaryColor
 
+        // Same rule, and left off entirely when the store set none.
+        var zIndex = parseInt(cfg.zIndex, 10)
+        if (!isNaN(zIndex)) options.zIndex = zIndex
+
         if (mode === 'inline') {
           options.container = anchor
           var h = parseInt(anchor.dataset.inlineHeight, 10)

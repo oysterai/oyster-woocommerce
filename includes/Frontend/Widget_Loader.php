@@ -118,6 +118,14 @@ final class Widget_Loader {
 			$config['primaryColor'] = $settings['primary_color'];
 		}
 
+		// Published site-wide rather than per anchor: which stacking order a
+		// storefront needs is a property of the storefront's own layout, not of
+		// one placement on it. Omitted when unset, as the colour is, so the
+		// value saved in the dashboard still applies.
+		if ( '' !== $settings['z_index'] ) {
+			$config['zIndex'] = (int) $settings['z_index'];
+		}
+
 		return $config;
 	}
 

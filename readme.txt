@@ -21,7 +21,7 @@ All AI analysis, recommendation, and reporting happens in Oyster's platform; thi
 Features:
 
 * Connect your store to an Oyster vendor account.
-* Floating skin-scan launcher on your storefront, with configurable branding and position.
+* Floating skin-scan launcher on your storefront, with configurable branding, position and layering.
 * Inline scan via the "Oyster Skin Scan" block or the `[oyster_scan]` shortcode.
 * Standalone scan page: create a ready-made landing page from **Oyster → Widget**, with a
   headline, a three-step explainer, the scan itself and an FAQ, all editable like any other
