@@ -43,6 +43,18 @@ final class Widget_Settings {
 	public const OFFSET_MAX = 500;
 
 	/**
+	 * The stacking order the widget paints at. The top of the CSS range is what
+	 * the widget uses when nothing says otherwise.
+	 *
+	 * The floor is 1, not 0: the launcher sits one layer below the panel it
+	 * opens, so 0 would put the two on the same layer and leave the browser to
+	 * break the tie by document order.
+	 */
+	public const Z_INDEX_MIN = 1;
+
+	public const Z_INDEX_MAX = 2147483647;
+
+	/**
 	 * @return array{
 	 *     float_enabled:bool,
 	 *     primary_color:string,
@@ -52,7 +64,8 @@ final class Widget_Settings {
 	 *     auto_open:bool,
 	 *     launcher_corner:string,
 	 *     launcher_offset_x:string,
-	 *     launcher_offset_y:string
+	 *     launcher_offset_y:string,
+	 *     z_index:string
 	 * }
 	 */
 	public static function defaults(): array {
@@ -71,6 +84,10 @@ final class Widget_Settings {
 			'launcher_corner'   => '',
 			'launcher_offset_x' => '',
 			'launcher_offset_y' => '',
+			// Blank for the same reason, and the same string-not-int reason: the
+			// stacking order saved in the dashboard applies until a store names
+			// one of its own.
+			'z_index'           => '',
 		);
 	}
 
@@ -132,6 +149,7 @@ final class Widget_Settings {
 			'launcher_corner'   => array_key_exists( $corner, self::corners() ) ? $corner : '',
 			'launcher_offset_x' => self::sanitize_offset( $input['launcher_offset_x'] ?? '' ),
 			'launcher_offset_y' => self::sanitize_offset( $input['launcher_offset_y'] ?? '' ),
+			'z_index'           => self::sanitize_z_index( $input['z_index'] ?? '' ),
 		);
 	}
 
@@ -152,5 +170,25 @@ final class Widget_Settings {
 		}
 
 		return (string) max( 0, min( self::OFFSET_MAX, (int) round( (float) $raw ) ) );
+	}
+
+	/**
+	 * Blank stays blank, as with the offsets. A 0 typed here is clamped up to
+	 * {@see Z_INDEX_MIN} rather than stored: it reads as "put the widget at the
+	 * very bottom", and the layer below it belongs to the launcher.
+	 *
+	 * @param mixed $value
+	 */
+	private static function sanitize_z_index( $value ): string {
+		if ( ! is_scalar( $value ) ) {
+			return '';
+		}
+
+		$raw = trim( (string) $value );
+		if ( '' === $raw || ! is_numeric( $raw ) ) {
+			return '';
+		}
+
+		return (string) max( self::Z_INDEX_MIN, min( self::Z_INDEX_MAX, (int) round( (float) $raw ) ) );
 	}
 }

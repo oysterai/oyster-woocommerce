@@ -10,7 +10,7 @@ Thumbs.db
 # lib/plugin-update-checker/vendor/, which is vendored runtime code that must
 # ship. It did exactly that once — Parsedown was never committed, so every
 # release zip omitted it and the self-updater fataled on merchant sites.
-/node_modules/
+/node_modules
 /vendor/
 
 # Build artifacts / release zips
@@ -28,4 +28,3 @@ Thumbs.db
 /vendor/
 /composer.lock
 /.phpunit.cache/
-/node_modules/

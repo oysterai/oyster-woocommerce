@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.21.0
+Stable tag: 0.22.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,7 +21,7 @@ All AI analysis, recommendation, and reporting happens in Oyster's platform; thi
 Features:
 
 * Connect your store to an Oyster vendor account.
-* Floating skin-scan launcher on your storefront, with configurable branding and position.
+* Floating skin-scan launcher on your storefront, with configurable branding, position and layering.
 * Inline scan via the "Oyster Skin Scan" block or the `[oyster_scan]` shortcode.
 * Standalone scan page: create a ready-made landing page from **Oyster → Widget**, with a
   headline, a three-step explainer, the scan itself and an FAQ, all editable like any other
@@ -123,6 +123,25 @@ internet, which a local or password-protected staging site usually is not. The
 Connect screen shows when the last event arrived.
 
 == Changelog ==
+
+= 0.22.0 =
+* **You can now put the widget on a lower layer than your own pop-ups.** The widget
+  has always painted on top of everything on your storefront. If your own sign-up
+  modal, age gate or cookie banner opened at the same time, the widget covered it and
+  a shopper had to dismiss the widget before they could deal with yours. Under
+  **Oyster > Widget** there is now a **Layer (z-index)** field: give the widget a
+  number below your own pop-up's and yours opens in front.
+* Leave it blank and nothing changes, the same way the Primary color and Position
+  fields already work: the layer saved in your Oyster dashboard applies.
+* The number you set is the widget's top layer, so pick one below your own pop-up
+  rather than the same. Equal layers leave the browser to decide which wins. The
+  lowest the widget accepts is 1.
+* **The Catalog screen no longer says your products sync by default.** They do not,
+  and never have: nothing syncs until you choose a scope on that screen, which is
+  what stops a store sending its whole catalogue to Oyster by accident. The screen
+  warned about this lower down while the text at the top said the opposite, so a
+  store that believed the top had no reason to pick a scope and waited on an import
+  that was never going to run.
 
 = 0.21.0 =
 * **You can now choose where the floating launcher sits.** It has always been in the

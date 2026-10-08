@@ -72,6 +72,7 @@ final class Widget_Settings_Screen {
 		$this->add_field( 'auto_open', __( 'Auto-open on load', 'oyster-woocommerce' ), array( $this, 'field_auto_open' ) );
 		$this->add_field( 'launcher_corner', __( 'Position', 'oyster-woocommerce' ), array( $this, 'field_launcher_corner' ) );
 		$this->add_field( 'launcher_offset', __( 'Distance from the edges', 'oyster-woocommerce' ), array( $this, 'field_launcher_offset' ) );
+		$this->add_field( 'z_index', __( 'Layer (z-index)', 'oyster-woocommerce' ), array( $this, 'field_z_index' ) );
 	}
 
 	public function render(): void {
@@ -205,6 +206,23 @@ final class Widget_Settings_Screen {
 		printf(
 			'<p class="description">%s</p>',
 			esc_html__( 'Leave blank to use the spacing from your Oyster dashboard.', 'oyster-woocommerce' )
+		);
+	}
+
+	public function field_z_index(): void {
+		$value = (string) Widget_Settings::get()['z_index'];
+
+		printf(
+			'<input type="number" name="%s[z_index]" value="%s" min="%d" max="%d" step="1" class="regular-text" style="width:10em;">',
+			esc_attr( Widget_Settings::OPTION_KEY ),
+			esc_attr( $value ),
+			(int) Widget_Settings::Z_INDEX_MIN,
+			(int) Widget_Settings::Z_INDEX_MAX
+		);
+
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Sets the CSS z-index the widget paints at. Give it a number below the z-index of your own pop-ups to let them open over the widget. Leave blank to use the value from your Oyster dashboard.', 'oyster-woocommerce' )
 		);
 	}
 

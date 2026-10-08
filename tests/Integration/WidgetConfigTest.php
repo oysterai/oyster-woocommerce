@@ -69,6 +69,33 @@ final class WidgetConfigTest extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'primaryColor', $this->published_config() );
 	}
 
+	/**
+	 * Same rule as the colour: a store that named no stacking order must say
+	 * nothing about one, which is what lets the dashboard's own value apply.
+	 */
+	public function test_no_layer_is_published_when_the_merchant_set_none(): void {
+		$this->assertSame( '', Widget_Settings::defaults()['z_index'], 'precondition: blank is the default' );
+
+		$this->assertArrayNotHasKey( 'zIndex', $this->published_config() );
+	}
+
+	public function test_a_layer_the_merchant_chose_is_published_as_a_number(): void {
+		$this->set_layer( '9000' );
+
+		// A number, not the string it is stored as: this travels as JSON and is
+		// read straight into a CSS z-index.
+		$this->assertSame( 9000, $this->published_config()['zIndex'] );
+	}
+
+	public function test_clearing_the_layer_hands_control_back(): void {
+		$this->set_layer( '9000' );
+		$this->assertArrayHasKey( 'zIndex', $this->published_config(), 'precondition: it was set' );
+
+		$this->set_layer( '' );
+
+		$this->assertArrayNotHasKey( 'zIndex', $this->published_config() );
+	}
+
 	/** The rest of the config is unconditional, and the widget needs it. */
 	public function test_the_keys_the_loader_cannot_work_without_are_always_there(): void {
 		$config = $this->published_config();
@@ -85,6 +112,13 @@ final class WidgetConfigTest extends WP_UnitTestCase {
 		update_option(
 			Widget_Settings::OPTION_KEY,
 			array_merge( Widget_Settings::defaults(), array( 'primary_color' => $colour ) )
+		);
+	}
+
+	private function set_layer( string $layer ): void {
+		update_option(
+			Widget_Settings::OPTION_KEY,
+			array_merge( Widget_Settings::defaults(), array( 'z_index' => $layer ) )
 		);
 	}
 
