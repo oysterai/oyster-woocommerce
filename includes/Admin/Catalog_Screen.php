@@ -64,7 +64,7 @@ final class Catalog_Screen {
 			self::FILTER_SECTION,
 			__( 'What syncs to Oyster', 'oyster-woocommerce' ),
 			function (): void {
-				echo '<p class="description">' . esc_html__( 'By default every published product syncs. If your store sells more than what Oyster should recommend, scope sync to specific categories or tags — a product matches if it has ANY of the selected terms, from either taxonomy.', 'oyster-woocommerce' ) . '</p>';
+				echo '<p class="description">' . esc_html__( 'Nothing syncs until you choose a scope here. Sync everything you publish, or scope sync to specific categories or tags: a product matches if it has ANY of the selected terms, from either taxonomy.', 'oyster-woocommerce' ) . '</p>';
 			},
 			self::FILTER_GROUP
 		);
