@@ -86,6 +86,7 @@ final class Scan_Payment {
 		add_filter( 'body_class', array( $this, 'add_body_class' ) );
 
 		add_filter( 'woocommerce_available_payment_gateways', array( $this, 'restrict_payment_methods' ) );
+		add_filter( 'woocommerce_get_checkout_order_received_url', array( $this, 'name_the_scan_on_return' ), 10, 2 );
 
 		// Every route to "the shopper has paid". WooCommerce fires these for
 		// different gateways and configurations, so listening to one alone
@@ -246,6 +247,13 @@ final class Scan_Payment {
 	public const PAYMENT_FLAG = 'oyster_scan_payment';
 
 	/**
+	 * Read by the widget on the page a shopper returns to after paying. Kept in
+	 * sync with the widget SDK, which reopens on the scan only when this names a
+	 * payment the same browser started.
+	 */
+	public const RETURN_REFERENCE_PARAM = 'oyster_scan_payment_ref';
+
+	/**
 	 * Marks the checkout URL so the page it opens can tell why it was opened.
 	 *
 	 * This checkout is loaded in a popup the shopper never navigated to, in the
@@ -260,6 +268,30 @@ final class Scan_Payment {
 	 *
 	 *     body.oyster-scan-payment .newsletter-modal { display: none; }
 	 */
+	/**
+	 * Names the scan on the page a shopper lands on after paying for it.
+	 *
+	 * On Android, checkout opens in another tab or in-app view, and the shopper
+	 * stays on this page rather than going back to the widget that is waiting.
+	 * Without the reference, this page's widget had no idea they had paid, and
+	 * the scan was never taken.
+	 *
+	 * @param string         $url   Order-received URL WooCommerce built.
+	 * @param WC_Order|mixed $order Order being returned to.
+	 */
+	public function name_the_scan_on_return( $url, $order ): string {
+		if ( ! $order instanceof WC_Order ) {
+			return (string) $url;
+		}
+
+		$reference = (string) $order->get_meta( self::ORDER_META_REFERENCE );
+		if ( '' === $reference ) {
+			return (string) $url;
+		}
+
+		return add_query_arg( self::RETURN_REFERENCE_PARAM, rawurlencode( $reference ), (string) $url );
+	}
+
 	private static function mark_as_scan_payment( string $url ): string {
 		return add_query_arg( self::PAYMENT_FLAG, '1', $url );
 	}
