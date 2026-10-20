@@ -11,9 +11,8 @@ use Oyster\Woo\Support\Scan_Pricing;
 use WP_UnitTestCase;
 
 /**
- * The page a shopper lands on after paying for a scan has to say which scan, or
- * its widget cannot take them back to it: on Android they rarely return to the
- * tab that was waiting.
+ * The return page must name the scan or its widget can't resume it: on Android shoppers rarely go back
+ * to the waiting tab.
  */
 final class ScanReturnLinkTest extends WP_UnitTestCase {
 
