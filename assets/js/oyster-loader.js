@@ -161,7 +161,7 @@
    * unblocked when the order reaches a paid state and PHP says so, with a
    * credential that never touches this page.
    */
-  function collectScanPayment(request) {
+  function collectPayment(request) {
     var cfg = config()
     if (!cfg.scanPaymentUrl) {
       return Promise.resolve({
@@ -171,13 +171,20 @@
     }
 
     return postJson(cfg.scanPaymentUrl, {
+      // A widget older than bookings sends no purpose, and only ever collected scans.
+      purpose: request.purpose === 'appointment' ? 'appointment' : 'scan',
       reference: request.reference,
       amount: request.amount,
       currency: request.currency,
       email: request.email,
       batch_id: request.batchId,
+      line_items: request.lineItems || [],
+      appointment: request.appointment || null,
     })
       .then(function (res) {
+        // Paid already: the widget waits for the store's confirmation instead of opening a second checkout.
+        if (res && res.already_paid) return { status: 'processing' }
+
         if (!res || !res.checkout_url) {
           return { status: 'failed', reason: 'Could not start the payment.' }
         }
@@ -231,7 +238,7 @@
           mode: mode,
           publicKey: cfg.publicKey,
           callback: widgetCallback,
-          onCollectPayment: collectScanPayment,
+          onCollectPayment: collectPayment,
           app: 'woocommerce',
         }
 

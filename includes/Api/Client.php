@@ -109,6 +109,39 @@ final class Client {
 	 * @throws Api_Exception
 	 */
 	public function confirm_scan_payment( string $bearer, string $reference, string $status, array $context = array() ): array {
+		return $this->confirm_collection(
+			'/api/v1/scan-payments/' . rawurlencode( $reference ) . '/external/confirm',
+			$bearer,
+			$status,
+			$context
+		);
+	}
+
+	/**
+	 * Tell Oyster this store collected (or failed to collect) a booking's payment. A success
+	 * books the appointment.
+	 *
+	 * @param array{external_reference?: string, amount?: float, currency?: string} $context
+	 *
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function confirm_appointment_payment( string $bearer, string $reference, string $status, array $context = array() ): array {
+		return $this->confirm_collection(
+			'/api/v1/consultation/appointments/reservations/' . rawurlencode( $reference ) . '/external/confirm',
+			$bearer,
+			$status,
+			$context
+		);
+	}
+
+	/**
+	 * @param array{external_reference?: string, amount?: float, currency?: string} $context
+	 *
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	private function confirm_collection( string $path, string $bearer, string $status, array $context ): array {
 		$body = array( 'status' => $status );
 
 		foreach ( array( 'external_reference', 'amount', 'currency' ) as $key ) {
@@ -119,7 +152,7 @@ final class Client {
 
 		return $this->request(
 			'POST',
-			'/api/v1/scan-payments/' . rawurlencode( $reference ) . '/external/confirm',
+			$path,
 			array(
 				'bearer' => $bearer,
 				'body'   => $body,
