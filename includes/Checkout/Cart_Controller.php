@@ -86,6 +86,18 @@ final class Cart_Controller {
 			return new WP_REST_Response( array( 'error' => 'no_items' ), 400 );
 		}
 
+		$claim = $request->get_param( 'wheel_reward' );
+		$cart_before = null;
+		if ( null !== $claim ) {
+			wc_load_cart();
+			if ( WC()->cart ) {
+				$cart_before = array(
+					'contents' => WC()->cart->get_cart(),
+					'coupons'  => WC()->cart->get_applied_coupons(),
+				);
+			}
+		}
+
 		$result = $this->filler->fill( $items, $this->sanitize_attribution( $request ) );
 
 		if ( isset( $result['error'] ) ) {
@@ -96,6 +108,25 @@ final class Cart_Controller {
 			);
 
 			return new WP_REST_Response( $result, $status[ $result['error'] ] ?? 500 );
+		}
+
+		if ( null !== $claim ) {
+			$applied = false;
+			try {
+				$applied = ( new \Oyster\Woo\Wheel\Provisioner( new \Oyster\Woo\Support\Connection() ) )->apply( $claim );
+			} finally {
+				if ( ! $applied && null !== $cart_before ) {
+					// A rejected reward must not leave added quantities behind for the next retry.
+					WC()->cart->set_cart_contents( $cart_before['contents'] );
+					WC()->cart->set_applied_coupons( $cart_before['coupons'] );
+					WC()->cart->calculate_totals();
+					WC()->cart->set_session();
+					WC()->cart->persistent_cart_update();
+				}
+			}
+			if ( ! $applied ) {
+				return new WP_REST_Response( array( 'error' => 'reward_unavailable', 'message' => __( 'The reward could not be applied. Check its terms and try again.', 'oyster-woocommerce' ) ), 409 );
+			}
 		}
 
 		$added   = $result['added'];
