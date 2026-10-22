@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.22.0
+Stable tag: 0.23.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,9 @@ Features:
   search until you choose otherwise.
 * Automatic catalog sync — published simple and variable products sync to Oyster
   whenever you save them, plus a one-click full import/re-sync under **Oyster → Catalog**.
+  Bundles, grouped and external products, gift cards and free items never sync.
+* Scan and booking payments at your own checkout — when your Oyster account takes them
+  on your store, the shopper pays through WooCommerce and Oyster is told once it is paid.
 * Richer product data for better recommendations — an **Oyster ingredients** field on
   every product (one ingredient per line), a **Skin Type** product attribute, and an
   **Oyster size / volume** field, all synced to Oyster. Populate them by hand or via the
@@ -123,6 +126,28 @@ internet, which a local or password-protected staging site usually is not. The
 Connect screen shows when the last event arrived.
 
 == Changelog ==
+
+= 0.23.0 =
+* **Clinics can take booking payments at the store checkout.** When your Oyster account
+  takes booking payments on your store, a booking made in the widget becomes a
+  WooCommerce order with one line for each thing the shopper pays for: the appointment,
+  any added services and the skin scan. The appointment is booked once the order is paid.
+  Booking payments are switched on per account by Oyster support; nothing changes for a
+  store that does not take them.
+* **A paid scan or booking is never charged twice.** A shopper who paid and then reloaded
+  the widget, or tapped Pay again, could be given a second order for the same payment.
+  The store now recognises a payment it has already taken, tells Oyster again in case the
+  first notice never arrived, and the widget waits for it instead of opening checkout.
+* **A scan paid in another tab opens where the shopper lands.** On some phones checkout
+  opens in a new tab or in-app browser, and after paying the shopper stays on the
+  order-received page instead of returning to the widget. That page now names the scan
+  payment, so the widget there opens straight on the scan they paid for. Ordinary orders
+  are unchanged.
+* **Only individual products sync to Oyster.** Bundles, grouped and external products,
+  gift cards, drafts, private products and free items are left out, even when they match
+  your category or tag filter. Before, saving one of them could send it to Oyster.
+  Products already synced are not removed; delete them from your Oyster dashboard if you
+  do not want them recommended.
 
 = 0.22.0 =
 * **You can now put the widget on a lower layer than your own pop-ups.** The widget
