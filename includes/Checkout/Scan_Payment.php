@@ -1,6 +1,6 @@
 <?php
 /**
- * Collecting scan payments through this store's own checkout.
+ * Collecting scan and booking payments through this store's own checkout.
  *
  * @package Oyster\Woo
  */
@@ -21,11 +21,12 @@ use WC_Product_Simple;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Scan payments for vendors who collect them on their own store, as one-line orders against a hidden product.
+ * Scan and booking payments for vendors who collect them on their own store, as orders against hidden
+ * placeholder products.
  *
  * An order brings every gateway the merchant configured, plus receipts, refunds, taxes and reporting.
- * Only the PHP confirmation of a genuinely paid order unblocks the scan, never the browser, so the
- * confirming credential never reaches the page.
+ * Only the PHP confirmation of a genuinely paid order unblocks the scan or books the appointment, never
+ * the browser, so the confirming credential never reaches the page.
  * Oyster invoices such a vendor for every scan, shopper-paid ones included: they hold that money.
  */
 final class Scan_Payment {
@@ -36,8 +37,17 @@ final class Scan_Payment {
 	/** Guards against confirming the same order twice. */
 	private const ORDER_META_CONFIRMED = '_oyster_scan_confirmed';
 
-	/** Hidden product's id, so it is created only once. */
+	/** Hidden products' ids, so each is created only once. */
 	private const PRODUCT_OPTION = 'oyster_woocommerce_scan_product_id';
+
+	public const BOOKING_PRODUCT_OPTION = 'oyster_woocommerce_booking_product_id';
+
+	/** What an order pays for. Absent on scan orders made before bookings existed. */
+	public const ORDER_META_PURPOSE = '_oyster_payment_purpose';
+
+	public const PURPOSE_SCAN = 'scan';
+
+	public const PURPOSE_APPOINTMENT = 'appointment';
 
 	/** Last outcome Oyster was successfully told about. */
 	private const ORDER_META_REPORTED = '_oyster_scan_reported';
@@ -80,9 +90,9 @@ final class Scan_Payment {
 	}
 
 	/**
-	 * Create the order a shopper pays to run their scan, and return where to pay.
+	 * Create the order a shopper pays to run their scan or book their appointment, and return where to pay.
 	 *
-	 * @param array{reference: string, amount: float, currency: string, email: string, batch_id: string} $request
+	 * @param array{reference: string, amount: float, currency: string, email: string, batch_id: string, purpose?: string, line_items?: list<array{kind: string, name: string, amount: float}>, appointment?: array{type?: string, date?: string, startTime?: string}|null} $request
 	 *
 	 * @return array{checkout_url: string, order_id: int}|array{already_paid: true, order_id: int}|array{error: string}
 	 */
@@ -95,12 +105,14 @@ final class Scan_Payment {
 			return array( 'error' => 'woocommerce_unavailable' );
 		}
 
-		$product = $this->scan_product();
+		$is_booking = self::PURPOSE_APPOINTMENT === ( $request['purpose'] ?? self::PURPOSE_SCAN );
+
+		$product = $is_booking ? $this->booking_product() : $this->scan_product();
 		if ( null === $product ) {
 			return array( 'error' => 'product_unavailable' );
 		}
 
-		// A widget reload or a retried request must not open a second order and charge twice for one scan.
+		// A widget reload or a retried request must not open a second order and charge twice for one payment.
 		$existing = $this->find_order_for_reference( $request['reference'] );
 		if ( $existing instanceof WC_Order ) {
 			// Paid already, so a second checkout would be a second charge. Telling Oyster again is safe and
@@ -120,35 +132,103 @@ final class Scan_Payment {
 			);
 		}
 
-		// The amount comes via the browser: floored at the store's price so nobody pays cents for a scan
-		// billed in full. Never lowered: a session capturing more than a face scan costs more, and the widget knows which.
-		$amount = max( $request['amount'], $this->pricing->minimum_charge() ?? 0.0 );
-
 		$order = wc_create_order();
 		if ( ! $order instanceof WC_Order ) {
 			return array( 'error' => 'order_failed' );
 		}
 
-		// The product is a placeholder; the amount belongs to this scan, not a catalog item.
-		$order->add_product( $product, 1, array( 'total' => $amount ) );
+		if ( $is_booking ) {
+			$this->add_booking_lines( $order, $product, $request );
+		} else {
+			// The amount comes via the browser: floored at the store's price so nobody pays cents for a scan
+			// billed in full. Never lowered: a session capturing more than a face scan costs more, and the widget knows which.
+			$amount = max( $request['amount'], $this->pricing->minimum_charge() ?? 0.0 );
+
+			// The product is a placeholder; the amount belongs to this scan, not a catalog item.
+			$order->add_product( $product, 1, array( 'total' => $amount ) );
+		}
 
 		if ( '' !== $request['email'] ) {
 			$order->set_billing_email( $request['email'] );
 		}
 
 		$order->update_meta_data( self::ORDER_META_REFERENCE, $request['reference'] );
+		$order->update_meta_data( self::ORDER_META_PURPOSE, $is_booking ? self::PURPOSE_APPOINTMENT : self::PURPOSE_SCAN );
 		// Lets a merchant tell which scan this paid for without leaving their admin.
 		if ( '' !== $request['batch_id'] ) {
 			$order->update_meta_data( '_oyster_scan_batch_id', $request['batch_id'] );
 		}
 		$order->set_created_via( 'oyster-scan' );
 		$order->calculate_totals();
-		$order->update_status( 'pending', __( 'Awaiting payment for an Oyster skin scan.', 'oyster-woocommerce' ) );
+		$order->update_status(
+			'pending',
+			$is_booking
+				? self::booking_note( $request['appointment'] ?? null )
+				: __( 'Awaiting payment for an Oyster skin scan.', 'oyster-woocommerce' )
+		);
 
 		return array(
 			'checkout_url' => self::mark_as_scan_payment( $order->get_checkout_payment_url() ),
 			'order_id'     => $order->get_id(),
 		);
+	}
+
+	/**
+	 * One line per thing the shopper is paying for, so the receipt and the merchant's reports read as a
+	 * consultation and a scan rather than one opaque total. The widget's own total is used when it sends
+	 * no breakdown, or one that does not add up to what it asked for.
+	 *
+	 * @param array{amount: float, line_items?: list<array{kind: string, name: string, amount: float}>} $request
+	 */
+	private function add_booking_lines( WC_Order $order, WC_Product_Simple $product, array $request ): void {
+		$lines = array_values(
+			array_filter(
+				$request['line_items'] ?? array(),
+				static fn ( array $line ): bool => '' !== $line['name'] && $line['amount'] > 0
+			)
+		);
+
+		$total = array_sum( array_column( $lines, 'amount' ) );
+		if ( array() === $lines || abs( $total - $request['amount'] ) > 0.01 ) {
+			$lines = array(
+				array(
+					'name'   => __( 'Appointment booking', 'oyster-woocommerce' ),
+					'amount' => $request['amount'],
+				),
+			);
+		}
+
+		foreach ( $lines as $line ) {
+			$item_id = $order->add_product( $product, 1, array( 'total' => $line['amount'] ) );
+			$item    = $item_id ? $order->get_item( $item_id ) : null;
+			if ( $item ) {
+				$item->set_name( $line['name'] );
+				$item->save();
+			}
+		}
+	}
+
+	/**
+	 * @param array{type?: string, date?: string, startTime?: string}|null $appointment
+	 */
+	private static function booking_note( ?array $appointment ): string {
+		$when = trim( ( $appointment['date'] ?? '' ) . ' ' . ( $appointment['startTime'] ?? '' ) );
+		$what = (string) ( $appointment['type'] ?? '' );
+
+		if ( '' === $what && '' === $when ) {
+			return __( 'Awaiting payment for an appointment booked through Oyster.', 'oyster-woocommerce' );
+		}
+
+		return sprintf(
+			/* translators: 1: appointment type, 2: date and time */
+			__( 'Awaiting payment for an appointment booked through Oyster: %1$s, %2$s.', 'oyster-woocommerce' ),
+			'' !== $what ? $what : __( 'appointment', 'oyster-woocommerce' ),
+			$when
+		);
+	}
+
+	private static function is_booking_order( WC_Order $order ): bool {
+		return self::PURPOSE_APPOINTMENT === (string) $order->get_meta( self::ORDER_META_PURPOSE );
 	}
 
 	/**
@@ -223,7 +303,8 @@ final class Scan_Payment {
 		}
 
 		$reference = (string) $order->get_meta( self::ORDER_META_REFERENCE );
-		if ( '' === $reference ) {
+		// The widget resumes a SCAN for this reference; a booking resolves on its own once confirmed.
+		if ( '' === $reference || self::is_booking_order( $order ) ) {
 			return (string) $url;
 		}
 
@@ -292,17 +373,18 @@ final class Scan_Payment {
 			return;
 		}
 
+		$context = array(
+			'external_reference' => (string) $order->get_id(),
+			'amount'             => (float) $order->get_total(),
+			'currency'           => (string) $order->get_currency(),
+		);
+
 		try {
-			$this->client->confirm_scan_payment(
-				$bearer,
-				$reference,
-				$status,
-				array(
-					'external_reference' => (string) $order->get_id(),
-					'amount'             => (float) $order->get_total(),
-					'currency'           => (string) $order->get_currency(),
-				)
-			);
+			if ( self::is_booking_order( $order ) ) {
+				$this->client->confirm_appointment_payment( $bearer, $reference, $status, $context );
+			} else {
+				$this->client->confirm_scan_payment( $bearer, $reference, $status, $context );
+			}
 		} catch ( Api_Exception $e ) {
 			$this->handle_confirmation_failure( $order, $order_id, $status, $e );
 
@@ -316,11 +398,7 @@ final class Scan_Payment {
 		if ( self::STATUS_SUCCESS === $status ) {
 			$order->update_meta_data( self::ORDER_META_CONFIRMED, $status );
 		}
-		$order->add_order_note(
-			self::STATUS_SUCCESS === $status
-				? __( 'Oyster was told this scan payment settled. The shopper\'s scan is unblocked.', 'oyster-woocommerce' )
-				: __( 'Oyster was told this scan payment did not complete.', 'oyster-woocommerce' )
-		);
+		$order->add_order_note( self::confirmed_note( $order, $status ) );
 		$order->save();
 	}
 
@@ -410,12 +488,40 @@ final class Scan_Payment {
 		return ! empty( $orders ) && $orders[0] instanceof WC_Order ? $orders[0] : null;
 	}
 
-	/**
-	 * Hidden so shoppers can't buy scans off a shelf; it exists only for orders to reference.
-	 * Its price is never used: each order sets its own.
-	 */
+	private static function confirmed_note( WC_Order $order, string $status ): string {
+		if ( self::is_booking_order( $order ) ) {
+			return self::STATUS_SUCCESS === $status
+				? __( 'Oyster was told this booking payment settled. The appointment is booked.', 'oyster-woocommerce' )
+				: __( 'Oyster was told this booking payment did not complete. The slot has been released.', 'oyster-woocommerce' );
+		}
+
+		return self::STATUS_SUCCESS === $status
+			? __( 'Oyster was told this scan payment settled. The shopper\'s scan is unblocked.', 'oyster-woocommerce' )
+			: __( 'Oyster was told this scan payment did not complete.', 'oyster-woocommerce' );
+	}
+
 	private function scan_product(): ?WC_Product_Simple {
-		$stored = (int) get_option( self::PRODUCT_OPTION, 0 );
+		return $this->placeholder_product(
+			self::PRODUCT_OPTION,
+			__( 'Skin scan', 'oyster-woocommerce' ),
+			__( 'Used to charge for skin scans taken in the Oyster widget. Hidden from your storefront — deleting it is safe; it is recreated when next needed.', 'oyster-woocommerce' )
+		);
+	}
+
+	private function booking_product(): ?WC_Product_Simple {
+		return $this->placeholder_product(
+			self::BOOKING_PRODUCT_OPTION,
+			__( 'Appointment booking', 'oyster-woocommerce' ),
+			__( 'Used to charge for appointments booked in the Oyster widget. Hidden from your storefront — deleting it is safe; it is recreated when next needed.', 'oyster-woocommerce' )
+		);
+	}
+
+	/**
+	 * Hidden so shoppers can't buy these off a shelf; they exist only for orders to reference.
+	 * The price is never used: each order line sets its own.
+	 */
+	private function placeholder_product( string $option, string $name, string $description ): ?WC_Product_Simple {
+		$stored = (int) get_option( $option, 0 );
 
 		if ( $stored > 0 ) {
 			$product = wc_get_product( $stored );
@@ -430,23 +536,21 @@ final class Scan_Payment {
 		}
 
 		$product = new WC_Product_Simple();
-		$product->set_name( __( 'Skin scan', 'oyster-woocommerce' ) );
+		$product->set_name( $name );
 		$product->set_status( 'private' );
 		$product->set_catalog_visibility( 'hidden' );
 		$product->set_virtual( true );
 		$product->set_sold_individually( true );
 		$product->set_price( 0 );
 		$product->set_regular_price( 0 );
-		$product->set_description(
-			__( 'Used to charge for skin scans taken in the Oyster widget. Hidden from your storefront — deleting it is safe; it is recreated when next needed.', 'oyster-woocommerce' )
-		);
+		$product->set_description( $description );
 
 		$id = $product->save();
 		if ( ! $id ) {
 			return null;
 		}
 
-		update_option( self::PRODUCT_OPTION, $id, false );
+		update_option( $option, $id, false );
 
 		return $product;
 	}

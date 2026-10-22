@@ -81,9 +81,10 @@ delete_option( 'oyster_woocommerce_widget_settings' );
 delete_option( 'oyster_woocommerce_scan_payment_methods' );
 delete_option( 'oyster_woocommerce_catalog_filter' );
 delete_option( 'oyster_woocommerce_onboarding' );
-// The hidden product scan orders are raised against is left in place: it may be
-// attached to real orders. Only the pointer to it goes.
+// The hidden products scan and booking orders are raised against are left in place:
+// they may be attached to real orders. Only the pointers to them go.
 delete_option( 'oyster_woocommerce_scan_product_id' );
+delete_option( 'oyster_woocommerce_booking_product_id' );
 // Same for the scan page: it is a page the merchant owns and may have linked
 // to elsewhere, so only this plugin's pointer to it is removed.
 delete_option( 'oyster_woocommerce_scan_page_id' );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Storefront REST endpoint the widget uses to start a scan payment.
+ * Storefront REST endpoint the widget uses to start a scan or booking payment.
  *
  * @package Oyster\Woo
  */
@@ -16,7 +16,7 @@ use WP_REST_Server;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Raises the order a shopper pays to run their scan, and hands back where to pay.
+ * Raises the order a shopper pays to run their scan or book an appointment, and hands back where to pay.
  *
  * Public (`permission_callback: __return_true`) for the same reason the cart-add
  * route is: a shopper paying for their own scan has no account here, and the
@@ -53,11 +53,14 @@ final class Scan_Payment_Controller {
 				'callback'            => array( $this, 'handle_create' ),
 				'permission_callback' => '__return_true',
 				'args'                => array(
-					'reference' => array( 'required' => true ),
-					'amount'    => array( 'required' => true ),
-					'currency'  => array( 'required' => false ),
-					'email'     => array( 'required' => false ),
-					'batch_id'  => array( 'required' => false ),
+					'reference'   => array( 'required' => true ),
+					'amount'      => array( 'required' => true ),
+					'currency'    => array( 'required' => false ),
+					'email'       => array( 'required' => false ),
+					'batch_id'    => array( 'required' => false ),
+					'purpose'     => array( 'required' => false ),
+					'line_items'  => array( 'required' => false ),
+					'appointment' => array( 'required' => false ),
 				),
 			)
 		);
@@ -79,11 +82,16 @@ final class Scan_Payment_Controller {
 
 		$result = $this->payments->create_order(
 			array(
-				'reference' => $reference,
-				'amount'    => $amount,
-				'currency'  => sanitize_text_field( (string) $request->get_param( 'currency' ) ),
-				'email'     => sanitize_email( (string) $request->get_param( 'email' ) ),
-				'batch_id'  => sanitize_text_field( (string) $request->get_param( 'batch_id' ) ),
+				'reference'   => $reference,
+				'amount'      => $amount,
+				'currency'    => sanitize_text_field( (string) $request->get_param( 'currency' ) ),
+				'email'       => sanitize_email( (string) $request->get_param( 'email' ) ),
+				'batch_id'    => sanitize_text_field( (string) $request->get_param( 'batch_id' ) ),
+				'purpose'     => Scan_Payment::PURPOSE_APPOINTMENT === $request->get_param( 'purpose' )
+					? Scan_Payment::PURPOSE_APPOINTMENT
+					: Scan_Payment::PURPOSE_SCAN,
+				'line_items'  => self::line_items( $request->get_param( 'line_items' ) ),
+				'appointment' => self::appointment( $request->get_param( 'appointment' ) ),
 			)
 		);
 
@@ -99,5 +107,48 @@ final class Scan_Payment_Controller {
 		}
 
 		return new WP_REST_Response( $result );
+	}
+
+	/**
+	 * Names reach the merchant's order screen and the shopper's receipt, so they are treated as text.
+	 *
+	 * @param mixed $value
+	 * @return list<array{kind: string, name: string, amount: float}>
+	 */
+	private static function line_items( $value ): array {
+		if ( ! is_array( $value ) ) {
+			return array();
+		}
+
+		$lines = array();
+		foreach ( $value as $line ) {
+			if ( ! is_array( $line ) || ! is_numeric( $line['amount'] ?? null ) ) {
+				continue;
+			}
+
+			$lines[] = array(
+				'kind'   => sanitize_key( (string) ( $line['kind'] ?? '' ) ),
+				'name'   => sanitize_text_field( (string) ( $line['name'] ?? '' ) ),
+				'amount' => (float) $line['amount'],
+			);
+		}
+
+		return $lines;
+	}
+
+	/**
+	 * @param mixed $value
+	 * @return array{type: string, date: string, startTime: string}|null
+	 */
+	private static function appointment( $value ): ?array {
+		if ( ! is_array( $value ) ) {
+			return null;
+		}
+
+		return array(
+			'type'      => sanitize_text_field( (string) ( $value['type'] ?? '' ) ),
+			'date'      => sanitize_text_field( (string) ( $value['date'] ?? '' ) ),
+			'startTime' => sanitize_text_field( (string) ( $value['startTime'] ?? '' ) ),
+		);
 	}
 }
