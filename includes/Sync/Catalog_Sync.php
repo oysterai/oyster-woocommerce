@@ -124,7 +124,11 @@ final class Catalog_Sync {
 		}
 
 		$product = wc_get_product( $product_id );
-		if ( ! $product instanceof WC_Product || ! Catalog_Filter::is_eligible( $product ) ) {
+		if (
+			! $product instanceof WC_Product
+			|| ! Individual_Product::is_individual( $product )
+			|| ! Catalog_Filter::is_eligible( $product )
+		) {
 			return;
 		}
 
@@ -174,7 +178,11 @@ final class Catalog_Sync {
 
 		$rows = array();
 		foreach ( $products as $product ) {
-			if ( $product instanceof WC_Product && Catalog_Filter::is_eligible( $product ) ) {
+			if (
+				$product instanceof WC_Product
+				&& Individual_Product::is_individual( $product )
+				&& Catalog_Filter::is_eligible( $product )
+			) {
 				$rows = array_merge( $rows, Product_Mapper::to_rows( $product ) );
 			}
 		}

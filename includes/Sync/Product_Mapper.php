@@ -60,7 +60,8 @@ final class Product_Mapper {
 	 */
 	private static function build_row( WC_Product $unit ): ?array {
 		$price = $unit->get_price();
-		if ( '' === $price || null === $price || ! is_numeric( $price ) ) {
+		// Free items are gifts or placeholders (the hidden skin scan product is priced at 0).
+		if ( '' === $price || null === $price || ! is_numeric( $price ) || (float) $price <= 0 ) {
 			return null;
 		}
 
