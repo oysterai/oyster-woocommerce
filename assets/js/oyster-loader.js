@@ -170,6 +170,15 @@
       })
     }
 
+    // This store sells scans only. Charging for a booking as if it were a scan would take the wrong
+    // amount for the wrong thing.
+    if (request.purpose === 'appointment') {
+      return Promise.resolve({
+        status: 'failed',
+        reason: 'This store does not take booking payments.',
+      })
+    }
+
     return postJson(cfg.scanPaymentUrl, {
       reference: request.reference,
       amount: request.amount,
@@ -178,6 +187,9 @@
       batch_id: request.batchId,
     })
       .then(function (res) {
+        // Paid already: the widget waits for the store's confirmation instead of opening a second checkout.
+        if (res && res.already_paid) return { status: 'processing' }
+
         if (!res || !res.checkout_url) {
           return { status: 'failed', reason: 'Could not start the payment.' }
         }

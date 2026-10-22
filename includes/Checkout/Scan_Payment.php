@@ -84,7 +84,7 @@ final class Scan_Payment {
 	 *
 	 * @param array{reference: string, amount: float, currency: string, email: string, batch_id: string} $request
 	 *
-	 * @return array{checkout_url: string, order_id: int}|array{error: string}
+	 * @return array{checkout_url: string, order_id: int}|array{already_paid: true, order_id: int}|array{error: string}
 	 */
 	public function create_order( array $request ): array {
 		if ( ! $this->connection->is_connected() ) {
@@ -103,6 +103,17 @@ final class Scan_Payment {
 		// A widget reload or a retried request must not open a second order and charge twice for one scan.
 		$existing = $this->find_order_for_reference( $request['reference'] );
 		if ( $existing instanceof WC_Order ) {
+			// Paid already, so a second checkout would be a second charge. Telling Oyster again is safe and
+			// recovers a confirmation that never arrived.
+			if ( $existing->is_paid() ) {
+				$this->confirm( $existing->get_id(), self::STATUS_SUCCESS );
+
+				return array(
+					'already_paid' => true,
+					'order_id'     => $existing->get_id(),
+				);
+			}
+
 			return array(
 				'checkout_url' => self::mark_as_scan_payment( $existing->get_checkout_payment_url() ),
 				'order_id'     => $existing->get_id(),
@@ -390,7 +401,7 @@ final class Scan_Payment {
 		$orders = wc_get_orders(
 			array(
 				'limit'      => 1,
-				'status'     => array( 'pending', 'on-hold' ),
+				'status'     => array( 'pending', 'on-hold', 'processing', 'completed' ),
 				'meta_key'   => self::ORDER_META_REFERENCE, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 				'meta_value' => $reference, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 			)
