@@ -59,7 +59,18 @@
    * plugin's own `/cart/add` route, and this only follows the redirect.
    */
   function wooCheckoutHandoff(payload) {
-    console.debug('[oyster] checkout handoff', payload)
+    if (payload && payload.intent === 'wheel_reward') {
+      postJson('/wp-json/oyster/v1/wheel/rewards/claim', payload.wheel_reward || {})
+        .then(function (result) {
+          var target = new URL(result.redirect, window.location.href)
+          if (target.origin !== window.location.origin) throw new Error('Invalid reward destination')
+          window.location.href = target.href
+        })
+        .catch(function () {
+          window.alert('This reward could not be opened. Please try again or contact the store.')
+        })
+      return
+    }
     var items = (payload && payload.checkout_items) || []
     if (!items.length) {
       console.warn('[oyster] checkout payload had no checkout_items')
@@ -78,6 +89,10 @@
 
     if (!lineItems.length) {
       console.warn('[oyster] no valid product ids in checkout_items')
+      if (payload.wheel_reward) {
+        window.alert('Checkout could not be prepared. Your saved offer is unchanged. Please try again.')
+        return
+      }
       redirectToFallback()
       return
     }
@@ -93,6 +108,7 @@
       batch_id: batchId,
       routine_id: routineId,
       widget_attribution_id: attributionId,
+      wheel_reward: payload.wheel_reward || null,
     })
       .then(function (result) {
         if (result && result.skipped) {
@@ -105,6 +121,7 @@
         if (result && result.redirect) {
           window.location.href = result.redirect
         } else {
+          if (payload.wheel_reward) throw new Error('Reward checkout destination is unavailable')
           // Shouldn't happen, but don't strand the shopper if it does.
           console.warn('[oyster] cart/add succeeded but returned no redirect')
           redirectToFallback()
@@ -112,6 +129,10 @@
       })
       .catch(function (err) {
         console.error('[oyster] checkout handoff failed', err)
+        if (payload.wheel_reward) {
+          window.alert('We could not apply your reward. Your saved offer is unchanged. Please check its terms and try again.')
+          return
+        }
         redirectToFallback()
       })
   }
@@ -139,7 +160,6 @@
   }
 
   function widgetCallback(message) {
-    console.debug('[oyster] widget callback', message)
     if (!message) return
 
     if (message.event === 'scanCompleted') {
