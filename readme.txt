@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.23.0
+Stable tag: 0.23.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -126,6 +126,15 @@ internet, which a local or password-protected staging site usually is not. The
 Connect screen shows when the last event arrived.
 
 == Changelog ==
+
+= 0.23.1 =
+* **The payment window closes once a scan or booking is paid.** After paying, the
+  shopper was left in the payment window on your order-received page, free to keep
+  shopping there instead of returning to the scan. Some payment pages, Paystack's among
+  them, stop the widget from closing that window itself, so the order-received page of a
+  scan or booking order now closes it. Where a browser does not allow that, such as some
+  in-app browsers, the scan still opens on that page as before. Ordinary orders are
+  unchanged.
 
 = 0.23.0 =
 * **Clinics can take booking payments at the store checkout.** When your Oyster account
