@@ -75,6 +75,8 @@ final class Scan_Payment {
 
 		add_filter( 'woocommerce_available_payment_gateways', array( $this, 'restrict_payment_methods' ) );
 		add_filter( 'woocommerce_get_checkout_order_received_url', array( $this, 'name_the_scan_on_return' ), 10, 2 );
+		// Early, so the window is gone before the storefront and its widget render.
+		add_action( 'wp_head', array( $this, 'close_payment_window' ), 1 );
 
 		// WooCommerce fires a different one per gateway and configuration; one alone misses whole kinds of store.
 		add_action( 'woocommerce_payment_complete', array( $this, 'on_paid' ) );
@@ -309,6 +311,38 @@ final class Scan_Payment {
 		}
 
 		return add_query_arg( self::RETURN_REFERENCE_PARAM, rawurlencode( $reference ), (string) $url );
+	}
+
+	/**
+	 * Payment pages such as Paystack's cut the popup off from the widget that opened it, so the widget can no
+	 * longer close it and the shopper is left on the storefront. Where the browser refuses (in-app browsers,
+	 * some Android tabs) the page stays and its widget resumes the scan from the return reference instead.
+	 */
+	public function close_payment_window(): void {
+		if ( ! function_exists( 'is_order_received_page' ) || ! is_order_received_page() ) {
+			return;
+		}
+
+		global $wp;
+
+		$order_id = isset( $wp->query_vars['order-received'] ) ? absint( $wp->query_vars['order-received'] ) : 0;
+		$order    = $order_id > 0 ? wc_get_order( $order_id ) : null;
+		// Read-only, as WooCommerce reads it to decide whether to show this order.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
+
+		if ( ! $order instanceof WC_Order || ! self::closes_payment_window_for( $order, $key ) ) {
+			return;
+		}
+
+		echo "<script>try{window.close()}catch(e){}</script>\n";
+	}
+
+	/** Only the shopper's own scan or booking order, never a sale the merchant made. */
+	public static function closes_payment_window_for( WC_Order $order, string $key ): bool {
+		return '' !== (string) $order->get_meta( self::ORDER_META_REFERENCE )
+			&& '' !== $key
+			&& hash_equals( $order->get_order_key(), $key );
 	}
 
 	/**
