@@ -36,6 +36,30 @@ final class ScanReturnLinkTest extends WP_UnitTestCase {
 		$this->assertSame( $order->get_order_key(), $params['key'] ?? null );
 	}
 
+	public function test_a_scan_or_booking_return_page_closes_its_payment_window(): void {
+		$order = wc_create_order();
+		$order->update_meta_data( Scan_Payment::ORDER_META_REFERENCE, 'OYS-SCAN-01M3VRFH' );
+		$order->save();
+
+		$this->assertTrue( Scan_Payment::closes_payment_window_for( $order, $order->get_order_key() ) );
+	}
+
+	public function test_a_return_page_without_the_order_key_stays_open(): void {
+		$order = wc_create_order();
+		$order->update_meta_data( Scan_Payment::ORDER_META_REFERENCE, 'OYS-SCAN-01M3VRFH' );
+		$order->save();
+
+		$this->assertFalse( Scan_Payment::closes_payment_window_for( $order, '' ) );
+		$this->assertFalse( Scan_Payment::closes_payment_window_for( $order, 'wc_order_someone_else' ) );
+	}
+
+	public function test_an_ordinary_order_return_page_stays_open(): void {
+		$order = wc_create_order();
+		$order->save();
+
+		$this->assertFalse( Scan_Payment::closes_payment_window_for( $order, $order->get_order_key() ) );
+	}
+
 	public function test_an_ordinary_order_returns_to_the_usual_page(): void {
 		$order = wc_create_order();
 		$order->save();
