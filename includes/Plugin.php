@@ -141,6 +141,7 @@ final class Plugin {
 		$webhook_secret = new Webhook_Secret();
 		( new Receiver( $webhook_secret ) )->register();
 		$webhook_registrar = new Registrar( $this->connection, $this->client, $webhook_secret );
+		( new \Oyster\Woo\Wheel\Free_Delivery() )->register();
 		$wheel = new \Oyster\Woo\Wheel\Provisioner( $this->connection );
 		add_action( 'init', array( \Oyster\Woo\Wheel\Outbox::class, 'install' ), 1 );
 		( new \Oyster\Woo\Wheel\Controller( $this->connection, $webhook_secret, $wheel ) )->register();

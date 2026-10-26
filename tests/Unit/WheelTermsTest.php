@@ -27,6 +27,20 @@ final class WheelTermsTest extends TestCase {
 		$terms['restrictions']['unrecognized'] = true;
 		self::assertFalse( Terms::valid( $terms ) );
 	}
+	public function test_free_delivery_has_no_product_discount_or_product_restrictions(): void {
+		$terms = $this->terms();
+		$terms['type'] = 'free_delivery';
+		$terms['value'] = null;
+		$terms['min_order_amount'] = 50;
+		self::assertTrue( Terms::valid( $terms ) );
+		foreach ( array( 'allowed_product_ids', 'excluded_product_ids' ) as $key ) {
+			$restricted = $terms;
+			$restricted['restrictions'][ $key ] = array( 22 );
+			self::assertFalse( Terms::valid( $restricted ) );
+		}
+		$terms['value'] = 10;
+		self::assertFalse( Terms::valid( $terms ) );
+	}
 	public function test_gifts_require_an_expiry_and_no_extra_cart_terms(): void {
 		$terms = $this->terms();
 		$terms['type'] = 'free_item';

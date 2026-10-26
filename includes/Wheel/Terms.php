@@ -13,7 +13,7 @@ final class Terms {
 			|| ! is_string( $terms['currency'] ?? null ) || ! preg_match( '/^[A-Z]{3}$/D', $terms['currency'] )
 			|| ! filter_var( $terms['email'] ?? '', FILTER_VALIDATE_EMAIL )
 			|| ! is_int( $terms['usage_limit'] ?? null ) || $terms['usage_limit'] < 1 || $terms['usage_limit'] > 100
-			|| ! in_array( $terms['type'] ?? '', array( 'percentage_discount', 'fixed_discount', 'free_item' ), true ) ) {
+			|| ! in_array( $terms['type'] ?? '', array( 'percentage_discount', 'fixed_discount', 'free_item', 'free_delivery' ), true ) ) {
 			return false;
 		}
 		if ( null !== ( $terms['expires_at'] ?? null ) && ( ! is_string( $terms['expires_at'] ) || false === strtotime( $terms['expires_at'] ) ) ) {
@@ -35,6 +35,10 @@ final class Terms {
 		}
 		if ( ! is_bool( $restrictions['combines_with_discounts'] ?? null ) || ( isset( $terms['min_order_amount'] ) && ( ! is_numeric( $terms['min_order_amount'] ) || $terms['min_order_amount'] < 0 ) ) ) {
 			return false;
+		}
+		if ( 'free_delivery' === $terms['type'] ) {
+			return empty( $restrictions['allowed_product_ids'] ) && empty( $restrictions['excluded_product_ids'] )
+				&& ! isset( $terms['value'] ) && ! isset( $terms['product_id'] ) && ! isset( $terms['variant_id'] );
 		}
 		if ( 'free_item' === $terms['type'] ) {
 			return 1 === $terms['usage_limit'] && ! empty( $terms['expires_at'] ) && empty( $terms['min_order_amount'] )

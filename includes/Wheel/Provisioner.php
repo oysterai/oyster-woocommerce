@@ -69,7 +69,7 @@ final class Provisioner {
 	}
 
 	private function coupon( array $terms ): array {
-		if ( ! wc_coupons_enabled() ) {
+		if ( ! wc_coupons_enabled() || ( 'free_delivery' === $terms['type'] && ! Free_Delivery::available() ) ) {
 			throw new \InvalidArgumentException( 'reward_unavailable' );
 		}
 		if ( \WC_Data_Store::load( 'coupon' )->get_ids_by_code( $terms['code'] ) ) {
@@ -83,7 +83,8 @@ final class Provisioner {
 		}
 		$coupon->set_code( $terms['code'] );
 		$coupon->set_discount_type( 'percentage_discount' === $terms['type'] ? 'percent' : 'fixed_cart' );
-		$coupon->set_amount( $terms['value'] );
+		$coupon->set_amount( 'free_delivery' === $terms['type'] ? 0 : $terms['value'] );
+		$coupon->set_free_shipping( 'free_delivery' === $terms['type'] );
 		$coupon->set_usage_limit( $terms['usage_limit'] );
 		$coupon->set_usage_limit_per_user( $terms['usage_limit'] );
 		$coupon->set_email_restrictions( array( strtolower( $terms['email'] ) ) );
@@ -115,6 +116,28 @@ final class Provisioner {
 			return false;
 		}
 		wc_load_cart();
-		return WC()->cart && ( WC()->cart->has_discount( $coupon->get_code() ) || WC()->cart->apply_coupon( $coupon->get_code() ) );
+		if ( ! WC()->cart || ! WC()->customer ) {
+			return false;
+		}
+		$email = strtolower( $grant['terms']['email'] );
+		$guest = ! is_user_logged_in() && ! WC()->customer->get_id();
+		if ( ! $guest && strtolower( wp_get_current_user()->user_email ) !== $email ) {
+			return false;
+		}
+		$previous_email = WC()->customer->get_billing_email();
+		$applied = false;
+		try {
+			// Native coupon validation runs before checkout collects a guest's email.
+			if ( $guest ) {
+				WC()->customer->set_billing_email( $email );
+			}
+			$applied = WC()->cart->has_discount( $coupon->get_code() ) || WC()->cart->apply_coupon( $coupon->get_code() );
+			return $applied;
+		} finally {
+			if ( $guest ) {
+				WC()->customer->set_billing_email( $applied ? $email : $previous_email );
+				WC()->customer->save();
+			}
+		}
 	}
 }

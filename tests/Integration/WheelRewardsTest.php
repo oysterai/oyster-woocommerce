@@ -215,6 +215,54 @@ final class WheelRewardsTest extends WP_UnitTestCase {
 			wp_set_current_user( 0 );
 		}
 	}
+	public function test_guest_handoff_supplies_email_and_native_checkout_still_rejects_a_different_email(): void {
+		wp_set_current_user( 0 );
+		WC()->customer = new \WC_Customer( 0, true );
+		WC()->customer->set_billing_email( '' );
+		$product = $this->product();
+		WC()->cart->add_to_cart( $product->get_id() );
+		$terms = $this->terms();
+		$result = $this->provisioner->provision( $terms );
+		self::assertTrue( $this->provisioner->apply( array( 'reward_id' => $terms['reward_id'], 'claim_token' => $terms['code'], 'redemption_authority' => 'woocommerce' ) ) );
+		self::assertSame( 'winner@example.test', WC()->customer->get_billing_email() );
+		self::assertSame( 'winner@example.test', WC()->session->get( 'customer' )['email'] );
+		$coupon = new WC_Coupon( (int) $result['external_id'] );
+		self::assertSame( array( 'winner@example.test' ), $coupon->get_email_restrictions() );
+		WC()->customer->set_billing_email( 'different@example.test' );
+		self::assertWPError( ( new \WC_Discounts( WC()->cart ) )->is_coupon_valid( $coupon ) );
+	}
+	public function test_rejected_guest_reward_restores_prior_checkout_email(): void {
+		wp_set_current_user( 0 );
+		WC()->customer = new \WC_Customer( 0, true );
+		WC()->customer->set_billing_email( 'previous@example.test' );
+		$product = $this->product();
+		WC()->cart->add_to_cart( $product->get_id() );
+		$terms = $this->terms();
+		$terms['min_order_amount'] = 999999;
+		$this->provisioner->provision( $terms );
+		self::assertFalse( $this->provisioner->apply( array( 'reward_id' => $terms['reward_id'], 'claim_token' => $terms['code'], 'redemption_authority' => 'woocommerce' ) ) );
+		self::assertSame( 'previous@example.test', WC()->customer->get_billing_email() );
+		self::assertSame( 'previous@example.test', WC()->session->get( 'customer' )['email'] );
+	}
+	public function test_reward_for_another_account_cannot_overwrite_signed_in_customer(): void {
+		$user_id = self::factory()->user->create( array( 'user_email' => 'different@example.test' ) );
+		wp_set_current_user( $user_id );
+		WC()->customer = new \WC_Customer( $user_id, true );
+		WC()->customer->set_billing_email( 'different@example.test' );
+		$product = $this->product();
+		WC()->cart->add_to_cart( $product->get_id() );
+		$terms = $this->terms();
+		$this->provisioner->provision( $terms );
+		try {
+			self::assertFalse( $this->provisioner->apply( array( 'reward_id' => $terms['reward_id'], 'claim_token' => $terms['code'], 'redemption_authority' => 'woocommerce' ) ) );
+			self::assertSame( 'different@example.test', WC()->customer->get_billing_email() );
+			self::assertSame( 'different@example.test', get_userdata( $user_id )->user_email );
+			self::assertSame( '', get_user_meta( $user_id, 'billing_email', true ) );
+		} finally {
+			wp_set_current_user( 0 );
+			WC()->customer = new \WC_Customer( 0, true );
+		}
+	}
 	public function test_gift_stock_is_reserved_before_ack_and_a_second_reward_cannot_oversell(): void {
 		$product = $this->product( 1 );
 		$terms = $this->terms( 'free_item' );
@@ -305,6 +353,90 @@ final class WheelRewardsTest extends WP_UnitTestCase {
 		$claim['claim_token'] = 'another-token';
 		$request->set_body( wp_json_encode( $claim ) );
 		self::assertSame( 404, $controller->claim( $request )->get_status() );
+	}
+	private function delivery_zone(): array {
+		$zone = new \WC_Shipping_Zone();
+		$zone->set_zone_name( 'Wheel test delivery' );
+		$zone->add_location( 'US', 'country' );
+		$zone->save();
+		$this->zones[] = $zone;
+		$paid = $zone->add_shipping_method( 'flat_rate' );
+		update_option( 'woocommerce_flat_rate_' . $paid . '_settings', array( 'enabled' => 'yes', 'title' => 'Standard delivery', 'cost' => '7', 'tax_status' => 'none' ) );
+		return array( $zone, $paid );
+	}
+	public function test_free_delivery_is_unavailable_without_native_coupon_shipping_in_every_delivery_zone(): void {
+		list( $zone ) = $this->delivery_zone();
+		self::assertFalse( \Oyster\Woo\Wheel\Free_Delivery::available() );
+		$terms = $this->terms( 'free_delivery' );
+		$terms['value'] = null;
+		try {
+			$this->provisioner->provision( $terms );
+			self::fail( 'A free delivery reward was issued without a compatible shipping method.' );
+		} catch ( \InvalidArgumentException $e ) {
+			self::assertSame( 0, wc_get_coupon_id_by_code( $terms['code'] ) );
+		}
+		$free = $zone->add_shipping_method( 'free_shipping' );
+		update_option( 'woocommerce_free_shipping_' . $free . '_settings', array( 'enabled' => 'yes', 'requires' => 'both', 'min_amount' => '50' ) );
+		self::assertFalse( \Oyster\Woo\Wheel\Free_Delivery::available() );
+		update_option( 'woocommerce_free_shipping_' . $free . '_settings', array( 'enabled' => 'yes', 'requires' => 'coupon' ) );
+		self::assertTrue( \Oyster\Woo\Wheel\Free_Delivery::available() );
+		list( $other ) = $this->delivery_zone();
+		self::assertFalse( \Oyster\Woo\Wheel\Free_Delivery::available() );
+	}
+	public function test_native_free_delivery_waives_shipping_only_and_replay_keeps_one_coupon(): void {
+		list( $zone, $paid ) = $this->delivery_zone();
+		$free = $zone->add_shipping_method( 'free_shipping' );
+		update_option( 'woocommerce_free_shipping_' . $free . '_settings', array( 'enabled' => 'yes', 'requires' => 'coupon' ) );
+		\WC_Cache_Helper::get_transient_version( 'shipping', true );
+		WC()->customer->set_shipping_country( 'US' );
+		WC()->customer->set_shipping_state( 'NY' );
+		WC()->customer->set_shipping_postcode( '10001' );
+		WC()->customer->set_shipping_city( 'New York' );
+		WC()->customer->set_shipping_address_1( '1 Main Street' );
+		WC()->customer->set_billing_email( 'winner@example.test' );
+		WC()->customer->set_calculated_shipping( true );
+		WC()->cart->add_to_cart( $this->product()->get_id() );
+		WC()->cart->calculate_totals();
+		self::assertSame( 7.0, (float) WC()->cart->get_shipping_total() );
+		$terms = $this->terms( 'free_delivery' );
+		$terms['value'] = null;
+		$terms['min_order_amount'] = 20;
+		$result = $this->provisioner->provision( $terms );
+		self::assertSame( $result, $this->provisioner->provision( $terms ) );
+		$coupon = new WC_Coupon( (int) $result['external_id'] );
+		self::assertTrue( $coupon->get_free_shipping() );
+		self::assertSame( 0.0, (float) $coupon->get_amount() );
+		self::assertSame( array( 'winner@example.test' ), $coupon->get_email_restrictions() );
+		self::assertSame( strtotime( $terms['expires_at'] ), $coupon->get_date_expires()->getTimestamp() );
+		self::assertTrue( $this->provisioner->apply( array( 'reward_id' => $terms['reward_id'], 'claim_token' => $terms['code'], 'redemption_authority' => 'woocommerce' ) ) );
+		WC()->cart->calculate_totals();
+		self::assertSame( 25.0, (float) WC()->cart->get_subtotal() );
+		self::assertSame( 0.0, (float) WC()->cart->get_discount_total() );
+		self::assertSame( 0.0, (float) WC()->cart->get_shipping_total() );
+		self::assertSame( 25.0, (float) WC()->cart->get_total( 'edit' ) );
+		$rates = WC()->shipping()->get_packages()[0]['rates'];
+		self::assertArrayHasKey( 'free_shipping:' . $free, $rates );
+		self::assertArrayNotHasKey( 'flat_rate:' . $paid, $rates );
+		$order_id = WC()->checkout()->create_order( array( 'billing_email' => $terms['email'], 'payment_method' => 'cod' ) );
+		self::assertIsInt( $order_id );
+		$order = wc_get_order( $order_id );
+		$this->orders[] = $order;
+		self::assertSame( 0.0, (float) $order->get_shipping_total() );
+		self::assertSame( 25.0, (float) $order->get_total() );
+		self::assertCount( 1, $order->get_items( 'coupon' ) );
+		$order->payment_complete();
+		$reporter = new Redemptions( $this->connection, new Client() );
+		$reporter->on_paid( $order_id );
+		$reporter->on_paid( $order_id );
+		global $wpdb;
+		self::assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Outbox::table() . ' WHERE reward_id = %s', $terms['reward_id'] ) ) );
+		self::assertSame( 1, ( new WC_Coupon( $coupon->get_id() ) )->get_usage_count() );
+		WC()->cart->remove_coupon( $terms['code'] );
+		WC()->cart->calculate_totals();
+		self::assertSame( 7.0, (float) WC()->cart->get_shipping_total() );
+		$coupon->set_usage_count( 1 );
+		$coupon->save();
+		self::assertWPError( ( new \WC_Discounts( WC()->cart ) )->is_coupon_valid( $coupon ) );
 	}
 	public function test_gift_delivery_is_charged_and_a_confirmed_checkout_keeps_its_item_until_payment(): void {
 		$zone = new \WC_Shipping_Zone();

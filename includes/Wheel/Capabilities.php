@@ -25,6 +25,9 @@ final class Capabilities {
 			return;
 		}
 		$types = wc_coupons_enabled() ? array( 'percentage_discount', 'fixed_discount' ) : array();
+		if ( wc_coupons_enabled() && Free_Delivery::available() ) {
+			$types[] = 'free_delivery';
+		}
 		if ( 'yes' === get_option( 'woocommerce_manage_stock', 'yes' ) ) {
 			$types[] = 'free_item';
 		}
@@ -34,7 +37,7 @@ final class Capabilities {
 		$payload = array(
 			'protocol_version' => 1, 'reward_types' => $types,
 			'currency' => get_woocommerce_currency(), 'store_host' => strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ),
-			'constraints' => array( 'free_item_usage_limit' => 1, 'free_item_max_expiry_days' => 3650, 'free_item_min_order_amount' => 0, 'free_item_combines_with_discounts' => false, 'free_item_requires_expiry' => true, 'free_item_product_restrictions' => false, 'fixed_discount_product_restrictions' => false ),
+			'constraints' => array( 'free_item_usage_limit' => 1, 'free_item_max_expiry_days' => 3650, 'free_item_min_order_amount' => 0, 'free_item_combines_with_discounts' => false, 'free_item_requires_expiry' => true, 'free_item_product_restrictions' => false, 'fixed_discount_product_restrictions' => false, 'free_delivery_product_restrictions' => false ),
 		);
 		$fingerprint = hash( 'sha256', wp_json_encode( $payload ) . $this->connection->bearer() . $this->secret->endpoint_id() );
 		$key = 'oyster_wheel_capabilities_' . substr( $fingerprint, 0, 24 );
