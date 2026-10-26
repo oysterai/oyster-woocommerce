@@ -33,6 +33,7 @@ use Oyster\Woo\Frontend\Widget_Loader;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Scan_Pricing;
 use Oyster\Woo\Support\Self_Updater;
+use Oyster\Woo\Support\Url_Guard;
 use Oyster\Woo\Sync\Catalog_Sync;
 use Oyster\Woo\Sync\Product_Hooks;
 use Oyster\Woo\Webhooks\Receiver;
@@ -182,6 +183,11 @@ final class Plugin {
 			// `is_admin()` — safe to register alongside the settings screens.
 			( new Gdpr() )->register();
 			( new \Oyster\Woo\Wheel\Privacy() )->register();
+
+			add_action(
+				'admin_notices',
+				static fn() => Url_Guard::render_rejection_notice( 'OYSTER_WOO_API_BASE_URL', 'OYSTER_WOO_WIDGET_BUNDLE_URL', 'OYSTER_WOO_DASHBOARD_URL' )
+			);
 		}
 	}
 

@@ -308,10 +308,30 @@ final class WheelRewardsTest extends WP_UnitTestCase {
 		$order->apply_coupon( $coupon );
 		$order->calculate_totals();
 		$order->save();
+		// A retry still backing off from an earlier failure must not hold this report back.
+		wp_clear_scheduled_hook( Redemptions::HOOK, array( 'retry' ) );
+		wp_schedule_single_event( time() + HOUR_IN_SECONDS, Redemptions::HOOK, array( 'retry' ) );
+		delete_transient( 'doing_cron' );
+		$spawned = array();
+		$capture = static function ( $pre, $args, $url ) use ( &$spawned ) {
+			$spawned[] = $url;
+			return array( 'response' => array( 'code' => 200 ), 'body' => '', 'headers' => array() );
+		};
+		add_filter( 'pre_http_request', $capture, 10, 3 );
 		$order->payment_complete();
+		remove_filter( 'pre_http_request', $capture, 10 );
+		self::assertNotFalse( wp_next_scheduled( Redemptions::HOOK, array( 'retry' ) ) );
+		self::assertLessThanOrEqual( time(), wp_next_scheduled( Redemptions::HOOK, array( 'retry' ) ) );
+		// The WordPress test suite disables WP-Cron, and a store that does so runs it from a
+		// server cron instead, so the plugin must not start a run of its own.
+		self::assertTrue( DISABLE_WP_CRON );
+		self::assertSame( array(), $spawned );
+		wp_clear_scheduled_hook( Redemptions::HOOK, array( 'retry' ) );
 		$reporter = new Redemptions( $this->connection, new Client() );
 		$reporter->on_paid( $order->get_id() );
 		$reporter->on_paid( $order->get_id() );
+		// Already queued, so a later status change schedules nothing.
+		self::assertFalse( wp_next_scheduled( Redemptions::HOOK, array( 'retry' ) ) );
 		global $wpdb;
 		$table = Outbox::table();
 		self::assertSame( '1', $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE vendor_id=9201" ) );
@@ -417,6 +437,7 @@ final class WheelRewardsTest extends WP_UnitTestCase {
 		$rates = WC()->shipping()->get_packages()[0]['rates'];
 		self::assertArrayHasKey( 'free_shipping:' . $free, $rates );
 		self::assertArrayNotHasKey( 'flat_rate:' . $paid, $rates );
+		self::assertSame( '7.00', $rates[ 'free_shipping:' . $free ]->get_meta_data()[ \Oyster\Woo\Wheel\Free_Delivery::META_SAVING ] );
 		$order_id = WC()->checkout()->create_order( array( 'billing_email' => $terms['email'], 'payment_method' => 'cod' ) );
 		self::assertIsInt( $order_id );
 		$order = wc_get_order( $order_id );
@@ -430,6 +451,9 @@ final class WheelRewardsTest extends WP_UnitTestCase {
 		$reporter->on_paid( $order_id );
 		global $wpdb;
 		self::assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Outbox::table() . ' WHERE reward_id = %s', $terms['reward_id'] ) ) );
+		// The coupon itself discounts nothing; the saving is the cheapest delivery it replaced.
+		$payload = json_decode( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT payload FROM ' . Outbox::table() . ' WHERE reward_id = %s', $terms['reward_id'] ) ), true );
+		self::assertSame( 7.0, (float) $payload['discount_amount'] );
 		self::assertSame( 1, ( new WC_Coupon( $coupon->get_id() ) )->get_usage_count() );
 		WC()->cart->remove_coupon( $terms['code'] );
 		WC()->cart->calculate_totals();

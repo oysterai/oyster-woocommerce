@@ -5,6 +5,7 @@ namespace Oyster\Woo\Wheel;
 defined( 'ABSPATH' ) || exit;
 
 final class Free_Delivery {
+	public const META_SAVING = '_oyster_wheel_delivery_saving';
 	public function register(): void {
 		add_filter( 'woocommerce_package_rates', array( $this, 'prefer_free_rates' ), 100 );
 	}
@@ -50,7 +51,24 @@ final class Free_Delivery {
 			return $rates;
 		}
 		$free = array_filter( $rates, static fn( $rate ) => 'free_shipping' === $rate->get_method_id() && 0.0 === (float) $rate->get_cost() );
-		// Preserve unavailable-destination behavior; never invent a delivery service.
-		return $free ?: $rates;
+		if ( ! $free ) {
+			// Preserve unavailable-destination behavior; never invent a delivery service.
+			return $rates;
+		}
+		// The shopper's pick among the hidden paid rates is unknown, so the saving
+		// reported for the reward is the least they would have paid for delivery.
+		$paid = array();
+		foreach ( $rates as $rate ) {
+			if ( ! in_array( $rate->get_method_id(), array( 'free_shipping', 'local_pickup', 'pickup_location' ), true ) && (float) $rate->get_cost() > 0 ) {
+				$paid[] = (float) $rate->get_cost();
+			}
+		}
+		if ( $paid ) {
+			// Rate meta is copied onto the order's shipping line at checkout.
+			foreach ( $free as $rate ) {
+				$rate->add_meta_data( self::META_SAVING, wc_format_decimal( min( $paid ), wc_get_price_decimals() ) );
+			}
+		}
+		return $free;
 	}
 }

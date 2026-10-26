@@ -41,22 +41,29 @@ final class Redemptions {
 		if ( $order->get_meta( Provisioner::META_REWARD ) ) {
 			$rewards[] = array( 'id' => $order->get_meta( Provisioner::META_REWARD ), 'vendor' => $order->get_meta( Provisioner::META_VENDOR ), 'discount' => 0 );
 		}
+		// A free delivery coupon discounts nothing itself; its saving is the delivery charge it replaced.
+		$delivery_saving = 0.0;
+		foreach ( $order->get_items( 'shipping' ) as $shipping ) {
+			$delivery_saving += (float) $shipping->get_meta( Free_Delivery::META_SAVING );
+		}
 		foreach ( $order->get_items( 'coupon' ) as $item ) {
-			$id = $item->get_meta( Provisioner::META_REWARD );
-			$vendor = $item->get_meta( Provisioner::META_VENDOR );
-			if ( ! $id ) {
-				$coupon = new WC_Coupon( $item->get_code() );
-				$id = $coupon->get_meta( Provisioner::META_REWARD );
-				$vendor = $coupon->get_meta( Provisioner::META_VENDOR );
-			}
+			$coupon = new WC_Coupon( $item->get_code() );
+			$id = $item->get_meta( Provisioner::META_REWARD ) ?: $coupon->get_meta( Provisioner::META_REWARD );
+			$vendor = $item->get_meta( Provisioner::META_VENDOR ) ?: $coupon->get_meta( Provisioner::META_VENDOR );
 			if ( $id ) {
-				$rewards[] = array( 'id' => $id, 'vendor' => $vendor, 'discount' => (float) $item->get_discount() );
+				$discount = (float) $item->get_discount();
+				if ( $coupon->get_free_shipping() ) {
+					$discount += $delivery_saving;
+					$delivery_saving = 0.0;
+				}
+				$rewards[] = array( 'id' => $id, 'vendor' => $vendor, 'discount' => $discount );
 			}
 		}
 		Outbox::install();
 		global $wpdb;
 		$table = Outbox::table();
 		$queued = true;
+		$added = false;
 		foreach ( $rewards as $reward ) {
 			$paid = $order->get_date_paid() ?: $order->get_date_modified();
 			$payload = array(
@@ -64,14 +71,27 @@ final class Redemptions {
 				'discount_amount' => $reward['discount'], 'currency' => $order->get_currency(),
 				'completed_at' => $paid ? $paid->date( DATE_ATOM ) : gmdate( DATE_ATOM ),
 			);
-			$queued = false !== $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$table} (vendor_id,reward_id,order_id,payload) VALUES (%d,%s,%d,%s)", (int) $reward['vendor'], $reward['id'], $order_id, wp_json_encode( $payload ) ) ) && $queued;
+			$inserted = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$table} (vendor_id,reward_id,order_id,payload) VALUES (%d,%s,%d,%s)", (int) $reward['vendor'], $reward['id'], $order_id, wp_json_encode( $payload ) ) );
+			$queued = false !== $inserted && $queued;
+			$added = $added || $inserted > 0;
 		}
 		if ( $rewards && $queued ) {
 			$order->update_meta_data( self::META_NEEDED, 'no' );
 			$order->save();
 		}
-		if ( $rewards && ! wp_next_scheduled( self::HOOK, array( 'retry' ) ) ) {
-			wp_schedule_single_event( time() + 5, self::HOOK, array( 'retry' ) );
+		// Later status changes on a reported order find nothing new to send.
+		if ( ! $added ) {
+			return;
+		}
+		// A retry already waiting on an earlier failure's backoff must not hold this report back.
+		$next = wp_next_scheduled( self::HOOK, array( 'retry' ) );
+		if ( ! $next || $next > time() ) {
+			wp_schedule_single_event( time(), self::HOOK, array( 'retry' ) );
+		}
+		// WP-Cron only runs on a page load, and the next one on a quiet store may be hours
+		// away. Start it now; the request is non-blocking so payment does not wait on it.
+		if ( ! ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) ) {
+			spawn_cron();
 		}
 	}
 	public function flush(): void {
