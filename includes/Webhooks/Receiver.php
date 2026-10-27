@@ -35,9 +35,12 @@ final class Receiver {
 	/** Long enough to outlive the retry schedule that would replay a delivery. */
 	private const SEEN_TTL = HOUR_IN_SECONDS;
 
+	public const WHEEL_REWARD_WON = 'oyster_woocommerce_wheel_reward_won';
+
 	private const EVENT_ACTIONS = array(
 		'scan.completed'       => 'oyster_woocommerce_scan_completed',
 		'recommendation.ready' => 'oyster_woocommerce_recommendations_ready',
+		'wheel.reward_won'     => self::WHEEL_REWARD_WON,
 	);
 
 	public function __construct(
@@ -107,7 +110,15 @@ final class Receiver {
 
 		$this->secret->record_event( $event );
 
-		do_action( $action, $batch_id, $payload );
+		try {
+			do_action( $action, $batch_id, $payload );
+		} catch ( \Throwable $e ) {
+			// Oyster retries with the same delivery id, so a listener that failed must
+			// not leave the delivery marked as seen or the retry is dropped.
+			delete_option( $this->seen_key( $delivery ) );
+
+			return new WP_REST_Response( array( 'error' => 'listener_failed' ), 500 );
+		}
 
 		return new WP_REST_Response( array( 'received' => true ), 200 );
 	}
@@ -118,15 +129,17 @@ final class Receiver {
 	 * retries, while add_option fails atomically on the unique key.
 	 */
 	private function claim( string $delivery ): bool {
-		$key = 'oyster_woo_seen_' . md5( $delivery );
-
-		if ( false === add_option( $key, time(), '', 'no' ) ) {
+		if ( false === add_option( $this->seen_key( $delivery ), time(), '', 'no' ) ) {
 			return false;
 		}
 
 		$this->forget_expired();
 
 		return true;
+	}
+
+	private function seen_key( string $delivery ): string {
+		return 'oyster_woo_seen_' . md5( $delivery );
 	}
 
 	private function forget_expired(): void {

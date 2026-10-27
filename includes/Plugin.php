@@ -145,7 +145,7 @@ final class Plugin {
 		( new \Oyster\Woo\Wheel\Free_Delivery() )->register();
 		$wheel = new \Oyster\Woo\Wheel\Provisioner( $this->connection );
 		add_action( 'init', array( \Oyster\Woo\Wheel\Outbox::class, 'install' ), 1 );
-		( new \Oyster\Woo\Wheel\Controller( $this->connection, $webhook_secret, $wheel ) )->register();
+		( new \Oyster\Woo\Wheel\Controller( $this->connection, $wheel ) )->register();
 		( new \Oyster\Woo\Wheel\Gift( $this->connection, $wheel ) )->register();
 		( new \Oyster\Woo\Wheel\Capabilities( $this->connection, $this->client, $webhook_secret ) )->register();
 		( new \Oyster\Woo\Wheel\Redemptions( $this->connection, $this->client ) )->register();
@@ -153,6 +153,9 @@ final class Plugin {
 		// Outside the is_admin() block below only so the wiring is reachable to a test;
 		// admin_init does not fire on a storefront request either way.
 		add_action( 'admin_init', array( $webhook_registrar, 'ensure_registered' ) );
+		// Before the capability refresh on the same hook: a store must be listening for wins
+		// before it tells Oyster it can give rewards out.
+		add_action( \Oyster\Woo\Wheel\Capabilities::HOOK, array( $webhook_registrar, 'ensure_registered' ), 5 );
 
 		if ( is_admin() ) {
 

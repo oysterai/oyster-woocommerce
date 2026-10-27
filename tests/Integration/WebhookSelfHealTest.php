@@ -100,11 +100,41 @@ final class WebhookSelfHealTest extends WP_UnitTestCase {
 
 	public function test_it_does_nothing_for_a_store_that_already_has_one(): void {
 		$this->connect();
-		( new Webhook_Secret() )->save( 7, 'a-secret', Receiver::url() );
+		( new Webhook_Secret() )->save( 7, 'a-secret', Receiver::url(), Registrar::EVENTS );
 
 		$this->registrar()->ensure_registered();
 
 		$this->assertSame( array(), $this->requests );
+	}
+
+	public function test_an_endpoint_registered_before_wheel_wins_existed_subscribes_to_them_once(): void {
+		$this->connect();
+		( new Webhook_Secret() )->save( 7, 'a-secret', Receiver::url() );
+
+		$this->registrar()->ensure_registered();
+		$this->registrar()->ensure_registered();
+
+		$this->assertCount( 1, $this->requests );
+		$this->assertSame( 'PATCH', $this->requests[0]['method'] );
+		$this->assertStringEndsWith( '/webhook-endpoints/7', $this->requests[0]['url'] );
+		$this->assertContains( 'wheel.reward_won', ( new Webhook_Secret() )->events() );
+	}
+
+	public function test_the_daily_heartbeat_heals_the_subscription_before_publishing_capabilities(): void {
+		// A store owner may never open the admin after updating, and capabilities published
+		// without the subscription would offer rewards the store never hears about.
+		$priorities = array();
+		foreach ( (array) ( $GLOBALS['wp_filter'][ \Oyster\Woo\Wheel\Capabilities::HOOK ]->callbacks ?? array() ) as $priority => $callbacks ) {
+			foreach ( $callbacks as $callback ) {
+				$fn = $callback['function'] ?? null;
+				if ( is_array( $fn ) ) {
+					$priorities[ $fn[1] ] = $priority;
+				}
+			}
+		}
+
+		$this->assertArrayHasKey( 'ensure_registered', $priorities );
+		$this->assertLessThan( $priorities['refresh'], $priorities['ensure_registered'] );
 	}
 
 	public function test_it_does_nothing_for_a_store_that_is_not_connected(): void {

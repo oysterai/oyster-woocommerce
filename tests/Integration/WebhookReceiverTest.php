@@ -112,6 +112,44 @@ final class WebhookReceiverTest extends WP_UnitTestCase {
 		$this->assertTrue( $second->get_data()['duplicate'] );
 	}
 
+	public function test_a_signed_wheel_win_fires_its_own_action(): void {
+		$fired = array();
+		add_action(
+			Receiver::WHEEL_REWARD_WON,
+			function ( $batch_id, $payload ) use ( &$fired ) {
+				$fired[] = $payload['event'];
+			},
+			10,
+			2
+		);
+
+		$this->assertSame( 200, $this->deliver( 'wheel.reward_won', '' )->get_status() );
+		$this->assertSame( array( 'wheel.reward_won' ), $fired );
+	}
+
+	/**
+	 * Oyster retries with the same delivery id. A listener that failed must not leave it
+	 * marked as seen, or the retry is dropped as a duplicate and the work never happens.
+	 */
+	public function test_a_failed_listener_lets_the_retry_of_the_same_delivery_through(): void {
+		$calls = 0;
+		add_action(
+			'oyster_woocommerce_scan_completed',
+			function () use ( &$calls ) {
+				if ( 1 === ++$calls ) {
+					throw new \RuntimeException( 'database went away' );
+				}
+			}
+		);
+
+		$first  = $this->deliver( 'scan.completed', 'batch-123', 'delivery-retry' );
+		$second = $this->deliver( 'scan.completed', 'batch-123', 'delivery-retry' );
+
+		$this->assertSame( 500, $first->get_status() );
+		$this->assertSame( 200, $second->get_status() );
+		$this->assertSame( 2, $calls );
+	}
+
 	/**
 	 * An event a later Oyster release sends but this version does not know must
 	 * be acknowledged, not refused: 4xx would trip the circuit breaker and

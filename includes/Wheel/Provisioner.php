@@ -29,10 +29,10 @@ final class Provisioner {
 			$existing = $this->grant( $terms['reward_id'] );
 			if ( $existing ) {
 				if ( ! empty( $existing['erased'] ) ) {
-					throw new \RuntimeException( 'reward_unavailable' );
+					throw new \InvalidArgumentException( 'reward_unavailable' );
 				}
 				if ( ! hash_equals( $existing['terms']['terms_hash'], $terms['terms_hash'] ) || ! hash_equals( $existing['terms']['code'], $terms['code'] ) ) {
-					throw new \RuntimeException( 'reward_terms_changed' );
+					throw new \InvalidArgumentException( 'reward_terms_changed' );
 				}
 				return $existing['result'];
 			}
@@ -73,7 +73,7 @@ final class Provisioner {
 			throw new \InvalidArgumentException( 'reward_unavailable' );
 		}
 		if ( \WC_Data_Store::load( 'coupon' )->get_ids_by_code( $terms['code'] ) ) {
-			throw new \RuntimeException( 'coupon_code_conflict' );
+			throw new \InvalidArgumentException( 'coupon_code_conflict' );
 		}
 		$coupon = new WC_Coupon();
 		foreach ( array_merge( $terms['restrictions']['allowed_product_ids'], $terms['restrictions']['excluded_product_ids'] ) as $id ) {

@@ -3,19 +3,18 @@
 declare( strict_types=1 );
 namespace Oyster\Woo\Wheel;
 use Oyster\Woo\Support\Connection;
-use Oyster\Woo\Webhooks\Signature;
-use Oyster\Woo\Webhooks\Webhook_Secret;
+use Oyster\Woo\Webhooks\Receiver;
 use WP_REST_Request;
 use WP_REST_Response;
 defined( 'ABSPATH' ) || exit;
 
 final class Controller {
-	public function __construct( private Connection $connection, private Webhook_Secret $secret, private Provisioner $provisioner ) {}
+	public function __construct( private Connection $connection, private Provisioner $provisioner ) {}
 	public function register(): void {
 		add_action( 'rest_api_init', array( $this, 'routes' ) );
+		add_action( Receiver::WHEEL_REWARD_WON, array( $this, 'issue' ), 10, 2 );
 	}
 	public function routes(): void {
-		register_rest_route( 'oyster/v1', '/wheel/rewards/provision', array( 'methods' => 'POST', 'callback' => array( $this, 'provision' ), 'permission_callback' => '__return_true' ) );
 		register_rest_route( 'oyster/v1', '/wheel/rewards/claim', array( 'methods' => 'POST', 'callback' => array( $this, 'claim' ), 'permission_callback' => '__return_true' ) );
 	}
 	public function claim( WP_REST_Request $request ): WP_REST_Response {
@@ -29,24 +28,25 @@ final class Controller {
 		}
 		return new WP_REST_Response( array( 'redirect' => add_query_arg( array( 'oyster_wheel_claim' => $claim['reward_id'], 'token' => $claim['claim_token'] ), home_url( '/' ) ) ), 200, array( 'Cache-Control' => 'no-store' ) );
 	}
-	public function provision( WP_REST_Request $request ): WP_REST_Response {
-		if ( ! $this->connection->is_connected() || ! $this->secret->is_registered() ) {
-			return new WP_REST_Response( array( 'code' => 'not_connected' ), 503 );
+	/**
+	 * Oyster announces every win to every listening platform and leaves honouring it to
+	 * them. This store makes a code only for rewards issued at its own checkout. Anything
+	 * it cannot honour is let go: the event is already signed and acknowledged, and an
+	 * error here would only be retried.
+	 */
+	public function issue( string $batch_id, array $payload ): void {
+		$data = is_array( $payload['data'] ?? null ) ? $payload['data'] : array();
+		if ( 'woocommerce' !== ( $data['redemption_authority'] ?? null ) || $this->connection->vendor_id() !== (int) ( $data['vendor_id'] ?? 0 ) ) {
+			return;
 		}
-		if ( ! Signature::is_valid( (string) $request->get_header( 'Oyster-Signature' ), $request->get_body(), $this->secret->secret() ?? '' ) ) {
-			return new WP_REST_Response( array( 'code' => 'invalid_signature' ), 401 );
-		}
-		$terms = $request->get_json_params();
-		if ( ! is_array( $terms ) || ! Terms::valid( $terms ) ) {
-			return new WP_REST_Response( array( 'code' => 'invalid_reward_terms' ), 422 );
+		$terms = array_diff_key( $data, array( 'redemption_authority' => true, 'vendor_id' => true ) );
+		if ( ! Terms::valid( $terms ) ) {
+			return;
 		}
 		try {
-			return new WP_REST_Response( array( 'success' => true, 'data' => $this->provisioner->provision( $terms ) ) );
+			$this->provisioner->provision( $terms );
 		} catch ( \InvalidArgumentException $e ) {
-			return new WP_REST_Response( array( 'code' => 'reward_unavailable' ), 422 );
-		} catch ( \Throwable $e ) {
-			// A timeout or an ambiguous database failure is retryable, never a new grant.
-			return new WP_REST_Response( array( 'code' => 'reward_pending' ), 503 );
+			return;
 		}
 	}
 }

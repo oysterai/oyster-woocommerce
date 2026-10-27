@@ -343,6 +343,22 @@ final class Client {
 	}
 
 	/**
+	 * @param string[] $events
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function update_webhook_endpoint_events( string $bearer, int $endpoint_id, array $events ): array {
+		return $this->request(
+			'PATCH',
+			'/api/v1/developers/webhook-endpoints/' . $endpoint_id,
+			array(
+				'bearer' => $bearer,
+				'body'   => array( 'events' => array_values( $events ) ),
+			)
+		);
+	}
+
+	/**
 	 * @return array<string, mixed>
 	 * @throws Api_Exception
 	 */

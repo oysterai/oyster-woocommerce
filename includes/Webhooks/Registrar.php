@@ -27,7 +27,7 @@ final class Registrar {
 
 	private const RETRY_LOCK = 'oyster_woo_webhook_retry';
 
-	private const EVENTS = array( 'scan.completed', 'recommendation.ready' );
+	public const EVENTS = array( 'scan.completed', 'recommendation.ready', 'wheel.reward_won' );
 
 	public function __construct(
 		private Connection $connection,
@@ -53,7 +53,11 @@ final class Registrar {
 	 * admin page load.
 	 */
 	public function ensure_registered(): void {
-		if ( ! $this->connection->is_connected() || $this->secret->is_registered() ) {
+		if ( ! $this->connection->is_connected() ) {
+			return;
+		}
+
+		if ( $this->secret->is_registered() && $this->subscribed() ) {
 			return;
 		}
 
@@ -63,7 +67,38 @@ final class Registrar {
 
 		set_transient( self::RETRY_LOCK, time(), HOUR_IN_SECONDS );
 
+		if ( $this->secret->is_registered() ) {
+			$this->subscribe();
+
+			return;
+		}
+
 		$this->register_endpoint();
+	}
+
+	private function subscribed(): bool {
+		return array() === array_diff( self::EVENTS, $this->secret->events() );
+	}
+
+	/**
+	 * An endpoint registered by an earlier version never hears about events added since,
+	 * and a store that cannot hear a wheel win cannot honour its code.
+	 */
+	private function subscribe(): void {
+		$bearer = $this->connection->bearer();
+		if ( null === $bearer ) {
+			return;
+		}
+
+		try {
+			$this->client->update_webhook_endpoint_events( $bearer, $this->secret->endpoint_id(), self::EVENTS );
+		} catch ( Api_Exception $e ) {
+			$this->log( 'could not update webhook events: ' . $e->user_message() );
+
+			return;
+		}
+
+		$this->secret->save_events( self::EVENTS );
 	}
 
 	public function register_endpoint(): bool {
@@ -95,7 +130,7 @@ final class Registrar {
 			return false;
 		}
 
-		$this->secret->save( $id, $secret, Receiver::url() );
+		$this->secret->save( $id, $secret, Receiver::url(), self::EVENTS );
 
 		return true;
 	}

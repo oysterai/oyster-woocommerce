@@ -4,6 +4,7 @@ namespace Oyster\Woo\Tests\Integration;
 
 use Oyster\Woo\Api\Client;
 use Oyster\Woo\Support\Connection;
+use Oyster\Woo\Webhooks\Receiver;
 use Oyster\Woo\Webhooks\Webhook_Secret;
 use Oyster\Woo\Wheel\Controller;
 use Oyster\Woo\Wheel\Gift;
@@ -124,30 +125,65 @@ final class WheelRewardsTest extends WP_UnitTestCase {
 		self::assertNull( ( new Gift( $this->connection, $this->provisioner ) )->authenticated_order( $terms['reward_id'], $terms['code'] ) );
 	}
 
-	public function test_signed_provisioning_and_retry_create_exactly_one_coupon_with_original_terms(): void {
+	private function announce( array $terms, string $authority = 'woocommerce', int $vendor_id = 9201 ): \WP_REST_Response {
+		$body = wp_json_encode( array( 'id' => wp_generate_uuid4(), 'event' => 'wheel.reward_won', 'created_at' => gmdate( DATE_ATOM ),
+			'data' => $terms + array( 'redemption_authority' => $authority, 'vendor_id' => $vendor_id ) ) );
+		$request = new WP_REST_Request( 'POST', Receiver::ROUTE );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_header( 'Oyster-Delivery', wp_generate_uuid4() );
+		$timestamp = time();
+		$request->set_header( 'Oyster-Signature', 't=' . $timestamp . ',v1=' . hash_hmac( 'sha256', $timestamp . '.' . $body, 'test-wheel-secret' ) );
+		$request->set_body( $body );
+		return ( new Receiver( $this->secret ) )->handle( $request );
+	}
+	private function coupon_ids( string $code ): array {
+		return \WC_Data_Store::load( 'coupon' )->get_ids_by_code( $code );
+	}
+	public function test_a_signed_win_and_its_retry_create_exactly_one_coupon_with_original_terms(): void {
+		( new Controller( $this->connection, $this->provisioner ) )->register();
 		$terms = $this->terms();
 		$terms['min_order_amount'] = 30;
-		$terms['restrictions']['allowed_product_ids'] = array( $this->product()->get_id() );
-		$controller = new Controller( $this->connection, $this->secret, $this->provisioner );
-		$request = new WP_REST_Request( 'POST', '/oyster/v1/wheel/rewards/provision' );
-		$request->set_header( 'Content-Type', 'application/json' );
-		$request->set_body( wp_json_encode( $terms ) );
-		self::assertSame( 401, $controller->provision( $request )->get_status() );
-		$timestamp = time();
-		$request->set_header( 'Oyster-Signature', 't=' . $timestamp . ',v1=' . hash_hmac( 'sha256', $timestamp . '.' . $request->get_body(), 'test-wheel-secret' ) );
-		$first = $controller->provision( $request );
-		self::assertSame( 200, $first->get_status() );
-		self::assertSame( $first->get_data(), $controller->provision( $request )->get_data() );
-		$coupon = new WC_Coupon( (int) $first->get_data()['data']['external_id'] );
+		$terms['restrictions']['allowed_product_ids'] = array( (string) $this->product()->get_id() );
+
+		self::assertSame( 200, $this->announce( $terms )->get_status() );
+		self::assertSame( 200, $this->announce( $terms )->get_status() );
+
+		self::assertCount( 1, $this->coupon_ids( $terms['code'] ) );
+		$coupon = new WC_Coupon( (int) $this->provisioner->grant( $terms['reward_id'] )['result']['external_id'] );
+		self::assertSame( $terms['code'], $coupon->get_code() );
 		self::assertSame( 'percent', $coupon->get_discount_type() );
 		self::assertSame( 1, $coupon->get_usage_limit() );
 		self::assertSame( array( 'winner@example.test' ), $coupon->get_email_restrictions() );
 		self::assertSame( '30', $coupon->get_minimum_amount() );
-		self::assertSame( $terms['restrictions']['allowed_product_ids'], $coupon->get_product_ids() );
+		self::assertSame( array_map( 'intval', $terms['restrictions']['allowed_product_ids'] ), $coupon->get_product_ids() );
 		self::assertSame( strtotime( $terms['expires_at'] ), $coupon->get_date_expires()->getTimestamp() );
+		self::assertSame( $terms, $this->provisioner->grant( $terms['reward_id'] )['terms'] );
+	}
+	public function test_a_win_for_another_checkout_or_another_vendor_makes_no_coupon(): void {
+		( new Controller( $this->connection, $this->provisioner ) )->register();
+		$terms = $this->terms();
+
+		self::assertSame( 200, $this->announce( $terms, 'shopify' )->get_status() );
+		self::assertSame( 200, $this->announce( $terms, 'oyster' )->get_status() );
+		self::assertSame( 200, $this->announce( $terms, 'woocommerce', 9999 )->get_status() );
+
+		self::assertSame( array(), $this->coupon_ids( $terms['code'] ) );
+		self::assertNull( $this->provisioner->grant( $terms['reward_id'] ) );
+	}
+	public function test_a_win_the_store_cannot_honour_is_acknowledged_so_it_is_not_retried(): void {
+		( new Controller( $this->connection, $this->provisioner ) )->register();
+		$terms = $this->terms();
+		$terms['currency'] = 'EUR';
+
+		self::assertSame( 200, $this->announce( $terms )->get_status() );
+		self::assertNull( $this->provisioner->grant( $terms['reward_id'] ) );
+	}
+	public function test_changed_terms_for_an_issued_reward_are_refused_definitively(): void {
+		$terms = $this->terms();
+		$this->provisioner->provision( $terms );
 		$changed = $terms;
 		$changed['terms_hash'] = str_repeat( 'b', 64 );
-		$this->expectException( \RuntimeException::class );
+		$this->expectException( \InvalidArgumentException::class );
 		$this->provisioner->provision( $changed );
 	}
 	public function test_claim_handoff_rejects_arbitrary_codes_and_other_vendor_rewards(): void {
@@ -363,7 +399,7 @@ final class WheelRewardsTest extends WP_UnitTestCase {
 		$terms = $this->terms( 'free_item' );
 		$terms['product_id'] = $product->get_id();
 		$result = $this->provisioner->provision( $terms );
-		$controller = new Controller( $this->connection, $this->secret, $this->provisioner );
+		$controller = new Controller( $this->connection, $this->provisioner );
 		$request = new WP_REST_Request( 'POST', '/oyster/v1/wheel/rewards/claim' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$claim = array( 'reward_id' => $terms['reward_id'], 'claim_token' => $terms['code'], 'redemption_authority' => 'woocommerce', 'redirect' => 'https://untrusted.example/' );
