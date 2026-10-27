@@ -30,6 +30,8 @@ final class WebhookSelfHealTest extends WP_UnitTestCase {
 
 		$this->requests = array();
 		$this->status   = 200;
+		$this->remote   = null;
+		$this->test_succeeds = true;
 
 		add_filter( 'pre_http_request', array( $this, 'intercept' ), 10, 3 );
 	}
@@ -43,23 +45,54 @@ final class WebhookSelfHealTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/** Our endpoint as Oyster holds it, or null once it is gone. */
+	private ?array $remote = null;
+
+	private bool $test_succeeds = true;
+
 	/**
+	 * Oyster's endpoint API as the plugin sees it.
+	 *
 	 * @param mixed                $pre  Short-circuit value.
 	 * @param array<string, mixed> $args Request args.
 	 * @param string               $url  Request URL.
 	 * @return array<string, mixed>
 	 */
 	public function intercept( $pre, $args, $url ) {
-		$this->requests[] = array( 'url' => $url, 'method' => $args['method'] ?? 'GET' );
+		$method           = $args['method'] ?? 'GET';
+		$this->requests[] = array( 'url' => $url, 'method' => $method );
+		$body             = json_decode( (string) ( $args['body'] ?? '' ), true );
+
+		if ( 200 !== $this->status ) {
+			$data = null;
+		} elseif ( str_ends_with( $url, '/test' ) ) {
+			$data = array( 'succeeded' => $this->test_succeeds );
+		} elseif ( 'GET' === $method ) {
+			$data = null === $this->remote ? array() : array( $this->remote );
+		} elseif ( 'PATCH' === $method ) {
+			$this->remote = array_merge( (array) $this->remote, (array) $body, ! empty( $body['is_active'] ) ? array( 'disabled_reason' => null ) : array() );
+			$data         = $this->remote;
+		} else {
+			$this->remote = array( 'id' => 7, 'events' => $body['events'] ?? array(), 'is_active' => true, 'disabled_reason' => null );
+			$data         = array( 'id' => 7, 'secret' => 'a-secret' );
+		}
 
 		return array(
 			'response' => array( 'code' => $this->status ),
-			'body'     => (string) wp_json_encode(
-				200 === $this->status
-					? array( 'data' => array( 'id' => 7, 'secret' => 'a-secret' ) )
-					: array( 'message' => 'refused' )
-			),
+			'body'     => (string) wp_json_encode( null === $data ? array( 'message' => 'refused' ) : array( 'data' => $data ) ),
 		);
+	}
+
+	/** A store registered earlier, with its endpoint as Oyster now has it. */
+	private function registered( array $remote = array(), array $local_events = Registrar::EVENTS ): void {
+		$this->connect();
+		( new Webhook_Secret() )->save( 7, 'a-secret', Receiver::url(), $local_events );
+		$this->remote = array_merge( array( 'id' => 7, 'events' => Registrar::EVENTS, 'is_active' => true, 'disabled_reason' => null ), $remote );
+	}
+
+	/** @return list<string> */
+	private function calls(): array {
+		return array_map( fn ( $r ) => $r['method'] . ' ' . preg_replace( '#^.*/webhook-endpoints#', '', $r['url'] ), $this->requests );
 	}
 
 	private function connect(): void {
@@ -98,26 +131,65 @@ final class WebhookSelfHealTest extends WP_UnitTestCase {
 		$this->assertCount( 1, $this->requests );
 	}
 
-	public function test_it_does_nothing_for_a_store_that_already_has_one(): void {
-		$this->connect();
-		( new Webhook_Secret() )->save( 7, 'a-secret', Receiver::url(), Registrar::EVENTS );
+	public function test_a_healthy_endpoint_costs_one_look_an_hour(): void {
+		$this->registered();
 
 		$this->registrar()->ensure_registered();
+		$this->registrar()->ensure_registered();
 
-		$this->assertSame( array(), $this->requests );
+		$this->assertSame( array( 'GET ' ), $this->calls() );
 	}
 
 	public function test_an_endpoint_registered_before_wheel_wins_existed_subscribes_to_them_once(): void {
-		$this->connect();
-		( new Webhook_Secret() )->save( 7, 'a-secret', Receiver::url() );
+		$this->registered( array( 'events' => array( 'scan.completed', 'recommendation.ready' ) ), array() );
 
 		$this->registrar()->ensure_registered();
 		$this->registrar()->ensure_registered();
 
-		$this->assertCount( 1, $this->requests );
-		$this->assertSame( 'PATCH', $this->requests[0]['method'] );
-		$this->assertStringEndsWith( '/webhook-endpoints/7', $this->requests[0]['url'] );
+		$this->assertSame( array( 'GET ', 'PATCH /7' ), $this->calls() );
+		$this->assertContains( 'wheel.reward_won', $this->remote['events'] );
 		$this->assertContains( 'wheel.reward_won', ( new Webhook_Secret() )->events() );
+	}
+
+	public function test_an_endpoint_switched_off_for_failing_comes_back_once_a_test_gets_through(): void {
+		// Oyster switches an endpoint off after repeated failures, and until it is back on
+		// this store hears no wins and its rewards are not offered.
+		$this->registered( array( 'is_active' => false, 'disabled_reason' => '10 consecutive delivery failures' ) );
+
+		$this->registrar()->ensure_registered();
+
+		$this->assertSame( array( 'GET ', 'POST /7/test', 'PATCH /7' ), $this->calls() );
+		$this->assertTrue( $this->remote['is_active'] );
+	}
+
+	public function test_it_stays_off_while_test_deliveries_still_fail(): void {
+		$this->registered( array( 'is_active' => false, 'disabled_reason' => '10 consecutive delivery failures' ) );
+		$this->test_succeeds = false;
+
+		$this->registrar()->ensure_registered();
+
+		$this->assertSame( array( 'GET ', 'POST /7/test' ), $this->calls() );
+		$this->assertFalse( $this->remote['is_active'] );
+	}
+
+	public function test_a_pause_the_merchant_chose_is_left_alone(): void {
+		$this->registered( array( 'is_active' => false, 'disabled_reason' => null ) );
+
+		$this->registrar()->ensure_registered();
+
+		$this->assertSame( array( 'GET ' ), $this->calls() );
+		$this->assertFalse( $this->remote['is_active'] );
+	}
+
+	public function test_an_endpoint_deleted_at_oyster_is_registered_again(): void {
+		$this->registered();
+		$this->remote = null;
+
+		$this->registrar()->ensure_registered();
+
+		$this->assertSame( array( 'GET ', 'POST ' ), $this->calls() );
+		$this->assertTrue( ( new Webhook_Secret() )->is_registered() );
+		$this->assertSame( 7, $this->remote['id'] );
 	}
 
 	public function test_the_daily_heartbeat_heals_the_subscription_before_publishing_capabilities(): void {

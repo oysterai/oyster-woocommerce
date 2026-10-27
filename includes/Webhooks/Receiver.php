@@ -35,6 +35,12 @@ final class Receiver {
 	/** Long enough to outlive the retry schedule that would replay a delivery. */
 	private const SEEN_TTL = HOUR_IN_SECONDS;
 
+	/**
+	 * Longer than PHP lets a request run, so an older claim belongs to an attempt that
+	 * died (a fatal, a timeout) and the retry may take it over.
+	 */
+	private const CLAIM_TTL = MINUTE_IN_SECONDS;
+
 	public const WHEEL_REWARD_WON = 'oyster_woocommerce_wheel_reward_won';
 
 	private const EVENT_ACTIONS = array(
@@ -102,7 +108,21 @@ final class Receiver {
 
 		// Delivery is at-least-once, so a retry after a timeout that actually
 		// succeeded arrives again. Without this a listener sends two emails.
+		if ( false !== get_option( $this->seen_key( $delivery ) ) ) {
+			return new WP_REST_Response( array( 'duplicate' => true ), 200 );
+		}
+
+		// Another attempt at this delivery is still running. Not acknowledged, so Oyster
+		// asks again later and either finds it handled or finds the attempt died.
 		if ( ! $this->claim( $delivery ) ) {
+			return new WP_REST_Response( array( 'error' => 'in_progress' ), 409 );
+		}
+
+		// The attempt that held the claim may have finished between the check above
+		// and taking it.
+		if ( false !== get_option( $this->seen_key( $delivery ) ) ) {
+			delete_option( $this->claim_key( $delivery ) );
+
 			return new WP_REST_Response( array( 'duplicate' => true ), 200 );
 		}
 
@@ -114,32 +134,63 @@ final class Receiver {
 			do_action( $action, $batch_id, $payload );
 		} catch ( \Throwable $e ) {
 			// Oyster retries with the same delivery id, so a listener that failed must
-			// not leave the delivery marked as seen or the retry is dropped.
-			delete_option( $this->seen_key( $delivery ) );
+			// not leave the delivery claimed or the retry is turned away.
+			delete_option( $this->claim_key( $delivery ) );
 
 			return new WP_REST_Response( array( 'error' => 'listener_failed' ), 500 );
 		}
+
+		// Seen only once the listener has finished: marked before it, a request that
+		// died part way (a fatal, a timeout) left every retry acknowledged as a
+		// duplicate, and the work was never done.
+		add_option( $this->seen_key( $delivery ), time(), '', 'no' );
+		delete_option( $this->claim_key( $delivery ) );
 
 		return new WP_REST_Response( array( 'received' => true ), 200 );
 	}
 
 	/**
-	 * True the first time this delivery is seen. `add_option` with autoload off
+	 * True when this attempt may run the listeners. `add_option` with autoload off
 	 * rather than a transient: a transient read-then-write races two concurrent
-	 * retries, while add_option fails atomically on the unique key.
+	 * retries, while add_option fails atomically on the unique key. A claim left by
+	 * an attempt that died is taken over with a compare-and-set, so two retries
+	 * cannot both take it.
 	 */
 	private function claim( string $delivery ): bool {
-		if ( false === add_option( $this->seen_key( $delivery ), time(), '', 'no' ) ) {
+		global $wpdb;
+
+		$key = $this->claim_key( $delivery );
+
+		if ( false !== add_option( $key, time(), '', 'no' ) ) {
+			$this->forget_expired();
+
+			return true;
+		}
+
+		$claimed_at = (int) get_option( $key );
+		if ( $claimed_at > time() - self::CLAIM_TTL ) {
 			return false;
 		}
 
-		$this->forget_expired();
+		$taken = $wpdb->update(
+			$wpdb->options,
+			array( 'option_value' => (string) time() ),
+			array(
+				'option_name'  => $key,
+				'option_value' => (string) $claimed_at,
+			)
+		);
+		wp_cache_delete( $key, 'options' );
 
-		return true;
+		return 1 === $taken;
 	}
 
 	private function seen_key( string $delivery ): string {
 		return 'oyster_woo_seen_' . md5( $delivery );
+	}
+
+	private function claim_key( string $delivery ): string {
+		return 'oyster_woo_claim_' . md5( $delivery );
 	}
 
 	private function forget_expired(): void {
@@ -149,7 +200,7 @@ final class Receiver {
 		$stale = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT option_name FROM {$wpdb->options}
-				 WHERE option_name LIKE 'oyster_woo_seen_%%' AND option_value < %d
+				 WHERE ( option_name LIKE 'oyster_woo_seen_%%' OR option_name LIKE 'oyster_woo_claim_%%' ) AND option_value < %d
 				 LIMIT 50",
 				time() - self::SEEN_TTL
 			)
