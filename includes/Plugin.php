@@ -33,6 +33,7 @@ use Oyster\Woo\Frontend\Widget_Loader;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Scan_Pricing;
 use Oyster\Woo\Support\Self_Updater;
+use Oyster\Woo\Support\Url_Guard;
 use Oyster\Woo\Sync\Catalog_Sync;
 use Oyster\Woo\Sync\Product_Hooks;
 use Oyster\Woo\Webhooks\Receiver;
@@ -141,10 +142,20 @@ final class Plugin {
 		$webhook_secret = new Webhook_Secret();
 		( new Receiver( $webhook_secret ) )->register();
 		$webhook_registrar = new Registrar( $this->connection, $this->client, $webhook_secret );
+		( new \Oyster\Woo\Wheel\Free_Delivery() )->register();
+		$wheel = new \Oyster\Woo\Wheel\Provisioner( $this->connection );
+		add_action( 'init', array( \Oyster\Woo\Wheel\Outbox::class, 'install' ), 1 );
+		( new \Oyster\Woo\Wheel\Controller( $this->connection, $wheel ) )->register();
+		( new \Oyster\Woo\Wheel\Gift( $this->connection, $wheel ) )->register();
+		( new \Oyster\Woo\Wheel\Capabilities( $this->connection, $this->client, $webhook_secret ) )->register();
+		( new \Oyster\Woo\Wheel\Redemptions( $this->connection, $this->client ) )->register();
 
 		// Outside the is_admin() block below only so the wiring is reachable to a test;
 		// admin_init does not fire on a storefront request either way.
 		add_action( 'admin_init', array( $webhook_registrar, 'ensure_registered' ) );
+		// Before the capability refresh on the same hook: a store must be listening for wins
+		// before it tells Oyster it can give rewards out.
+		add_action( \Oyster\Woo\Wheel\Capabilities::HOOK, array( $webhook_registrar, 'ensure_registered' ), 5 );
 
 		if ( is_admin() ) {
 
@@ -174,6 +185,12 @@ final class Plugin {
 			// admin-ajax.php (Tools > Export/Erase Personal Data), which is
 			// `is_admin()` — safe to register alongside the settings screens.
 			( new Gdpr() )->register();
+			( new \Oyster\Woo\Wheel\Privacy() )->register();
+
+			add_action(
+				'admin_notices',
+				static fn() => Url_Guard::render_rejection_notice( 'OYSTER_WOO_API_BASE_URL', 'OYSTER_WOO_WIDGET_BUNDLE_URL', 'OYSTER_WOO_DASHBOARD_URL' )
+			);
 		}
 	}
 

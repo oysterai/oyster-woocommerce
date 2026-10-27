@@ -112,6 +112,72 @@ final class WebhookReceiverTest extends WP_UnitTestCase {
 		$this->assertTrue( $second->get_data()['duplicate'] );
 	}
 
+	public function test_a_signed_wheel_win_fires_its_own_action(): void {
+		$fired = array();
+		add_action(
+			Receiver::WHEEL_REWARD_WON,
+			function ( $batch_id, $payload ) use ( &$fired ) {
+				$fired[] = $payload['event'];
+			},
+			10,
+			2
+		);
+
+		$this->assertSame( 200, $this->deliver( 'wheel.reward_won', '' )->get_status() );
+		$this->assertSame( array( 'wheel.reward_won' ), $fired );
+	}
+
+	/**
+	 * Oyster retries with the same delivery id. A listener that failed must not leave it
+	 * marked as seen, or the retry is dropped as a duplicate and the work never happens.
+	 */
+	public function test_a_failed_listener_lets_the_retry_of_the_same_delivery_through(): void {
+		$calls = 0;
+		add_action(
+			'oyster_woocommerce_scan_completed',
+			function () use ( &$calls ) {
+				if ( 1 === ++$calls ) {
+					throw new \RuntimeException( 'database went away' );
+				}
+			}
+		);
+
+		$first  = $this->deliver( 'scan.completed', 'batch-123', 'delivery-retry' );
+		$second = $this->deliver( 'scan.completed', 'batch-123', 'delivery-retry' );
+
+		$this->assertSame( 500, $first->get_status() );
+		$this->assertSame( 200, $second->get_status() );
+		$this->assertSame( 2, $calls );
+	}
+
+	/**
+	 * A fatal or a timeout ends the request before any catch runs, leaving only its
+	 * claim behind. Its retry must still do the work, not be answered as a duplicate.
+	 */
+	public function test_the_retry_of_an_attempt_that_died_part_way_does_the_work(): void {
+		$fired = 0;
+		add_action( 'oyster_woocommerce_wheel_reward_won', function () use ( &$fired ) { ++$fired; } );
+		add_option( 'oyster_woo_claim_' . md5( 'delivery-died' ), time() - 2 * MINUTE_IN_SECONDS, '', 'no' );
+
+		$retry = $this->deliver( 'wheel.reward_won', '', 'delivery-died' );
+		$again = $this->deliver( 'wheel.reward_won', '', 'delivery-died' );
+
+		$this->assertSame( array( 'received' => true ), $retry->get_data() );
+		$this->assertSame( array( 'duplicate' => true ), $again->get_data() );
+		$this->assertSame( 1, $fired );
+	}
+
+	public function test_a_retry_while_the_first_attempt_is_still_running_is_asked_to_come_back(): void {
+		$fired = 0;
+		add_action( 'oyster_woocommerce_scan_completed', function () use ( &$fired ) { ++$fired; } );
+		add_option( 'oyster_woo_claim_' . md5( 'delivery-running' ), time() - 5, '', 'no' );
+
+		$retry = $this->deliver( 'scan.completed', 'batch-123', 'delivery-running' );
+
+		$this->assertSame( 409, $retry->get_status() );
+		$this->assertSame( 0, $fired );
+	}
+
 	/**
 	 * An event a later Oyster release sends but this version does not know must
 	 * be acknowledged, not refused: 4xx would trip the circuit breaker and

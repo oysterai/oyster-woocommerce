@@ -343,6 +343,59 @@ final class Client {
 	}
 
 	/**
+	 * @param string[] $events
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function update_webhook_endpoint_events( string $bearer, int $endpoint_id, array $events ): array {
+		return $this->request(
+			'PATCH',
+			'/api/v1/developers/webhook-endpoints/' . $endpoint_id,
+			array(
+				'bearer' => $bearer,
+				'body'   => array( 'events' => array_values( $events ) ),
+			)
+		);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function list_webhook_endpoints( string $bearer ): array {
+		return $this->request( 'GET', '/api/v1/developers/webhook-endpoints', array( 'bearer' => $bearer ) );
+	}
+
+	/**
+	 * Sends a signed test event to the endpoint, even one that is switched off.
+	 *
+	 * @return array<string, mixed> { data: { succeeded, response_code, ... } }
+	 * @throws Api_Exception
+	 */
+	public function send_test_webhook( string $bearer, int $endpoint_id ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/developers/webhook-endpoints/' . $endpoint_id . '/test',
+			array( 'bearer' => $bearer )
+		);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 * @throws Api_Exception
+	 */
+	public function enable_webhook_endpoint( string $bearer, int $endpoint_id ): array {
+		return $this->request(
+			'PATCH',
+			'/api/v1/developers/webhook-endpoints/' . $endpoint_id,
+			array(
+				'bearer' => $bearer,
+				'body'   => array( 'is_active' => true ),
+			)
+		);
+	}
+
+	/**
 	 * @return array<string, mixed>
 	 * @throws Api_Exception
 	 */
