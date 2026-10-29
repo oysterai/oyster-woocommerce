@@ -181,6 +181,24 @@ final class Client {
 	}
 
 	/**
+	 * Move a login session to another business on the same Oyster login, so the
+	 * store connects to the business the merchant picked without asking for the
+	 * password again. Oyster retires the session passed in; use the returned one.
+	 *
+	 * @param int $vendor_id A business id from the login response's list.
+	 *
+	 * @return array<string, mixed> { token, user }
+	 * @throws Api_Exception
+	 */
+	public function switch_business( string $bearer, int $vendor_id ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/vendors/businesses/' . $vendor_id . '/token',
+			array( 'bearer' => $bearer )
+		);
+	}
+
+	/**
 	 * Register this store's domain against the vendor so the storefront widget
 	 * session token isn't rejected on origin, and so scan-usage is attributed
 	 * to the WooCommerce channel.
