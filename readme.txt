@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.24.0
+Stable tag: 0.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -126,6 +126,21 @@ internet, which a local or password-protected staging site usually is not. The
 Connect screen shows when the last event arrived.
 
 == Changelog ==
+
+= 0.25.0 =
+* **Spin the Wheel rewards are honoured at your WooCommerce checkout.** When a shopper
+  wins, the plugin creates the coupon in your store: tied to the shopper's email, with
+  the reward's usage limit and expiry, and only once however often Oyster sends the win.
+  Wins meant for another store or checkout are left alone.
+* **Free delivery rewards.** A free delivery win becomes a free shipping coupon. It is
+  offered only when every delivery zone has coupon-enabled free shipping, and the order
+  reports the delivery it saved.
+* **Scan events keep arriving.** The plugin checks its Oyster event endpoint every hour
+  and repairs it: it registers again if the endpoint was deleted, restores a lost
+  subscription, and switches a failing endpoint back on only after a test delivery gets
+  through. A pause you set yourself is left alone. An event that failed part way is
+  retried until its coupon is made.
+* Order reports reach Oyster right after payment instead of on a later page load.
 
 = 0.24.0 =
 * **Choose which business a store connects to.** When one Oyster login runs more than
