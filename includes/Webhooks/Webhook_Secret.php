@@ -53,15 +53,27 @@ final class Webhook_Secret {
 		return (string) ( $this->raw()['url'] ?? '' );
 	}
 
-	public function save( int $endpoint_id, string $secret, string $url = '' ): void {
+	/** @return string[] Empty for an endpoint registered before the plugin kept this. */
+	public function events(): array {
+		return array_values( (array) ( $this->raw()['events'] ?? array() ) );
+	}
+
+	/** @param string[] $events */
+	public function save( int $endpoint_id, string $secret, string $url = '', array $events = array() ): void {
 		$this->write(
 			array(
 				'endpoint_id'   => $endpoint_id,
 				'secret_enc'    => Crypto::encrypt( $secret ),
 				'url'           => $url,
+				'events'        => array_values( $events ),
 				'registered_at' => time(),
 			) + $this->raw()
 		);
+	}
+
+	/** @param string[] $events */
+	public function save_events( array $events ): void {
+		$this->write( array( 'events' => array_values( $events ) ) + $this->raw() );
 	}
 
 	/**

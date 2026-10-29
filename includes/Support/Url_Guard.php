@@ -73,6 +73,35 @@ final class Url_Guard {
 	}
 
 	/**
+	 * Warns an admin about each of $constants that is set but rejected. The
+	 * fallback is otherwise only logged, so a developer who points a store at
+	 * a local or staging service gets the production one without noticing.
+	 */
+	public static function render_rejection_notice( string ...$constants ): void {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+
+		foreach ( $constants as $constant ) {
+			if ( ! defined( $constant ) || self::is_allowed( untrailingslashit( (string) constant( $constant ) ) ) ) {
+				continue;
+			}
+
+			printf(
+				'<div class="notice notice-warning"><p>%s</p></div>',
+				esc_html(
+					sprintf(
+						/* translators: 1: wp-config constant name, 2: its rejected value. */
+						__( 'Oyster: %1$s in wp-config.php ("%2$s") is not allowed, so the default Oyster address is being used instead. Use https:// on an Oyster domain, or http:// on localhost.', 'oyster-woocommerce' ),
+						$constant,
+						(string) constant( $constant )
+					)
+				)
+			);
+		}
+	}
+
+	/**
 	 * `https://` is allowed only on Oyster's own domains (exact match or any
 	 * subdomain); `http://` only on a loopback host, since that only ever
 	 * matches a local dev server, never a plausible production redirect
