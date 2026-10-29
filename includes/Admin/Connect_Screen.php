@@ -11,6 +11,7 @@ namespace Oyster\Woo\Admin;
 
 use Oyster\Woo\Api\Api_Exception;
 use Oyster\Woo\Api\Client;
+use Oyster\Woo\Support\Business_Choice;
 use Oyster\Woo\Support\Connection;
 use Oyster\Woo\Support\Dashboard_Link;
 use Oyster\Woo\Webhooks\Registrar;
@@ -55,6 +56,7 @@ final class Connect_Screen {
 
 	public function register(): void {
 		add_action( 'admin_post_oyster_woo_connect', array( $this, 'handle_connect' ) );
+		add_action( 'admin_post_oyster_woo_choose_business', array( $this, 'handle_choose_business' ) );
 		add_action( 'admin_post_oyster_woo_verify', array( $this, 'handle_verify' ) );
 		add_action( 'admin_post_oyster_woo_resend', array( $this, 'handle_resend' ) );
 		add_action( 'admin_post_oyster_woo_cancel_connect', array( $this, 'handle_cancel' ) );
@@ -96,6 +98,15 @@ final class Connect_Screen {
 			$this->redirect_back( 'error', __( 'That account is not an Oyster vendor account.', 'oyster-woocommerce' ) );
 		}
 
+		// One login can run several businesses, each with its own catalog and
+		// billing. Asked before the code is sent, because the code's email names
+		// the business the store is about to join.
+		$choices = Business_Choice::from_login( $auth );
+		if ( Business_Choice::needs_choice( $choices ) ) {
+			$this->stash_pending( $token, '', $choices );
+			$this->redirect_back( 'choose_business' );
+		}
+
 		// Password proved, but not enough on its own: connecting produces a
 		// credential that stays valid until this store disconnects, so Oyster
 		// also emails a one-time code. Nothing is written locally until it is
@@ -103,6 +114,53 @@ final class Connect_Screen {
 		$sent_to = $this->send_code( $token );
 
 		$this->stash_pending( $token, $sent_to );
+
+		$this->redirect_back( 'code_sent' );
+	}
+
+	/**
+	 * The business step, for a login that runs more than one: moves the login
+	 * session to the business picked, then sends the code.
+	 */
+	public function handle_choose_business(): void {
+		$this->guard( 'oyster_woo_choose_business' );
+
+		$pending = $this->pending();
+		if ( null === $pending || 'choose' !== $pending['stage'] ) {
+			$this->redirect_back( 'error', __( 'That took too long — please log in again.', 'oyster-woocommerce' ) );
+		}
+
+		$choice = Business_Choice::find( $pending['choices'], absint( wp_unslash( $_POST['vendor_id'] ?? 0 ) ) );
+		if ( null === $choice ) {
+			$this->redirect_back( 'error', __( 'Choose one of your businesses to connect.', 'oyster-woocommerce' ) );
+		}
+
+		$token = $pending['token'];
+
+		if ( ! $choice['is_current'] ) {
+			try {
+				$moved = $this->client->switch_business( $token, $choice['vendor_id'] );
+			} catch ( Api_Exception $e ) {
+				if ( 404 === $e->status() ) {
+					$this->forget_pending();
+					$this->redirect_back( 'error', __( 'Your Oyster login no longer has access to that business. Please log in again.', 'oyster-woocommerce' ) );
+				}
+				$this->redirect_back( 'error', $this->transport_message( $e ) );
+			}
+
+			$token = is_string( $moved['token'] ?? null ) ? $moved['token'] : '';
+			if ( '' === $token ) {
+				$this->forget_pending();
+				$this->redirect_back( 'error', __( 'Oyster did not switch to that business. Please log in again.', 'oyster-woocommerce' ) );
+			}
+		}
+
+		// Parked before the code is requested: Oyster has already retired the
+		// previous session, so a failed send must leave the new one to resend with.
+		$this->stash_pending( $token, '', array(), $choice['business_name'] );
+
+		$sent_to = $this->send_code( $token );
+		$this->stash_pending( $token, $sent_to, array(), $choice['business_name'] );
 
 		$this->redirect_back( 'code_sent' );
 	}
@@ -213,8 +271,12 @@ final class Connect_Screen {
 			$this->redirect_back( 'error', __( 'That took too long — please log in again.', 'oyster-woocommerce' ) );
 		}
 
-		$sent_to = $this->send_code( (string) $pending['token'] );
-		$this->stash_pending( (string) $pending['token'], $sent_to );
+		if ( 'choose' === $pending['stage'] ) {
+			$this->redirect_back( 'error', __( 'Choose a business first.', 'oyster-woocommerce' ) );
+		}
+
+		$sent_to = $this->send_code( $pending['token'] );
+		$this->stash_pending( $pending['token'], $sent_to, array(), $pending['business_name'] );
 
 		$this->redirect_back( 'code_sent' );
 	}
@@ -274,6 +336,8 @@ final class Connect_Screen {
 
 		if ( $this->connection->is_connected() ) {
 			$this->render_connected();
+		} elseif ( null !== $pending && 'choose' === $pending['stage'] ) {
+			$this->render_business_step( $pending );
 		} elseif ( null !== $pending ) {
 			$this->render_code_step( $pending );
 		} else {
@@ -417,6 +481,14 @@ final class Connect_Screen {
 		echo '<div class="oyster-card" style="max-width:480px;background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:24px;margin-top:8px;">';
 		printf( '<h2 style="margin-top:0;">%s</h2>', esc_html__( 'Enter your code', 'oyster-woocommerce' ) );
 
+		if ( '' !== $pending['business_name'] ) {
+			printf(
+				'<p class="description">%s <strong>%s</strong></p>',
+				esc_html__( 'Connecting to', 'oyster-woocommerce' ),
+				esc_html( $pending['business_name'] )
+			);
+		}
+
 		if ( '' !== $sent_to ) {
 			printf(
 				'<p class="description">%s <strong>%s</strong></p>',
@@ -471,6 +543,51 @@ final class Connect_Screen {
 		echo '</form>';
 
 		echo '</div>';
+		echo '</div>';
+	}
+
+	/**
+	 * Shown when the Oyster login runs more than one business: the store joins
+	 * exactly one of them.
+	 */
+	private function render_business_step( array $pending ): void {
+		echo '<div class="oyster-card" style="max-width:480px;background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:24px;margin-top:8px;">';
+		printf( '<h2 style="margin-top:0;">%s</h2>', esc_html__( 'Choose a business', 'oyster-woocommerce' ) );
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Your Oyster login runs more than one business. This store will sync its catalog and show the widget for the one you pick.', 'oyster-woocommerce' )
+		);
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="oyster_woo_choose_business">';
+		wp_nonce_field( 'oyster_woo_choose_business' );
+
+		echo '<fieldset style="margin:12px 0;">';
+		foreach ( $pending['choices'] as $index => $choice ) {
+			printf(
+				'<p><label><input type="radio" name="vendor_id" value="%d" required %s> %s</label></p>',
+				(int) $choice['vendor_id'],
+				0 === $index ? 'checked' : '',
+				esc_html( '' !== $choice['business_name'] ? $choice['business_name'] : __( '(unnamed business)', 'oyster-woocommerce' ) )
+			);
+		}
+		echo '</fieldset>';
+
+		printf(
+			'<p><button type="submit" class="button button-primary">%s</button></p>',
+			esc_html__( 'Continue', 'oyster-woocommerce' )
+		);
+		echo '</form>';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="oyster_woo_cancel_connect">';
+		wp_nonce_field( 'oyster_woo_cancel_connect' );
+		printf(
+			'<button type="submit" class="button-link" style="color:#b32d2e;">%s</button>',
+			esc_html__( 'Cancel', 'oyster-woocommerce' )
+		);
+		echo '</form>';
+
 		echo '</div>';
 	}
 
@@ -549,6 +666,7 @@ final class Connect_Screen {
 			'connected'    => array( 'success', __( 'Store connected to Oyster.', 'oyster-woocommerce' ) ),
 			'disconnected' => array( 'success', __( 'Store disconnected from Oyster.', 'oyster-woocommerce' ) ),
 			'code_sent'    => array( 'success', __( 'We emailed you a code. Enter it below to finish connecting.', 'oyster-woocommerce' ) ),
+			'choose_business' => array( 'info', __( 'Choose which of your businesses this store belongs to.', 'oyster-woocommerce' ) ),
 			'cancelled'    => array( 'success', __( 'Connection cancelled.', 'oyster-woocommerce' ) ),
 			'error'        => array( 'error', (string) ( $notice['detail'] ?? __( 'Something went wrong.', 'oyster-woocommerce' ) ) ),
 		);
@@ -597,12 +715,15 @@ final class Connect_Screen {
 	 * credential, and round-tripping it through the browser would put it in
 	 * page source, history and any proxy in between.
 	 */
-	private function stash_pending( string $token, string $sent_to ): void {
+	private function stash_pending( string $token, string $sent_to, array $choices = array(), string $business_name = '' ): void {
 		set_transient(
 			self::PENDING_TRANSIENT . get_current_user_id(),
 			array(
-				'token'   => $token,
-				'sent_to' => $sent_to,
+				'token'         => $token,
+				'sent_to'       => $sent_to,
+				'stage'         => array() !== $choices ? 'choose' : 'code',
+				'choices'       => $choices,
+				'business_name' => $business_name,
 			),
 			self::PENDING_TTL
 		);
@@ -611,7 +732,7 @@ final class Connect_Screen {
 	/**
 	 * The parked login session, or null once it has expired or been used.
 	 *
-	 * @return array{token: string, sent_to: string}|null
+	 * @return array{token: string, sent_to: string, stage: string, choices: array, business_name: string}|null
 	 */
 	private function pending(): ?array {
 		$pending = get_transient( self::PENDING_TRANSIENT . get_current_user_id() );
@@ -621,8 +742,11 @@ final class Connect_Screen {
 		}
 
 		return array(
-			'token'   => (string) $pending['token'],
-			'sent_to' => (string) ( $pending['sent_to'] ?? '' ),
+			'token'         => (string) $pending['token'],
+			'sent_to'       => (string) ( $pending['sent_to'] ?? '' ),
+			'stage'         => 'choose' === ( $pending['stage'] ?? '' ) ? 'choose' : 'code',
+			'choices'       => is_array( $pending['choices'] ?? null ) ? $pending['choices'] : array(),
+			'business_name' => (string) ( $pending['business_name'] ?? '' ),
 		);
 	}
 
