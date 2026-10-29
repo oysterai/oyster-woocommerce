@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.23.2
+Stable tag: 0.24.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -126,6 +126,12 @@ internet, which a local or password-protected staging site usually is not. The
 Connect screen shows when the last event arrived.
 
 == Changelog ==
+
+= 0.24.0 =
+* **Choose which business a store connects to.** When one Oyster login runs more than
+  one business, connecting now asks which business this store belongs to, between the
+  password and the emailed code. The code's email and the code step both name the
+  business. A login with a single business connects exactly as before.
 
 = 0.23.2 =
 * Re-issue of 0.23.1, whose release went out without its download. No code changes
