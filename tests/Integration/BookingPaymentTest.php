@@ -106,28 +106,20 @@ final class BookingPaymentTest extends WP_UnitTestCase {
 		$this->assertEqualsWithDelta( 23000.0, (float) $order->get_total(), 0.001 );
 	}
 
-	public function test_paying_a_booking_confirms_the_booking_not_a_scan(): void {
+	public function test_a_booking_and_a_scan_confirm_through_the_same_request(): void {
 		$payment = $this->scan_payment();
-		$order   = wc_get_order( $payment->create_order( $this->booking() )['order_id'] );
+		$booking = wc_get_order( $payment->create_order( $this->booking() )['order_id'] );
+		$payment->on_paid( $booking->get_id() );
 
-		$payment->on_paid( $order->get_id() );
-
-		$this->assertCount( 1, $this->confirmations );
-		$this->assertStringContainsString(
-			'/consultation/appointments/reservations/' . self::REFERENCE . '/external/confirm',
-			$this->confirmations[0]
-		);
-	}
-
-	public function test_a_scan_order_still_confirms_the_scan(): void {
-		$payment = $this->scan_payment();
 		$request = $this->booking();
 		unset( $request['purpose'], $request['line_items'], $request['appointment'] );
+		$request['reference'] = self::REFERENCE . '-SCAN';
+		$scan                 = wc_get_order( $payment->create_order( $request )['order_id'] );
+		$payment->on_paid( $scan->get_id() );
 
-		$order = wc_get_order( $payment->create_order( $request )['order_id'] );
-		$payment->on_paid( $order->get_id() );
-
-		$this->assertStringContainsString( '/scan-payments/' . self::REFERENCE . '/external/confirm', $this->confirmations[0] );
+		$this->assertCount( 2, $this->confirmations );
+		$this->assertStringContainsString( '/payments/' . self::REFERENCE . '/external/confirm', $this->confirmations[0] );
+		$this->assertStringContainsString( '/payments/' . self::REFERENCE . '-SCAN/external/confirm', $this->confirmations[1] );
 	}
 
 	public function test_a_paid_booking_is_never_offered_a_second_checkout(): void {
