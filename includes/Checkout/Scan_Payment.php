@@ -414,11 +414,7 @@ final class Scan_Payment {
 		);
 
 		try {
-			if ( self::is_booking_order( $order ) ) {
-				$this->client->confirm_appointment_payment( $bearer, $reference, $status, $context );
-			} else {
-				$this->client->confirm_scan_payment( $bearer, $reference, $status, $context );
-			}
+			$this->client->confirm_payment( $bearer, $reference, $status, $context );
 		} catch ( Api_Exception $e ) {
 			$this->handle_confirmation_failure( $order, $order_id, $status, $e );
 
