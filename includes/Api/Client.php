@@ -87,61 +87,28 @@ final class Client {
 	}
 
 	/**
-	 * Tell Oyster this store collected (or failed to collect) a scan payment.
+	 * Tell Oyster this store collected (or failed to collect) a payment, whatever it was
+	 * for. The reference says what was bought: a success admits the shopper's scan or books
+	 * their appointment.
 	 *
-	 * The only thing that unblocks the shopper's scan. Deliberately server-side:
-	 * it authenticates with this store's connection credential, which must never
-	 * reach the storefront — anything on that page is readable by whoever opens
-	 * it, and a leaked credential could confirm scans against this account.
+	 * Deliberately server-side: it authenticates with this store's connection credential,
+	 * which must never reach the storefront. Anything on that page is readable by whoever
+	 * opens it, and a leaked credential could confirm payments against this account.
 	 *
-	 * Retries are safe. Confirming a payment that already settled changes
-	 * nothing and reports itself as a replay, so one collection can never become
-	 * two billable scans.
+	 * Retries are safe. Confirming a payment that already settled changes nothing and
+	 * reports itself as a replay, so one collection never becomes two scans or bookings.
 	 *
-	 * The amount is recorded for reconciliation only — this store sets its own
-	 * price and Oyster does not check it.
+	 * The amount is recorded for reconciliation only: this store sets its own price and
+	 * Oyster does not check it.
 	 *
-	 * @param string                                                        $reference Oyster's reference for the scan payment.
+	 * @param string                                                        $reference Oyster's reference for the payment.
 	 * @param string                                                        $status    'success' or 'failed'.
 	 * @param array{external_reference?: string, amount?: float, currency?: string} $context
 	 *
 	 * @return array<string, mixed>
 	 * @throws Api_Exception
 	 */
-	public function confirm_scan_payment( string $bearer, string $reference, string $status, array $context = array() ): array {
-		return $this->confirm_collection(
-			'/api/v1/scan-payments/' . rawurlencode( $reference ) . '/external/confirm',
-			$bearer,
-			$status,
-			$context
-		);
-	}
-
-	/**
-	 * Tell Oyster this store collected (or failed to collect) a booking's payment. A success
-	 * books the appointment.
-	 *
-	 * @param array{external_reference?: string, amount?: float, currency?: string} $context
-	 *
-	 * @return array<string, mixed>
-	 * @throws Api_Exception
-	 */
-	public function confirm_appointment_payment( string $bearer, string $reference, string $status, array $context = array() ): array {
-		return $this->confirm_collection(
-			'/api/v1/consultation/appointments/reservations/' . rawurlencode( $reference ) . '/external/confirm',
-			$bearer,
-			$status,
-			$context
-		);
-	}
-
-	/**
-	 * @param array{external_reference?: string, amount?: float, currency?: string} $context
-	 *
-	 * @return array<string, mixed>
-	 * @throws Api_Exception
-	 */
-	private function confirm_collection( string $path, string $bearer, string $status, array $context ): array {
+	public function confirm_payment( string $bearer, string $reference, string $status, array $context = array() ): array {
 		$body = array( 'status' => $status );
 
 		foreach ( array( 'external_reference', 'amount', 'currency' ) as $key ) {
@@ -152,7 +119,7 @@ final class Client {
 
 		return $this->request(
 			'POST',
-			$path,
+			'/api/v1/payments/' . rawurlencode( $reference ) . '/external/confirm',
 			array(
 				'bearer' => $bearer,
 				'body'   => $body,
