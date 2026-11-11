@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.25.0
+Stable tag: 0.25.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -126,6 +126,11 @@ internet, which a local or password-protected staging site usually is not. The
 Connect screen shows when the last event arrived.
 
 == Changelog ==
+
+= 0.25.1 =
+* Scan and booking payments taken at your checkout are confirmed to Oyster in one
+  request that identifies the purchase from its payment reference, so paid services
+  Oyster adds later work without a plugin update.
 
 = 0.25.0 =
 * **Spin the Wheel rewards are honoured at your WooCommerce checkout.** When a shopper
