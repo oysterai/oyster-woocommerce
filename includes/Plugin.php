@@ -23,6 +23,7 @@ use Oyster\Woo\Catalog\Skin_Type_Attribute;
 use Oyster\Woo\Checkout\Cart_Controller;
 use Oyster\Woo\Checkout\Cart_Filler;
 use Oyster\Woo\Checkout\Email_Handoff;
+use Oyster\Woo\Checkout\Routine_Offer;
 use Oyster\Woo\Checkout\Scan_Payment;
 use Oyster\Woo\Checkout\Scan_Payment_Controller;
 use Oyster\Woo\Checkout\Order_Attribution;
@@ -125,7 +126,9 @@ final class Plugin {
 		// own checkout handoff and the scan-result email's CTA — plus
 		// attribution from cart through to a reported paid order.
 		$cart_filler = new Cart_Filler( $this->connection, $this->client );
-		( new Cart_Controller( $cart_filler ) )->register();
+		$routine_offer = new Routine_Offer( $this->connection, $this->client );
+		$routine_offer->register();
+		( new Cart_Controller( $cart_filler, $routine_offer ) )->register();
 
 		// Scan payments taken through this store's own checkout, for vendors set
 		// up that way. Registered unconditionally: the order hooks have to be
