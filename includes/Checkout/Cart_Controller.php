@@ -35,7 +35,8 @@ final class Cart_Controller {
 	private const NAMESPACE = 'oyster-woocommerce/v1';
 
 	public function __construct(
-		private Cart_Filler $filler
+		private Cart_Filler $filler,
+		private Routine_Offer $routine_offer
 	) {}
 
 	public function register(): void {
@@ -86,21 +87,36 @@ final class Cart_Controller {
 			return new WP_REST_Response( array( 'error' => 'no_items' ), 400 );
 		}
 
-		$claim = $request->get_param( 'wheel_reward' );
+		$attribution = $this->sanitize_attribution( $request );
+		$quote       = isset( $attribution['batch_id'] )
+			? $this->routine_offer->quote( $attribution['batch_id'], array_column( $items, 'product_id' ) )
+			: null;
+
+		$claim       = $request->get_param( 'wheel_reward' );
 		$cart_before = null;
-		if ( null !== $claim ) {
+		if ( null !== $claim || null !== $quote ) {
 			wc_load_cart();
 			if ( WC()->cart ) {
 				$cart_before = array(
-					'contents' => WC()->cart->get_cart(),
-					'coupons'  => WC()->cart->get_applied_coupons(),
+					'contents'      => WC()->cart->get_cart(),
+					'coupons'       => WC()->cart->get_applied_coupons(),
+					'routine_tiers' => $this->routine_offer->session_tiers(),
 				);
 			}
 		}
 
-		$result = $this->filler->fill( $items, $this->sanitize_attribution( $request ) );
+		// Before filling, so the adds that reach a tier recalculate with it.
+		if ( null !== $quote ) {
+			$this->routine_offer->remember_tiers( $quote['tiers'] );
+		}
+
+		$result = $this->filler->fill( $items, $attribution, $quote && $quote['tiers'] ? $quote['eligible_product_ids'] : array() );
 
 		if ( isset( $result['error'] ) ) {
+			if ( null !== $quote && null !== $cart_before ) {
+				$this->routine_offer->remember_tiers( $cart_before['routine_tiers'] );
+			}
+
 			$status = array(
 				'not_connected'    => 409,
 				'cart_unavailable' => 503,
@@ -116,9 +132,10 @@ final class Cart_Controller {
 				$applied = ( new \Oyster\Woo\Wheel\Provisioner( new \Oyster\Woo\Support\Connection() ) )->apply( $claim );
 			} finally {
 				if ( ! $applied && null !== $cart_before ) {
-					// A rejected reward must not leave added quantities behind for the next retry.
+					// A rejected reward must not leave added quantities, or the offer quoted with them, behind for the next retry.
 					WC()->cart->set_cart_contents( $cart_before['contents'] );
 					WC()->cart->set_applied_coupons( $cart_before['coupons'] );
+					$this->routine_offer->remember_tiers( $cart_before['routine_tiers'] );
 					WC()->cart->calculate_totals();
 					WC()->cart->set_session();
 					WC()->cart->persistent_cart_update();

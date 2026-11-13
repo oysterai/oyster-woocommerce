@@ -44,8 +44,10 @@ comment that references how another Oyster product/service works internally.
   - `Checkout\` — `Cart_Filler` (the one place Oyster product ids become
     cart lines), `Cart_Controller` (the widget's checkout-handoff REST
     route), `Email_Handoff` (the scan-result email's checkout CTA, a
-    `?oyster_checkout=1` storefront link) and `Order_Attribution` (cart →
-    order → reported-paid-order).
+    `?oyster_checkout=1` storefront link), `Order_Attribution` (cart →
+    order → reported-paid-order) and `Routine_Offer` (the vendor's tiered
+    discount for buying several products from a scan's routine, applied as a
+    virtual coupon to the lines the widget handoff flagged).
   - `Sync\` — `Catalog_Sync` (Action Scheduler jobs, both incremental and
     full-import), `Product_Hooks` (WooCommerce hooks → `Catalog_Sync`),
     `Product_Mapper` (WC_Product → API row shape), `Sync_State` (per-product

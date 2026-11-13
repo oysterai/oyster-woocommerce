@@ -280,6 +280,31 @@ final class Client {
 	}
 
 	/**
+	 * The vendor's routine offer for a scan, and which of the given products
+	 * belong to that scan's routine. Oyster checks membership against the scan
+	 * itself, so a batch id the browser made up qualifies nothing.
+	 *
+	 * @param int[] $product_ids Oyster product ids.
+	 * @return array<string, mixed> Envelope: { data: { tiers: [{ minItems, percent }], eligible_product_ids: int[] } }.
+	 * @throws Api_Exception
+	 */
+	public function quote_routine_offer( string $bearer, string $batch_id, array $product_ids ): array {
+		return $this->request(
+			'POST',
+			'/api/v1/integrations/woocommerce/routine-offer/quote',
+			array(
+				'bearer'  => $bearer,
+				'body'    => array(
+					'skin_analysis_batch_id' => $batch_id,
+					'product_ids'            => array_values( $product_ids ),
+				),
+				// Optional to the handoff it runs in, so a slow answer must not hold up checkout.
+				'timeout' => 5,
+			)
+		);
+	}
+
+	/**
 	 * Record a paid WooCommerce order as a tracking-only Oyster order for scan
 	 * attribution. Tolerant by design — the backend returns 200 with
 	 * `recorded: false` (not an error) when it can't attribute the order, e.g.
