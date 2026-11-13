@@ -226,7 +226,7 @@ final class WheelRewardsTest extends WP_UnitTestCase {
 					WC()->cart->apply_coupon( $existing->get_code() );
 				}
 				$coupons_before = WC()->cart->get_applied_coupons();
-				$controller = new \Oyster\Woo\Checkout\Cart_Controller( new \Oyster\Woo\Checkout\Cart_Filler( $this->connection, new Client() ) );
+				$controller = new \Oyster\Woo\Checkout\Cart_Controller( new \Oyster\Woo\Checkout\Cart_Filler( $this->connection, new Client() ), new \Oyster\Woo\Checkout\Routine_Offer( $this->connection, new Client() ) );
 				$request = new WP_REST_Request( 'POST', '/oyster-woocommerce/v1/cart/add' );
 				$request->set_param( 'items', array( array( 'product_id' => 321, 'quantity' => 3 ) ) );
 				$claim = array( 'reward_id' => $terms['reward_id'], 'claim_token' => 'wrong-token', 'redemption_authority' => 'woocommerce' );
