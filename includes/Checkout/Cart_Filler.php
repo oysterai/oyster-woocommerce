@@ -38,22 +38,18 @@ final class Cart_Filler {
 	 *
 	 * @param array<int, array{product_id:int, quantity:int}> $items       Sanitized Oyster product ids.
 	 * @param array<string, string>                          $attribution Scan attribution stamped on each line.
+	 * @param int[]                                          $routine_offer_product_ids Oyster ids whose lines earn the routine offer.
 	 * @return array{added:int, skipped:int}|array{error:string} Error is one of
 	 *         not_connected, cart_unavailable, resolve_failed.
 	 */
-	public function fill( array $items, array $attribution ): array {
+	public function fill( array $items, array $attribution, array $routine_offer_product_ids = array() ): array {
 		if ( ! $this->connection->is_connected() ) {
 			return array( 'error' => 'not_connected' );
 		}
 
-		// REST requests bypass the normal front-end template load, so
-		// WC()->cart/session (usually lazily bootstrapped on `wp_loaded`)
-		// never gets initialized on their own there. wc_load_cart() forces
-		// that init and attaches the requesting visitor's own session cart —
-		// without it, WC()->cart is null and every add is built against no
-		// cart at all, not just built in "the wrong" one. On a real
-		// front-end request it's a no-op, so callers don't have to care which
-		// kind of request they're on.
+		// A REST request never fires `wp_loaded`, where WooCommerce lazily boots
+		// the visitor's cart and session, so WC()->cart is null without this.
+		// A no-op on a front-end request.
 		if ( function_exists( 'wc_load_cart' ) ) {
 			wc_load_cart();
 		}
@@ -95,13 +91,12 @@ final class Cart_Filler {
 				continue;
 			}
 
-			$cart_item_key = WC()->cart->add_to_cart(
-				$product_id,
-				$item['quantity'],
-				$variation_id,
-				array(),
-				array( 'oyster_attribution' => $attribution )
-			);
+			$cart_item_data = array( 'oyster_attribution' => $attribution );
+			if ( in_array( $item['product_id'], $routine_offer_product_ids, true ) ) {
+				$cart_item_data[ Routine_Offer::CART_ITEM_FLAG ] = true;
+			}
+
+			$cart_item_key = WC()->cart->add_to_cart( $product_id, $item['quantity'], $variation_id, array(), $cart_item_data );
 
 			if ( $cart_item_key ) {
 				++$added;
