@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 8.1
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 0.25.1
+Stable tag: 0.26.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -126,6 +126,16 @@ internet, which a local or password-protected staging site usually is not. The
 Connect screen shows when the last event arrived.
 
 == Changelog ==
+
+= 0.26.0 =
+* **Routine discount.** Reward shoppers who buy more of the routine Oyster recommends
+  after their skin scan, for example 10% off two products from the routine and 20% off
+  three or more. You set the tiers in your Oyster dashboard. The discount appears at
+  checkout as "Routine discount", applies only to the routine products added from the
+  widget, and counts different products rather than quantity. It updates as the cart
+  changes and comes off if the cart drops below your first tier. It does not combine
+  with a Spin the Wheel reward or with your own individual-use coupons, and the code
+  cannot be typed in by hand. Orders report it to Oyster like any other discount.
 
 = 0.25.1 =
 * Scan and booking payments taken at your checkout are confirmed to Oyster in one
